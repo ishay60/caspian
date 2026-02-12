@@ -71,6 +71,15 @@ def test_chord_symbol_preserved():
     assert chord.symbol == "Am/E"
 
 
+def test_dm7_slash_9_parsed_as_dm7():
+    """Dm7/9 (extension, not bass) parses as Dm7, symbol preserved."""
+    chord = parse_chord("Dm7/9")
+    assert chord.symbol == "Dm7/9"
+    assert chord.root_name == "D"
+    assert chord.quality.value == "minor7"
+    assert chord.bass_name == "D"
+
+
 def test_empty_chord_raises():
     with pytest.raises(ValueError):
         parse_chord("")

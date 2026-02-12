@@ -9,6 +9,9 @@ dependencies = [
     "uvicorn[standard]>=0.30",
 ]
 
+[project.optional-dependencies]
+llm = ["anthropic>=0.39", "openai>=1.50"]
+
 [project.scripts]
 caspian = "caspian.cli:main"
 

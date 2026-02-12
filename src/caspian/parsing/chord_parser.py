@@ -43,7 +43,7 @@ def parse_chord(symbol: str) -> Chord:
     # Step 0: tab4u normalization
     normalized = normalize_chord_symbol(original)
 
-    # Step 1: Split off /bass if present
+    # Step 1: Split off /bass if present (only when right part is a note name, e.g. Am/G)
     bass_name_override: str | None = None
     bass_pitch_override: int | None = None
     main = normalized
@@ -51,7 +51,13 @@ def parse_chord(symbol: str) -> Chord:
         parts = normalized.rsplit("/", 1)
         main = parts[0]
         bass_str = parts[1]
-        bass_name_override, bass_pitch_override = parse_note_name(bass_str)
+        try:
+            bass_name_override, bass_pitch_override = parse_note_name(bass_str)
+        except ValueError:
+            # e.g. Dm7/9 — "9" is extension, not bass; parse left part as chord
+            main = parts[0]
+            bass_name_override = None
+            bass_pitch_override = None
 
     # Step 2: Extract root note
     root_name, root_pitch = parse_note_name(main)

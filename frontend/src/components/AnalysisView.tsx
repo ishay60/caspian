@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import type { AnalysisResult, Section } from '../types';
+import type { AnalysisResult, LlmAnalysisResult, Section } from '../types';
+import { requestLlmAnalysis } from '../api';
 import { SectionView } from './SectionView';
+import { LlmNarrative } from './LlmNarrative';
 
 const MODE_LABELS: Record<string, string> = {
   natural_minor: 'Natural Minor',
@@ -21,11 +23,17 @@ export function AnalysisView({ result }: Props) {
   const modeLabel = MODE_LABELS[result.key.mode] ?? result.key.mode;
   const [sections, setSections] = useState<Section[]>(result.sections);
   const [editedSections, setEditedSections] = useState<Set<number>>(new Set());
+  const [llmResult, setLlmResult] = useState<LlmAnalysisResult | null>(null);
+  const [llmLoading, setLlmLoading] = useState(false);
+  const [llmError, setLlmError] = useState<string | null>(null);
 
   // Reset when a new analysis result comes in
   useEffect(() => {
     setSections(result.sections);
     setEditedSections(new Set());
+    setLlmResult(null);
+    setLlmLoading(false);
+    setLlmError(null);
   }, [result]);
 
   function handleSectionUpdate(index: number, updated: Section) {
@@ -35,6 +43,19 @@ export function AnalysisView({ result }: Props) {
       return next;
     });
     setEditedSections(prev => new Set(prev).add(index));
+  }
+
+  async function handleLlmAnalysis() {
+    setLlmLoading(true);
+    setLlmError(null);
+    try {
+      const res = await requestLlmAnalysis(result);
+      setLlmResult(res);
+    } catch (err) {
+      setLlmError(err instanceof Error ? err.message : 'LLM analysis failed');
+    } finally {
+      setLlmLoading(false);
+    }
   }
 
   return (
@@ -69,7 +90,32 @@ export function AnalysisView({ result }: Props) {
             </div>
           </div>
         </div>
+
+        {/* LLM narrative button */}
+        <div className="mt-4">
+          <button
+            onClick={handleLlmAnalysis}
+            disabled={llmLoading}
+            className="rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
+            style={{
+              borderColor: 'var(--color-border)',
+              backgroundColor: llmLoading ? 'var(--color-surface-2)' : 'var(--color-surface)',
+              cursor: llmLoading ? 'not-allowed' : 'pointer',
+              opacity: llmLoading ? 0.7 : 1,
+            }}
+          >
+            {llmLoading ? 'Generating...' : 'Generate Harmonic Narrative'}
+          </button>
+          {llmError && (
+            <p className="mt-2 text-sm" style={{ color: 'var(--color-error, #ef4444)' }}>
+              {llmError}
+            </p>
+          )}
+        </div>
       </div>
+
+      {/* LLM Narrative */}
+      {llmResult && <LlmNarrative result={llmResult} />}
 
       {/* Sections */}
       {sections.map((section, i) => (

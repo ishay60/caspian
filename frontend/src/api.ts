@@ -1,4 +1,4 @@
-import type { AnalysisResult, Section } from './types';
+import type { AnalysisResult, LlmAnalysisResult, Section } from './types';
 
 export async function analyzeChords(text: string): Promise<AnalysisResult> {
   const resp = await fetch('/api/analyze', {
@@ -32,6 +32,21 @@ export async function analyzeSectionChords(
   if (!resp.ok) {
     const body = await resp.json().catch(() => ({ detail: 'Analysis failed' }));
     throw new Error(body.detail ?? 'Analysis failed');
+  }
+  return resp.json();
+}
+
+export async function requestLlmAnalysis(
+  analysisResult: AnalysisResult,
+): Promise<LlmAnalysisResult> {
+  const resp = await fetch('/api/llm-analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(analysisResult),
+  });
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({ detail: 'LLM analysis failed' }));
+    throw new Error(body.detail ?? 'LLM analysis failed');
   }
   return resp.json();
 }

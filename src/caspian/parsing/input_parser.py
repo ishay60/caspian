@@ -15,7 +15,8 @@ import re
 from caspian.models.input import ChordInput, SectionInput, SongInput
 from caspian.parsing.rtl_handler import has_hebrew, normalize_chord_order, detect_section_type
 
-_CHORD_PATTERN = re.compile(r"[A-G][#b]?[a-zA-Z0-9+]*(?:/[A-G][#b]?)?")
+# Supports G6, Dm7/9, F7+, Bbdim, Am/G (suffix may include / and digits)
+_CHORD_PATTERN = re.compile(r"[A-G][#b]?[a-zA-Z0-9+/]*")
 _SECTION_HEADER = re.compile(r"^\[(.+?)\]\s*$")
 _METADATA_PATTERN = re.compile(r"^(\w+)\s*:\s*(.+)$")
 

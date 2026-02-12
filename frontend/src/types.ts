@@ -66,3 +66,13 @@ export interface AnalysisResult {
   key: Key;
   sections: Section[];
 }
+
+export interface LlmSectionNarrative {
+  name: string;
+  narrative: string;
+}
+
+export interface LlmAnalysisResult {
+  sections: LlmSectionNarrative[];
+  overall_summary: string;
+}

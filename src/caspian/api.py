@@ -12,7 +12,14 @@ from pydantic import BaseModel
 
 from fastapi import HTTPException
 
+import logging
+
+from caspian.analysis.llm_analysis import (
+    LLMNotConfiguredError,
+    generate_llm_analysis,
+)
 from caspian.parsing.input_parser import parse_format_a
+from caspian.parsing.website_normalizer import normalize_website_paste
 from caspian.parsing.chord_parser import parse_chord
 from caspian.analysis.analyzer import analyze_song, analyze_section
 from caspian.models.key import Key
@@ -119,6 +126,16 @@ class AnalyzeResponse(BaseModel):
     sections: list[SectionResponse]
 
 
+class LlmSectionNarrative(BaseModel):
+    name: str
+    narrative: str
+
+
+class LlmAnalyzeResponse(BaseModel):
+    sections: list[LlmSectionNarrative]
+    overall_summary: str
+
+
 # --- Serialization ---
 
 
@@ -196,7 +213,8 @@ def _serialize_chromatic_run(cr: ChromaticRun) -> ChromaticRunResponse:
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
 def analyze(req: AnalyzeRequest):
-    song_input = parse_format_a(req.text)
+    text = normalize_website_paste(req.text)
+    song_input = parse_format_a(text)
     analysis = analyze_song(song_input)
     return _serialize_analysis(analysis)
 
@@ -215,6 +233,28 @@ def analyze_section_endpoint(req: AnalyzeSectionRequest):
             )
     section_analysis = analyze_section(req.section_name, chords, key)
     return _serialize_section(section_analysis)
+
+
+logger = logging.getLogger(__name__)
+
+
+@app.post("/api/llm-analyze", response_model=LlmAnalyzeResponse)
+async def llm_analyze(req: AnalyzeResponse):
+    try:
+        raw = await generate_llm_analysis(req.model_dump())
+    except LLMNotConfiguredError:
+        raise HTTPException(status_code=503, detail="LLM analysis is not available")
+    except RuntimeError as exc:
+        logger.exception("LLM analysis failed")
+        raise HTTPException(status_code=502, detail=str(exc))
+    sections = [
+        LlmSectionNarrative(name=s["name"], narrative=s["narrative"])
+        for s in raw.get("sections", [])
+    ]
+    return LlmAnalyzeResponse(
+        sections=sections,
+        overall_summary=raw.get("overall_summary", ""),
+    )
 
 
 # Serve React static files in production
