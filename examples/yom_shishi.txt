@@ -1,0 +1,18 @@
+key: Am
+title: יום שישי חזר
+artist: מתי כספי
+
+[intro]
+Am Am D D Am Am D D
+C C Am B Em Em Em E
+
+[verse]
+D Am | יום שישי חזר
+Am C | בלי שום חדשות
+B Em C | יום שישי אכזר
+E Am D | שוב שעות קשות
+
+[chorus]
+D#dim Am/E | יש אולי סיכוי קרוב
+F F#dim | למצוא גן עדן ברחוב
+Dm E Am D | ואולי גם לילה טוב
