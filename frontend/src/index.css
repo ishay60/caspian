@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'IBM Plex Sans', 'Noto Sans Hebrew', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Menlo', monospace;
+
+  /* Default values — overridden by theme context at runtime */
+  --color-bg: #0a0e1a;
+  --color-surface: #111827;
+  --color-surface-2: #1e293b;
+  --color-border: #334155;
+  --color-text: #e2e8f0;
+  --color-text-secondary: #cbd5e1;
+
+  --color-diatonic: #22c55e;
+  --color-secondary-dom: #e879f9;
+  --color-borrowed: #fbbf24;
+  --color-diminished: #f87171;
+  --color-deceptive: #22d3ee;
+  --color-neutral: #94a3b8;
+  --color-staff-line: #475569;
+  --color-accent: #6366f1;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Subtle staff paper texture for section cards */
+.section-card {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 23px,
+      color-mix(in srgb, var(--color-border) 15%, transparent) 23px,
+      color-mix(in srgb, var(--color-border) 15%, transparent) 24px
+    );
+}
+
+/* Staff notation container */
+.staff-container svg {
+  display: block;
+}
+
+/* VexFlow dark-theme overrides — uses staff-line color from theme */
+.staff-container svg text {
+  fill: var(--color-neutral);
+}
+
+.staff-container svg .vf-text {
+  fill: var(--color-neutral);
+}
+
+/* Smooth transitions for theme changes */
+header, main, .section-card, .rounded-xl, .rounded-lg {
+  transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+}

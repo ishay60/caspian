@@ -45,7 +45,7 @@ def analyze_song(song_input: SongInput) -> SongAnalysis:
     # Step 3: Analyze each section
     analyzed_sections: list[SectionAnalysis] = []
     for section_name, chords in sections_chords:
-        section_analysis = _analyze_section(section_name, chords, key)
+        section_analysis = analyze_section(section_name, chords, key)
         analyzed_sections.append(section_analysis)
 
     return SongAnalysis(
@@ -56,7 +56,7 @@ def analyze_song(song_input: SongInput) -> SongAnalysis:
     )
 
 
-def _analyze_section(name: str, chords: list[Chord], key: Key) -> SectionAnalysis:
+def analyze_section(name: str, chords: list[Chord], key: Key) -> SectionAnalysis:
     """Analyze a single section."""
     if not chords:
         return SectionAnalysis(name=name)

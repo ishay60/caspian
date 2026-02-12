@@ -1,0 +1,37 @@
+import type { AnalysisResult, Section } from './types';
+
+export async function analyzeChords(text: string): Promise<AnalysisResult> {
+  const resp = await fetch('/api/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!resp.ok) {
+    const msg = await resp.text();
+    throw new Error(`Analysis failed: ${msg}`);
+  }
+  return resp.json();
+}
+
+export async function analyzeSectionChords(
+  sectionName: string,
+  chordSymbols: string[],
+  keyRootName: string,
+  keyMode: string,
+): Promise<Section> {
+  const resp = await fetch('/api/analyze-section', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      section_name: sectionName,
+      chord_symbols: chordSymbols,
+      key_root_name: keyRootName,
+      key_mode: keyMode,
+    }),
+  });
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({ detail: 'Analysis failed' }));
+    throw new Error(body.detail ?? 'Analysis failed');
+  }
+  return resp.json();
+}
