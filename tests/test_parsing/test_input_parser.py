@@ -139,6 +139,79 @@ D Am E Dm | ואולי גם לילה טוב"""
         ]
 
 
+class TestFlexibleSectionHeaders:
+    """Format A parser recognizes non-bracket section headers."""
+
+    def test_colon_chorus(self):
+        text = "Chorus:\nAm Dm | שלום"
+        result = parse_format_a(text)
+        assert result.sections[0].name == "chorus"
+
+    def test_bare_chorus(self):
+        text = "Chorus\nAm Dm | שלום"
+        result = parse_format_a(text)
+        assert result.sections[0].name == "chorus"
+
+    def test_decorated_chorus(self):
+        text = "-- Chorus --\nAm Dm | שלום"
+        result = parse_format_a(text)
+        assert result.sections[0].name == "chorus"
+
+    def test_uppercase_verse(self):
+        text = "VERSE\nAm Dm | שלום"
+        result = parse_format_a(text)
+        assert result.sections[0].name == "verse"
+
+    def test_hebrew_bare_section(self):
+        text = "פזמון\nAm Dm | שלום"
+        result = parse_format_a(text)
+        assert result.sections[0].name == "chorus"
+
+    def test_mixed_bracket_and_bare_sections(self):
+        """Bracket and non-bracket headers in same input."""
+        text = "[intro]\nAm Am\nChorus:\nAm Dm | שלום\n[bridge]\nG C | גשר"
+        result = parse_format_a(text)
+        names = [s.name for s in result.sections]
+        assert names == ["intro", "chorus", "bridge"]
+
+    def test_refrain_becomes_chorus(self):
+        text = "Refrain\nAm Dm | שלום"
+        result = parse_format_a(text)
+        assert result.sections[0].name == "chorus"
+
+    def test_pre_chorus_detected(self):
+        text = "Pre-Chorus:\nAm Dm | שלום"
+        result = parse_format_a(text)
+        assert result.sections[0].name == "pre-chorus"
+
+    def test_section_type_from_flexible_header(self):
+        """Flexibly-detected intro should still be instrumental."""
+        text = "Intro:\nAm Am D D"
+        result = parse_format_a(text)
+        assert result.sections[0].section_type == "instrumental"
+
+    def test_full_song_flexible_headers(self):
+        """A full song using only non-bracket headers parses correctly."""
+        text = """key: Am
+title: Test Song
+
+Verse
+D Am | יום שישי חזר
+
+Chorus
+Am/E D#dim | יש אולי סיכוי קרוב
+
+Bridge
+F G | גשר קטן"""
+        result = parse_format_a(text)
+        assert result.key == "Am"
+        names = [s.name for s in result.sections]
+        assert names == ["verse", "chorus", "bridge"]
+        # Verify chords still parsed correctly
+        chorus = result.sections[1]
+        assert len(chorus.chords) == 2
+
+
 class TestYomShishiChorusCorrectOrder:
     """Test with chords written in tab4u visual order (needs reversal)."""
 
