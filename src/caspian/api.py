@@ -119,11 +119,18 @@ class KeyResponse(BaseModel):
     scale_pitches: list[int]
 
 
+class ChordLyricPairResponse(BaseModel):
+    chords: str
+    lyrics: str
+
+
 class AnalyzeResponse(BaseModel):
     title: str
     artist: str
     key: KeyResponse
     sections: list[SectionResponse]
+    segmentation_suggested: bool = False
+    pairs: list[ChordLyricPairResponse] = []
 
 
 class LlmSectionNarrative(BaseModel):
@@ -211,12 +218,47 @@ def _serialize_chromatic_run(cr: ChromaticRun) -> ChromaticRunResponse:
 # --- Routes ---
 
 
+def _extract_pairs(format_a_text: str) -> list[ChordLyricPairResponse]:
+    """Extract chord-lyric pairs from Format A text for the segmentation UI."""
+    pairs: list[ChordLyricPairResponse] = []
+    for line in format_a_text.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        # Skip headers and metadata
+        if line.startswith("[") or line.startswith("title:") or line.startswith("artist:") or line.startswith("key:") or line.startswith("mode:"):
+            continue
+        if "|" in line:
+            parts = line.split("|", 1)
+            pairs.append(ChordLyricPairResponse(
+                chords=parts[0].strip(), lyrics=parts[1].strip(),
+            ))
+        else:
+            pairs.append(ChordLyricPairResponse(chords=line, lyrics=""))
+    return pairs
+
+
+def _needs_segmentation(song_input) -> bool:
+    """True if the song has no explicit sections and enough content to segment."""
+    non_outro = [s for s in song_input.sections if s.name not in ("outro",)]
+    if len(non_outro) != 1:
+        return False
+    # Only suggest if the single section has enough chords
+    return len(non_outro[0].chords) > 8
+
+
 @app.post("/api/analyze", response_model=AnalyzeResponse)
 def analyze(req: AnalyzeRequest):
     text = normalize_website_paste(req.text)
     song_input = parse_format_a(text)
     analysis = analyze_song(song_input)
-    return _serialize_analysis(analysis)
+    resp = _serialize_analysis(analysis)
+
+    if _needs_segmentation(song_input):
+        resp.segmentation_suggested = True
+        resp.pairs = _extract_pairs(text)
+
+    return resp
 
 
 @app.post("/api/analyze-section", response_model=SectionResponse)

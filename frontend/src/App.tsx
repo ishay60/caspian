@@ -4,6 +4,7 @@ import { analyzeChords } from './api';
 import { SettingsProvider } from './lib/settingsContext';
 import { InputForm } from './components/InputForm';
 import { AnalysisView } from './components/AnalysisView';
+import { SectionSplitter } from './components/SectionSplitter';
 import { SettingsBar } from './components/SettingsBar';
 
 const SAMPLE_INPUT = `key: Am
@@ -29,18 +30,44 @@ export default function App() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // When segmentation is suggested, we show the splitter and keep the result for "skip"
+  const [showSplitter, setShowSplitter] = useState(false);
 
   async function handleAnalyze(text: string) {
     setLoading(true);
     setError(null);
+    setShowSplitter(false);
     try {
       const data = await analyzeChords(text);
+      setResult(data);
+      // If backend suggests segmentation, show the splitter UI
+      if (data.segmentation_suggested && data.pairs && data.pairs.length > 0) {
+        setShowSplitter(true);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSegmentedSubmit(formatAText: string) {
+    // Re-analyze with the segmented Format A text
+    setLoading(true);
+    setError(null);
+    setShowSplitter(false);
+    try {
+      const data = await analyzeChords(formatAText);
       setResult(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleSkipSegmentation() {
+    setShowSplitter(false);
   }
 
   return (
@@ -80,7 +107,19 @@ export default function App() {
             </div>
           )}
 
-          {result && <AnalysisView result={result} />}
+          {/* Segmentation UI — shown when backend suggests it */}
+          {showSplitter && result?.pairs && (
+            <SectionSplitter
+              pairs={result.pairs}
+              title={result.title}
+              artist={result.artist}
+              onSubmit={handleSegmentedSubmit}
+              onSkip={handleSkipSegmentation}
+            />
+          )}
+
+          {/* Analysis results — hidden while splitter is active */}
+          {result && !showSplitter && <AnalysisView result={result} />}
         </main>
       </div>
     </SettingsProvider>

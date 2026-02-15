@@ -60,11 +60,18 @@ export interface Key {
   scale_pitches: number[];
 }
 
+export interface ChordLyricPair {
+  chords: string;
+  lyrics: string;
+}
+
 export interface AnalysisResult {
   title: string;
   artist: string;
   key: Key;
   sections: Section[];
+  segmentation_suggested?: boolean;
+  pairs?: ChordLyricPair[];
 }
 
 export interface LlmSectionNarrative {

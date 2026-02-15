@@ -178,6 +178,65 @@ G6 Dm7
         assert "title: Chorus" not in out
 
 
+class TestSegmentationDetection:
+    """Segmentation is suggested when a song has no section markers."""
+
+    def test_single_section_many_chords_suggests_segmentation(self):
+        """A long song with only auto-generated [verse] should flag segmentation."""
+        text = """אלוהים מרחם על ילדי הגן
+מתי כספי ושלמה גרוניך
+G6 Dm7/9 G6 Dm7/9
+אלוהים מרחם על ילדי הגן
+G6 Dm7/9 G6 Dm7/9
+פחות מזה על ילדי בית הספר
+A A4 Gm F7+
+F7+
+Dm7/9
+ועל הגדולים לא ירחם עוד ישאירם לבדם
+G6 Dm7/9 G6 Dm7/9
+ולפעמים יצטרכו לזחול על ארבע
+G6 Dm7/9 G6 Dm7/9
+בה בה בו בה בה בו בה בה בו בה בה בה"""
+        normalized = normalize_website_paste(text)
+        song = parse_format_a(normalized)
+        # Only 1 section (auto verse), with many chords → needs segmentation
+        non_outro = [s for s in song.sections if s.name != "outro"]
+        assert len(non_outro) == 1
+        assert len(non_outro[0].chords) > 8
+
+    def test_explicitly_sectioned_song_no_segmentation(self):
+        """A song with explicit section headers should NOT need segmentation."""
+        text = """שיר שלי
+אמן שלי
+Verse:
+G6 Dm7
+שלום עולם
+Chorus:
+Am F
+פזמון"""
+        normalized = normalize_website_paste(text)
+        song = parse_format_a(normalized)
+        non_outro = [s for s in song.sections if s.name != "outro"]
+        assert len(non_outro) > 1
+
+    def test_segmented_format_a_re_parses_correctly(self):
+        """When user segments, the reconstructed Format A should parse with sections."""
+        format_a = """title: Test
+artist: Test
+
+[verse]
+G6 Dm7/9 G6 Dm7/9 | אלוהים מרחם על ילדי הגן
+G6 Dm7/9 G6 Dm7/9 | פחות מזה על ילדי בית הספר
+[chorus]
+A A4 Gm F7+ F7+ Dm7/9 | ועל הגדולים לא ירחם עוד
+[outro]
+G6 G6 A G6"""
+        song = parse_format_a(format_a)
+        assert len(song.sections) == 3
+        names = [s.name for s in song.sections]
+        assert names == ["verse", "chorus", "outro"]
+
+
 class TestRoundTripParse:
     """Normalized website paste parses to a valid SongInput."""
 
