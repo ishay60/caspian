@@ -14,6 +14,7 @@ import re
 
 from caspian.models.input import ChordInput, SectionInput, SongInput
 from caspian.parsing.rtl_handler import has_hebrew, normalize_chord_order, detect_section_type
+from caspian.parsing.section_detector import detect_section
 
 # Supports G6, Dm7/9, F7+, Bbdim, Am/G (suffix may include / and digits)
 _CHORD_PATTERN = re.compile(r"[A-G][#b]?[a-zA-Z0-9+/]*")
@@ -42,12 +43,20 @@ def parse_format_a(text: str) -> SongInput:
         if not line:
             continue
 
-        # Check for section header
+        # Check for section header — bracket syntax [chorus] or flexible detection
         header_match = _SECTION_HEADER.match(line)
         if header_match:
             header = header_match.group(1)
             section_type = detect_section_type(header)
             current_section = SectionInput(name=header, section_type=section_type)
+            sections.append(current_section)
+            continue
+
+        # Flexible section detection: "Chorus:", "-- Bridge --", "פזמון", etc.
+        detected = detect_section(line)
+        if detected is not None:
+            section_type = detect_section_type(detected)
+            current_section = SectionInput(name=detected, section_type=section_type)
             sections.append(current_section)
             continue
 

@@ -70,6 +70,173 @@ G6 A G6"""
         assert "G6 A G6" in "\n".join(lines[outro_idx:])
 
 
+class TestFlexibleSectionDetection:
+    """Various section header formats detected by the website normalizer."""
+
+    def test_english_colon_chorus(self):
+        text = """שיר שלי
+אמן שלי
+Chorus:
+G6 Dm7
+שלום עולם"""
+        out = normalize_website_paste(text)
+        assert "[chorus]" in out
+
+    def test_bare_chorus(self):
+        text = """שיר שלי
+אמן שלי
+Chorus
+G6 Dm7
+שלום עולם"""
+        out = normalize_website_paste(text)
+        assert "[chorus]" in out
+
+    def test_decorated_chorus(self):
+        text = """שיר שלי
+אמן שלי
+-- Chorus --
+G6 Dm7
+שלום עולם"""
+        out = normalize_website_paste(text)
+        assert "[chorus]" in out
+
+    def test_curly_brace_chorus(self):
+        text = """שיר שלי
+אמן שלי
+{Chorus}
+G6 Dm7
+שלום עולם"""
+        out = normalize_website_paste(text)
+        assert "[chorus]" in out
+
+    def test_hebrew_bare_chorus(self):
+        """פזמון without colon should also be detected."""
+        text = """שיר שלי
+אמן שלי
+פזמון
+G6 Dm7
+שלום עולם"""
+        out = normalize_website_paste(text)
+        assert "[chorus]" in out
+
+    def test_refrain_maps_to_chorus(self):
+        text = """שיר שלי
+אמן שלי
+Refrain:
+G6 Dm7
+שלום עולם"""
+        out = normalize_website_paste(text)
+        assert "[chorus]" in out
+
+    def test_multiple_section_formats_in_one_paste(self):
+        text = """שיר שלי
+אמן שלי
+Verse:
+G6 Dm7
+שלום עולם
+-- Chorus --
+Am F
+פזמון שלום
+Bridge
+C G
+גשר קטן"""
+        out = normalize_website_paste(text)
+        assert "[verse]" in out
+        assert "[chorus]" in out
+        assert "[bridge]" in out
+
+    def test_uppercase_chorus(self):
+        text = """שיר שלי
+אמן שלי
+CHORUS
+G6 Dm7
+שלום עולם"""
+        out = normalize_website_paste(text)
+        assert "[chorus]" in out
+
+    def test_numbered_sections(self):
+        text = """שיר שלי
+אמן שלי
+Verse 1
+G6 Dm7
+שלום עולם
+Verse 2
+Am F
+מילים אחרות"""
+        out = normalize_website_paste(text)
+        lines = out.split("\n")
+        verse_lines = [l for l in lines if l == "[verse]"]
+        assert len(verse_lines) == 2
+
+    def test_section_header_not_mistaken_for_title(self):
+        """If paste starts with a section header, don't use it as title."""
+        text = """Chorus
+G6 Dm7
+שלום עולם"""
+        out = normalize_website_paste(text)
+        assert "[chorus]" in out
+        assert "title: Chorus" not in out
+
+
+class TestSegmentationDetection:
+    """Segmentation is suggested when a song has no section markers."""
+
+    def test_single_section_many_chords_suggests_segmentation(self):
+        """A long song with only auto-generated [verse] should flag segmentation."""
+        text = """אלוהים מרחם על ילדי הגן
+מתי כספי ושלמה גרוניך
+G6 Dm7/9 G6 Dm7/9
+אלוהים מרחם על ילדי הגן
+G6 Dm7/9 G6 Dm7/9
+פחות מזה על ילדי בית הספר
+A A4 Gm F7+
+F7+
+Dm7/9
+ועל הגדולים לא ירחם עוד ישאירם לבדם
+G6 Dm7/9 G6 Dm7/9
+ולפעמים יצטרכו לזחול על ארבע
+G6 Dm7/9 G6 Dm7/9
+בה בה בו בה בה בו בה בה בו בה בה בה"""
+        normalized = normalize_website_paste(text)
+        song = parse_format_a(normalized)
+        # Only 1 section (auto verse), with many chords → needs segmentation
+        non_outro = [s for s in song.sections if s.name != "outro"]
+        assert len(non_outro) == 1
+        assert len(non_outro[0].chords) > 8
+
+    def test_explicitly_sectioned_song_no_segmentation(self):
+        """A song with explicit section headers should NOT need segmentation."""
+        text = """שיר שלי
+אמן שלי
+Verse:
+G6 Dm7
+שלום עולם
+Chorus:
+Am F
+פזמון"""
+        normalized = normalize_website_paste(text)
+        song = parse_format_a(normalized)
+        non_outro = [s for s in song.sections if s.name != "outro"]
+        assert len(non_outro) > 1
+
+    def test_segmented_format_a_re_parses_correctly(self):
+        """When user segments, the reconstructed Format A should parse with sections."""
+        format_a = """title: Test
+artist: Test
+
+[verse]
+G6 Dm7/9 G6 Dm7/9 | אלוהים מרחם על ילדי הגן
+G6 Dm7/9 G6 Dm7/9 | פחות מזה על ילדי בית הספר
+[chorus]
+A A4 Gm F7+ F7+ Dm7/9 | ועל הגדולים לא ירחם עוד
+[outro]
+G6 G6 A G6"""
+        song = parse_format_a(format_a)
+        assert len(song.sections) == 3
+        names = [s.name for s in song.sections]
+        assert names == ["verse", "chorus", "outro"]
+
+
 class TestRoundTripParse:
     """Normalized website paste parses to a valid SongInput."""
 

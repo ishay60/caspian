@@ -21,22 +21,11 @@ from __future__ import annotations
 import re
 
 from caspian.parsing.rtl_handler import has_hebrew
+from caspian.parsing.section_detector import detect_section_bracket
 
 # Chord pattern: root + optional quality/slash (e.g. G6, Dm7/9, F7+, Bbdim)
 # Must not match "x2" or pure numbers
 _CHORD_PATTERN = re.compile(r"[A-G][#b]?[a-zA-Z0-9+/]*")
-
-# Hebrew section headers: "סיום:", "פזמון:", "בית:", etc.
-_HEBREW_SECTION = re.compile(r"^([\u0590-\u05FF]+)\s*:\s*$")
-
-_SECTION_MAP = {
-    "סיום": "outro",
-    "סיום:": "outro",
-    "פזמון": "chorus",
-    "בית": "verse",
-    "הקדמה": "intro",
-    "אינטרומנטל": "instrumental",
-}
 
 
 def _looks_like_format_a(text: str) -> bool:
@@ -92,10 +81,9 @@ def _extract_chords_from_line(line: str) -> list[str]:
     return _CHORD_PATTERN.findall(line)
 
 
-def _get_hebrew_section_key(label: str) -> str | None:
-    """Map Hebrew section label to [name] for Format A."""
-    label = label.strip().rstrip(":")
-    return _SECTION_MAP.get(label)
+def _is_section_header(line: str) -> str | None:
+    """Return ``[name]`` bracket string if *line* is any section header, else None."""
+    return detect_section_bracket(line)
 
 
 def normalize_website_paste(text: str) -> str:
@@ -126,6 +114,9 @@ def normalize_website_paste(text: str) -> str:
                     artist = re.sub(r"^[\w]+\s*:\s*", "", s).strip()
                 i += 1
                 continue
+        # If this line is a section header, stop title search — no title found
+        if _is_section_header(s):
+            break
         # First substantive line: if it has Hebrew and is not only chord symbols, treat as title
         if has_hebrew(s) and not _is_chord_only_line(s):
             title = s
@@ -151,6 +142,9 @@ def normalize_website_paste(text: str) -> str:
                 artist = re.sub(r"^[\w]+\s*:\s*", "", s).strip()
             i += 1
             continue
+        # If this line is a section header, stop artist search
+        if _is_section_header(s):
+            break
         if has_hebrew(s) and not _is_chord_only_line(s) and not artist:
             artist = s
             i += 1
@@ -180,14 +174,10 @@ def normalize_website_paste(text: str) -> str:
             i += 1
             continue
 
-        # Hebrew section header: סיום: etc.
-        heb_sec = _HEBREW_SECTION.match(s)
-        if heb_sec:
-            key = _get_hebrew_section_key(heb_sec.group(1))
-            if key:
-                out.append(f"[{key}]")
-            else:
-                out.append(f"[{heb_sec.group(1).strip()}]")
+        # Section header: [Chorus], Chorus:, פזמון, -- Bridge --, etc.
+        bracket = _is_section_header(s)
+        if bracket:
+            out.append(bracket)
             first_section_emitted = True
             i += 1
             continue
@@ -205,7 +195,7 @@ def normalize_website_paste(text: str) -> str:
             if not s:
                 i += 1
                 continue
-            if _HEBREW_SECTION.match(s):
+            if _is_section_header(s):
                 break
             if _is_chord_only_line(s):
                 chord_parts.append(s)
@@ -223,7 +213,7 @@ def normalize_website_paste(text: str) -> str:
         if i < len(lines):
             line = lines[i]
             s = line.strip()
-            if s and not _HEBREW_SECTION.match(s) and (_is_lyrics_only_line(s) or has_hebrew(s)):
+            if s and not _is_section_header(s) and (_is_lyrics_only_line(s) or has_hebrew(s)):
                 lyrics_line = s
                 i += 1
 
