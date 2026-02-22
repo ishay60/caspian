@@ -1,4 +1,5 @@
 import type { BassNote, ChromaticRun } from '../types';
+import { useSettings } from '../lib/settingsContext';
 
 interface Props {
   bassLine: BassNote[];
@@ -6,6 +7,7 @@ interface Props {
 }
 
 export function BassLine({ bassLine, chromaticRuns }: Props) {
+  const { t } = useSettings();
   // Build a set of positions that are part of chromatic runs
   const chromaticPositions = new Set<number>();
   for (const run of chromaticRuns) {
@@ -17,7 +19,7 @@ export function BassLine({ bassLine, chromaticRuns }: Props) {
   return (
     <div>
       <h4 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-neutral)' }}>
-        Bass Line
+        {t.bassLine}
       </h4>
       <div className="flex flex-wrap items-center gap-1 font-mono text-sm">
         {bassLine.map((note, i) => {

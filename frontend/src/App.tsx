@@ -1,7 +1,7 @@
 import { useState, useRef, lazy, Suspense } from 'react';
 import type { AnalysisResult } from './types';
 import { analyzeChords } from './api';
-import { SettingsProvider } from './lib/settingsContext';
+import { SettingsProvider, useSettings } from './lib/settingsContext';
 import { InputForm } from './components/InputForm';
 import { AnalysisView } from './components/AnalysisView';
 import { SectionSplitter } from './components/SectionSplitter';
@@ -29,7 +29,8 @@ D#dim Am/E | יש אולי סיכוי קרוב
 F F#dim | למצוא גן עדן ברחוב
 Dm E Am D | ואולי גם לילה טוב`;
 
-export default function App() {
+function AppContent() {
+  const { t } = useSettings();
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,93 +80,99 @@ export default function App() {
   }
 
   return (
-    <SettingsProvider>
-      <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text)' }}>
-        {/* Header */}
-        <header className="border-b" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-          <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-6">
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">Caspian</h1>
-                <p className="text-xs" style={{ color: 'var(--color-neutral)' }}>Harmonic Analysis</p>
-              </div>
-              {/* Color legend */}
-              <div className="hidden sm:flex gap-2 text-xs">
-                <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-diatonic)' }} />Diatonic</span>
-                <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-secondary-dom)' }} />Sec. Dom</span>
-                <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-borrowed)' }} />Borrowed</span>
-                <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-diminished)' }} />Dim</span>
-                <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-deceptive)' }} />Deceptive</span>
-              </div>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text)' }}>
+      {/* Header */}
+      <header className="border-b" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
+        <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-6">
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">{t.appName}</h1>
+              <p className="text-xs" style={{ color: 'var(--color-neutral)' }}>{t.appSubtitle}</p>
             </div>
-            <div className="flex items-center gap-3">
-              {/* Tuner toggle */}
-              <button
-                onClick={() => setShowTuner(!showTuner)}
-                className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer"
-                style={{
-                  borderColor: showTuner ? 'var(--color-accent)' : 'var(--color-border)',
-                  backgroundColor: showTuner ? 'color-mix(in srgb, var(--color-accent) 15%, var(--color-surface))' : 'var(--color-surface-2)',
-                  color: showTuner ? 'var(--color-accent)' : 'var(--color-neutral)',
-                }}
-              >
-                Tuner
-              </button>
-
-              {/* Song Library */}
-              <SongLibrary
-                onLoadSong={handleLoadFromLibrary}
-                currentTitle={result?.title}
-                currentArtist={result?.artist}
-                currentInputText={currentInputRef.current || undefined}
-              />
-
-              <SettingsBar />
+            {/* Color legend */}
+            <div className="hidden sm:flex gap-2 text-xs">
+              <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-diatonic)' }} />{t.diatonic}</span>
+              <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-secondary-dom)' }} />{t.secDom}</span>
+              <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-borrowed)' }} />{t.borrowed}</span>
+              <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-diminished)' }} />{t.dim}</span>
+              <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-deceptive)' }} />{t.deceptive}</span>
             </div>
           </div>
-        </header>
+          <div className="flex items-center gap-3">
+            {/* Tuner toggle */}
+            <button
+              onClick={() => setShowTuner(!showTuner)}
+              className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer"
+              style={{
+                borderColor: showTuner ? 'var(--color-accent)' : 'var(--color-border)',
+                backgroundColor: showTuner ? 'color-mix(in srgb, var(--color-accent) 15%, var(--color-surface))' : 'var(--color-surface-2)',
+                color: showTuner ? 'var(--color-accent)' : 'var(--color-neutral)',
+              }}
+            >
+              {t.tuner}
+            </button>
 
-        <main className="mx-auto max-w-6xl px-6 py-8">
-          {/* Tuner panel */}
-          {showTuner && (
-            <div className="mb-8">
-              <Suspense fallback={
-                <div className="rounded-xl border p-8 text-center" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-                  <p style={{ color: 'var(--color-neutral)' }}>Loading tuner...</p>
-                </div>
-              }>
-                <Tuner />
-              </Suspense>
-            </div>
-          )}
-
-          <InputForm
-            onAnalyze={handleAnalyze}
-            loading={loading}
-            sampleInput={SAMPLE_INPUT}
-          />
-
-          {error && (
-            <div className="mt-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-300 text-sm">
-              {error}
-            </div>
-          )}
-
-          {/* Segmentation UI */}
-          {showSplitter && result?.pairs && (
-            <SectionSplitter
-              pairs={result.pairs}
-              title={result.title}
-              artist={result.artist}
-              onSubmit={handleSegmentedSubmit}
-              onSkip={handleSkipSegmentation}
+            {/* Song Library */}
+            <SongLibrary
+              onLoadSong={handleLoadFromLibrary}
+              currentTitle={result?.title}
+              currentArtist={result?.artist}
+              currentInputText={currentInputRef.current || undefined}
             />
-          )}
 
-          {/* Analysis results */}
-          {result && !showSplitter && <AnalysisView result={result} />}
-        </main>
-      </div>
+            <SettingsBar />
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl px-6 py-8">
+        {/* Tuner panel */}
+        {showTuner && (
+          <div className="mb-8">
+            <Suspense fallback={
+              <div className="rounded-xl border p-8 text-center" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
+                <p style={{ color: 'var(--color-neutral)' }}>{t.loadingTuner}</p>
+              </div>
+            }>
+              <Tuner />
+            </Suspense>
+          </div>
+        )}
+
+        <InputForm
+          onAnalyze={handleAnalyze}
+          loading={loading}
+          sampleInput={SAMPLE_INPUT}
+        />
+
+        {error && (
+          <div className="mt-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-300 text-sm">
+            {error}
+          </div>
+        )}
+
+        {/* Segmentation UI */}
+        {showSplitter && result?.pairs && (
+          <SectionSplitter
+            pairs={result.pairs}
+            title={result.title}
+            artist={result.artist}
+            onSubmit={handleSegmentedSubmit}
+            onSkip={handleSkipSegmentation}
+          />
+        )}
+
+        {/* Analysis results */}
+        {result && !showSplitter && <AnalysisView result={result} />}
+      </main>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <SettingsProvider>
+      <AppContent />
     </SettingsProvider>
   );
 }

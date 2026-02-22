@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { pitchToName, capoFret } from '../lib/transpose';
+import { useSettings } from '../lib/settingsContext';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
 
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function TransposeBar({ currentKey, onTranspose }: Props) {
+  const { t } = useSettings();
   // Track the original root so we can compute capo and reset
   const [originalRoot] = useState(currentKey.root);
 
@@ -45,7 +47,7 @@ export function TransposeBar({ currentKey, onTranspose }: Props) {
         className="text-xs uppercase tracking-wider font-medium shrink-0"
         style={{ color: 'var(--color-neutral)' }}
       >
-        Key
+        {t.key}
       </label>
 
       {/* 12 key buttons */}
@@ -110,7 +112,7 @@ export function TransposeBar({ currentKey, onTranspose }: Props) {
         }}
         title={`Reset to original key (${pitchToName(originalRoot)}${currentKey.mode === 'minor' ? 'm' : ''})`}
       >
-        Reset
+        {t.reset}
       </button>
 
       {/* Capo indicator */}
@@ -119,8 +121,8 @@ export function TransposeBar({ currentKey, onTranspose }: Props) {
         style={{ color: capo > 0 ? 'var(--color-accent)' : 'var(--color-neutral)' }}
       >
         {capo > 0
-          ? `Capo: fret ${capo}`
-          : 'No capo'}
+          ? `${t.capoFret} ${capo}`
+          : t.noCap}
       </span>
     </div>
   );

@@ -20,7 +20,7 @@ interface Props {
 }
 
 export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onChordSelect }: Props) {
-  const { vizMode } = useSettings();
+  const { vizMode, t } = useSettings();
   const [selectedChord, setSelectedChord] = useState<number | null>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -113,7 +113,7 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
           </h3>
           {isEdited && (
             <span className="text-[10px] font-medium px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--color-primary)', color: 'white' }}>
-              edited
+              {t.edited}
             </span>
           )}
         </div>
@@ -128,9 +128,9 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
                   color: showPlayer ? 'var(--color-accent)' : 'var(--color-neutral)',
                   backgroundColor: showPlayer ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)' : 'transparent',
                 }}
-                title="Play chords"
+                title={t.play}
               >
-                &#9835; Play
+                &#9835; {t.play}
               </button>
               <button
                 onClick={() => { setShowPractice(!showPractice); if (!showPractice) setShowPlayer(false); }}
@@ -140,9 +140,9 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
                   color: showPractice ? 'var(--color-diatonic)' : 'var(--color-neutral)',
                   backgroundColor: showPractice ? 'color-mix(in srgb, var(--color-diatonic) 10%, transparent)' : 'transparent',
                 }}
-                title="Practice mode"
+                title={t.practice}
               >
-                &#9834; Practice
+                &#9834; {t.practice}
               </button>
             </>
           )}
@@ -220,7 +220,7 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
                   color: 'white',
                 }}
               >
-                {loading ? 'Analyzing...' : 'Apply'}
+                {loading ? t.analyzing : t.apply}
               </button>
               <button
                 onClick={cancelEdit}
@@ -231,7 +231,7 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
                   color: 'var(--color-text-secondary)',
                 }}
               >
-                Cancel
+                {t.cancel}
               </button>
             </div>
           </div>
@@ -324,7 +324,7 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
                   >
                     &#9654;
                   </span>
-                  Analysis Details
+                  {t.analysisDetails}
                 </button>
 
                 {showAnalysis && (
@@ -332,7 +332,7 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
                     {nonDiatonic.length > 0 && (
                       <div>
                         <h4 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--color-neutral)' }}>
-                          Non-diatonic Events
+                          {t.nonDiatonicEvents}
                         </h4>
                         <div className="space-y-2">
                           {nonDiatonic.map((chord, i) => (
@@ -345,7 +345,7 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
                     {deceptive.length > 0 && (
                       <div>
                         <h4 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-deceptive)' }}>
-                          Deceptive Resolutions
+                          {t.deceptiveResolutions}
                         </h4>
                         {deceptive.map((chord, i) => (
                           <p key={i} className="text-sm ml-3" style={{ color: 'var(--color-text-secondary)' }}>
@@ -358,12 +358,12 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
                     {section.chromatic_runs.length > 0 && (
                       <div>
                         <h4 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-neutral)' }}>
-                          Chromatic Motion
+                          {t.chromaticMotion}
                         </h4>
                         {section.chromatic_runs.map((run, i) => (
                           <p key={i} className="text-sm ml-3 font-mono" style={{ color: 'var(--color-text-secondary)' }}>
                             <span style={{ color: 'var(--color-diminished)' }} className="capitalize">{run.direction}</span>
-                            {' '}{run.length === 2 ? 'pair' : 'run'}: {run.notes.join(' \u2192 ')}
+                            {' '}{run.length === 2 ? t.pair : t.run}: {run.notes.join(' \u2192 ')}
                           </p>
                         ))}
                       </div>

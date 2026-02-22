@@ -1,17 +1,19 @@
 import type { ChordAnalysis } from '../types';
+import type { Translations } from '../lib/i18n';
+import { useSettings } from '../lib/settingsContext';
 
 interface Props {
   chord: ChordAnalysis;
 }
 
-function getTypeLabel(type: string): string {
+function getTypeLabel(type: string, t: Translations): string {
   const labels: Record<string, string> = {
-    chromatic_approach_from: 'Chromatic approach',
-    chromatic_approach_to: 'Chromatic approach',
-    rootless_dom7b9: 'Rootless dom7\u266d9',
-    common_tone_dim: 'Common-tone dim',
-    borrowed: 'Borrowed chord',
-    secondary_dominant: 'Secondary dominant',
+    chromatic_approach_from: t.chromatic_approach_from,
+    chromatic_approach_to: t.chromatic_approach_to,
+    rootless_dom7b9: t.rootless_dom7b9,
+    common_tone_dim: t.common_tone_dim,
+    borrowed: t.borrowedChord,
+    secondary_dominant: t.secondary_dominant,
   };
   return labels[type] ?? type;
 }
@@ -25,6 +27,7 @@ function getTypeColor(type: string): string {
 }
 
 export function InterpretationPanel({ chord }: Props) {
+  const { t } = useSettings();
   if (chord.interpretations.length === 0) return null;
 
   return (
@@ -59,7 +62,7 @@ export function InterpretationPanel({ chord }: Props) {
                     color,
                   }}
                 >
-                  {getTypeLabel(interp.type)}
+                  {getTypeLabel(interp.type, t)}
                 </span>
                 <span style={{ color: 'var(--color-text-secondary)' }}>{interp.detail}</span>
               </div>

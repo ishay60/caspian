@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function ChordDetailPanel({ chord, keyInfo }: Props) {
-  const { vizMode } = useSettings();
+  const { vizMode, t } = useSettings();
   const color = getChordColor(chord);
   const showPiano = vizMode === 'piano' || vizMode === 'all';
   const showGuitar = vizMode === 'guitar' || vizMode === 'all';
@@ -31,7 +31,7 @@ export function ChordDetailPanel({ chord, keyInfo }: Props) {
         <span className="text-sm" style={{ color: 'var(--color-neutral)' }}>{chord.roman_numeral}</span>
         {chord.is_inverted && (
           <span className="text-xs" style={{ color: 'var(--color-neutral)' }}>
-            ({chord.bass_name} in bass)
+            ({chord.bass_name} {t.inBass})
           </span>
         )}
         <span
@@ -43,7 +43,7 @@ export function ChordDetailPanel({ chord, keyInfo }: Props) {
             color: chord.is_diatonic ? 'var(--color-diatonic)' : 'var(--color-borrowed)',
           }}
         >
-          {chord.is_diatonic ? 'Diatonic' : 'Non-diatonic'}
+          {chord.is_diatonic ? t.diatonic : t.nonDiatonic}
         </span>
         {chord.secondary_dominant && (
           <span
@@ -64,7 +64,7 @@ export function ChordDetailPanel({ chord, keyInfo }: Props) {
               color: 'var(--color-deceptive)',
             }}
           >
-            Deceptive
+            {t.deceptive}
           </span>
         )}
       </div>
@@ -75,7 +75,7 @@ export function ChordDetailPanel({ chord, keyInfo }: Props) {
           {showPiano && (
             <div className="space-y-1.5">
               <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--color-neutral)' }}>
-                Piano
+                {t.piano}
               </div>
               <PianoKeyboard
                 pitches={chord.pitches}
@@ -89,7 +89,7 @@ export function ChordDetailPanel({ chord, keyInfo }: Props) {
           {showGuitar && (
             <div className="space-y-1.5">
               <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--color-neutral)' }}>
-                Guitar
+                {t.guitar}
               </div>
               <GuitarDiagram
                 pitches={chord.pitches}
@@ -105,17 +105,17 @@ export function ChordDetailPanel({ chord, keyInfo }: Props) {
       <div className="space-y-2 text-sm">
         {chord.bass_motion_from_previous && (
           <p style={{ color: 'var(--color-neutral)' }}>
-            Bass motion: <span style={{ color: 'var(--color-text-secondary)' }}>{chord.bass_motion_from_previous.replace(/_/g, ' ')}</span>
+            {t.bassMotion}: <span style={{ color: 'var(--color-text-secondary)' }}>{chord.bass_motion_from_previous.replace(/_/g, ' ')}</span>
           </p>
         )}
         {chord.common_tones_with_previous.length > 0 && (
           <p style={{ color: 'var(--color-neutral)' }}>
-            Common tones with prev: <span className="font-mono" style={{ color: 'var(--color-text-secondary)' }}>{chord.common_tones_with_previous.join(', ')}</span>
+            {t.commonTonesPrev}: <span className="font-mono" style={{ color: 'var(--color-text-secondary)' }}>{chord.common_tones_with_previous.join(', ')}</span>
           </p>
         )}
         {chord.common_tones_with_next.length > 0 && (
           <p style={{ color: 'var(--color-neutral)' }}>
-            Common tones with next: <span className="font-mono" style={{ color: 'var(--color-text-secondary)' }}>{chord.common_tones_with_next.join(', ')}</span>
+            {t.commonTonesNext}: <span className="font-mono" style={{ color: 'var(--color-text-secondary)' }}>{chord.common_tones_with_next.join(', ')}</span>
           </p>
         )}
         {chord.deceptive_resolution && (
@@ -129,7 +129,7 @@ export function ChordDetailPanel({ chord, keyInfo }: Props) {
       {chord.interpretations.length > 0 && (
         <div className="space-y-1.5">
           <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--color-neutral)' }}>
-            Interpretations
+            {t.interpretations}
           </div>
           {chord.interpretations.map((interp, i) => {
             const pct = Math.round(interp.confidence * 100);

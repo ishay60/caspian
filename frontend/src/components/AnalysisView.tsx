@@ -1,22 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { AnalysisResult, LlmAnalysisResult, Section, Key, ChordAnalysis } from '../types';
 import { requestLlmAnalysis } from '../api';
+import { useSettings } from '../lib/settingsContext';
 import { SectionView } from './SectionView';
 import { LlmNarrative } from './LlmNarrative';
 import { TransposeBar } from './TransposeBar';
 import { Fretboard } from './Fretboard';
 import { transposeChordSymbol, transposePitch, pitchToName } from '../lib/transpose';
 
-const MODE_LABELS: Record<string, string> = {
-  natural_minor: 'Natural Minor',
-  harmonic_minor: 'Harmonic Minor',
-  melodic_minor: 'Melodic Minor',
-  dorian: 'Dorian',
-  phrygian: 'Phrygian',
-  phrygian_dominant: 'Phrygian Dominant',
-  major: 'Major',
-  mixolydian: 'Mixolydian',
-};
+const MODE_KEYS = [
+  'natural_minor', 'harmonic_minor', 'melodic_minor',
+  'dorian', 'phrygian', 'phrygian_dominant', 'major', 'mixolydian',
+] as const;
 
 interface Props {
   result: AnalysisResult;
@@ -77,6 +72,7 @@ function transposeKey(key: Key, semitones: number): Key {
 }
 
 export function AnalysisView({ result }: Props) {
+  const { t } = useSettings();
   const [transposeSemitones, setTransposeSemitones] = useState(0);
   const [sections, setSections] = useState<Section[]>(result.sections);
   const [editedSections, setEditedSections] = useState<Set<number>>(new Set());
@@ -88,7 +84,9 @@ export function AnalysisView({ result }: Props) {
 
   // Compute transposed key and sections
   const currentKey = transposeKey(result.key, transposeSemitones);
-  const modeLabel = MODE_LABELS[currentKey.mode] ?? currentKey.mode;
+  const modeLabel = (MODE_KEYS as readonly string[]).includes(currentKey.mode)
+    ? t[currentKey.mode as typeof MODE_KEYS[number]]
+    : currentKey.mode;
   const displaySections = sections.map(s => transposeSection(s, transposeSemitones));
 
   // Reset when a new analysis result comes in
@@ -145,11 +143,11 @@ export function AnalysisView({ result }: Props) {
       >
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-2xl font-bold" dir="rtl">
-              {result.title || 'Untitled'}
+            <h2 className="text-2xl font-bold">
+              {result.title || t.untitled}
             </h2>
             {result.artist && (
-              <p className="mt-1" dir="rtl" style={{ color: 'var(--color-neutral)' }}>{result.artist}</p>
+              <p className="mt-1" style={{ color: 'var(--color-neutral)' }}>{result.artist}</p>
             )}
           </div>
           <div
@@ -159,7 +157,7 @@ export function AnalysisView({ result }: Props) {
               borderColor: 'var(--color-border)',
             }}
           >
-            <div className="text-xs uppercase tracking-wider" style={{ color: 'var(--color-neutral)' }}>Key</div>
+            <div className="text-xs uppercase tracking-wider" style={{ color: 'var(--color-neutral)' }}>{t.key}</div>
             <div className="text-lg font-bold font-mono mt-0.5">
               {currentKey.root_name} {modeLabel}
             </div>
@@ -184,7 +182,7 @@ export function AnalysisView({ result }: Props) {
               opacity: llmLoading ? 0.7 : 1,
             }}
           >
-            {llmLoading ? 'Generating...' : 'Generate Harmonic Narrative'}
+            {llmLoading ? t.generating : t.generateNarrative}
           </button>
 
           <button
@@ -196,7 +194,7 @@ export function AnalysisView({ result }: Props) {
               color: showFretboard ? 'var(--color-accent)' : 'var(--color-text)',
             }}
           >
-            Fretboard
+            {t.fretboard}
           </button>
 
           {llmError && (
@@ -218,7 +216,7 @@ export function AnalysisView({ result }: Props) {
         >
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-neutral)' }}>
-              Fretboard Explorer
+              {t.fretboardExplorer}
               {selectedChordForFretboard && (
                 <span className="ml-2 font-mono normal-case" style={{ color: 'var(--color-accent)' }}>
                   — {selectedChordForFretboard.symbol}
@@ -231,7 +229,7 @@ export function AnalysisView({ result }: Props) {
                 className="text-xs px-2 py-1 rounded border cursor-pointer"
                 style={{ borderColor: 'var(--color-border)', color: 'var(--color-neutral)' }}
               >
-                Show scale only
+                {t.showScaleOnly}
               </button>
             )}
           </div>
