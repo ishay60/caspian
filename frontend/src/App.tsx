@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, lazy, Suspense } from 'react';
 import type { AnalysisResult } from './types';
 import { analyzeChords } from './api';
 import { SettingsProvider } from './lib/settingsContext';
@@ -6,6 +6,9 @@ import { InputForm } from './components/InputForm';
 import { AnalysisView } from './components/AnalysisView';
 import { SectionSplitter } from './components/SectionSplitter';
 import { SettingsBar } from './components/SettingsBar';
+import { SongLibrary } from './components/SongLibrary';
+
+const Tuner = lazy(() => import('./components/Tuner').then(m => ({ default: m.Tuner })));
 
 const SAMPLE_INPUT = `key: Am
 title: יום שישי חזר
@@ -30,17 +33,18 @@ export default function App() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // When segmentation is suggested, we show the splitter and keep the result for "skip"
   const [showSplitter, setShowSplitter] = useState(false);
+  const [showTuner, setShowTuner] = useState(false);
+  const currentInputRef = useRef<string>('');
 
   async function handleAnalyze(text: string) {
+    currentInputRef.current = text;
     setLoading(true);
     setError(null);
     setShowSplitter(false);
     try {
       const data = await analyzeChords(text);
       setResult(data);
-      // If backend suggests segmentation, show the splitter UI
       if (data.segmentation_suggested && data.pairs && data.pairs.length > 0) {
         setShowSplitter(true);
       }
@@ -52,7 +56,7 @@ export default function App() {
   }
 
   async function handleSegmentedSubmit(formatAText: string) {
-    // Re-analyze with the segmented Format A text
+    currentInputRef.current = formatAText;
     setLoading(true);
     setError(null);
     setShowSplitter(false);
@@ -68,6 +72,10 @@ export default function App() {
 
   function handleSkipSegmentation() {
     setShowSplitter(false);
+  }
+
+  function handleLoadFromLibrary(inputText: string) {
+    handleAnalyze(inputText);
   }
 
   return (
@@ -90,11 +98,47 @@ export default function App() {
                 <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-deceptive)' }} />Deceptive</span>
               </div>
             </div>
-            <SettingsBar />
+            <div className="flex items-center gap-3">
+              {/* Tuner toggle */}
+              <button
+                onClick={() => setShowTuner(!showTuner)}
+                className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer"
+                style={{
+                  borderColor: showTuner ? 'var(--color-accent)' : 'var(--color-border)',
+                  backgroundColor: showTuner ? 'color-mix(in srgb, var(--color-accent) 15%, var(--color-surface))' : 'var(--color-surface-2)',
+                  color: showTuner ? 'var(--color-accent)' : 'var(--color-neutral)',
+                }}
+              >
+                Tuner
+              </button>
+
+              {/* Song Library */}
+              <SongLibrary
+                onLoadSong={handleLoadFromLibrary}
+                currentTitle={result?.title}
+                currentArtist={result?.artist}
+                currentInputText={currentInputRef.current || undefined}
+              />
+
+              <SettingsBar />
+            </div>
           </div>
         </header>
 
         <main className="mx-auto max-w-6xl px-6 py-8">
+          {/* Tuner panel */}
+          {showTuner && (
+            <div className="mb-8">
+              <Suspense fallback={
+                <div className="rounded-xl border p-8 text-center" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
+                  <p style={{ color: 'var(--color-neutral)' }}>Loading tuner...</p>
+                </div>
+              }>
+                <Tuner />
+              </Suspense>
+            </div>
+          )}
+
           <InputForm
             onAnalyze={handleAnalyze}
             loading={loading}
@@ -107,7 +151,7 @@ export default function App() {
             </div>
           )}
 
-          {/* Segmentation UI — shown when backend suggests it */}
+          {/* Segmentation UI */}
           {showSplitter && result?.pairs && (
             <SectionSplitter
               pairs={result.pairs}
@@ -118,7 +162,7 @@ export default function App() {
             />
           )}
 
-          {/* Analysis results — hidden while splitter is active */}
+          {/* Analysis results */}
           {result && !showSplitter && <AnalysisView result={result} />}
         </main>
       </div>

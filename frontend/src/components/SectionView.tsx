@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Section, Key } from '../types';
+import type { Section, Key, ChordAnalysis } from '../types';
 import { useSettings } from '../lib/settingsContext';
 import { analyzeSectionChords } from '../api';
 import { ChordBadge } from './ChordBadge';
@@ -8,15 +8,18 @@ import { BassLine } from './BassLine';
 import { InterpretationPanel } from './InterpretationPanel';
 import { StaffNotation } from './StaffNotation';
 import { ChordDetailPanel } from './ChordDetailPanel';
+import { ChordPlayer } from './ChordPlayer';
+import { PracticeMode } from './PracticeMode';
 
 interface Props {
   section: Section;
   keyInfo: Key;
   isEdited?: boolean;
   onSectionUpdate?: (updated: Section) => void;
+  onChordSelect?: (chord: ChordAnalysis | null) => void;
 }
 
-export function SectionView({ section, keyInfo, isEdited, onSectionUpdate }: Props) {
+export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onChordSelect }: Props) {
   const { vizMode } = useSettings();
   const [selectedChord, setSelectedChord] = useState<number | null>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
@@ -24,6 +27,10 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate }: Pro
   const [editableSymbols, setEditableSymbols] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [showPlayer, setShowPlayer] = useState(false);
+  const [showPractice, setShowPractice] = useState(false);
+  const [, setPlayingChordIndex] = useState<number | null>(null);
 
   const nonDiatonic = section.chords.filter(c => !c.is_diatonic);
   const deceptive = section.chords.filter(c => c.deceptive_resolution);
@@ -110,16 +117,46 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate }: Pro
             </span>
           )}
         </div>
-        {onSectionUpdate && !editMode && (
-          <button
-            onClick={enterEditMode}
-            className="text-sm cursor-pointer p-1 rounded transition-colors"
-            style={{ color: 'var(--color-neutral)' }}
-            title="Edit chords"
-          >
-            &#9998;
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {section.chords.length > 0 && !editMode && (
+            <>
+              <button
+                onClick={() => { setShowPlayer(!showPlayer); if (!showPlayer) setShowPractice(false); }}
+                className="text-xs cursor-pointer px-2 py-1 rounded transition-colors border"
+                style={{
+                  borderColor: showPlayer ? 'var(--color-accent)' : 'var(--color-border)',
+                  color: showPlayer ? 'var(--color-accent)' : 'var(--color-neutral)',
+                  backgroundColor: showPlayer ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)' : 'transparent',
+                }}
+                title="Play chords"
+              >
+                &#9835; Play
+              </button>
+              <button
+                onClick={() => { setShowPractice(!showPractice); if (!showPractice) setShowPlayer(false); }}
+                className="text-xs cursor-pointer px-2 py-1 rounded transition-colors border"
+                style={{
+                  borderColor: showPractice ? 'var(--color-diatonic)' : 'var(--color-border)',
+                  color: showPractice ? 'var(--color-diatonic)' : 'var(--color-neutral)',
+                  backgroundColor: showPractice ? 'color-mix(in srgb, var(--color-diatonic) 10%, transparent)' : 'transparent',
+                }}
+                title="Practice mode"
+              >
+                &#9834; Practice
+              </button>
+            </>
+          )}
+          {onSectionUpdate && !editMode && (
+            <button
+              onClick={enterEditMode}
+              className="text-sm cursor-pointer p-1 rounded transition-colors"
+              style={{ color: 'var(--color-neutral)' }}
+              title="Edit chords"
+            >
+              &#9998;
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="p-6 space-y-5">
@@ -203,13 +240,36 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate }: Pro
         {/* Normal view (hidden during edit) */}
         {!editMode && (
           <>
+            {/* Chord Player */}
+            {showPlayer && section.chords.length > 0 && (
+              <ChordPlayer
+                chords={section.chords}
+                onChordHighlight={(idx) => {
+                  setPlayingChordIndex(idx);
+                  if (idx !== null) setSelectedChord(idx);
+                }}
+              />
+            )}
+
+            {/* Practice Mode */}
+            {showPractice && section.chords.length > 0 && (
+              <PracticeMode
+                chords={section.chords}
+                sectionName={section.name}
+              />
+            )}
+
             {/* Staff notation (conditional) */}
             {showStaff && (
               <StaffNotation
                 chords={section.chords}
                 keyInfo={keyInfo}
                 selectedIndex={selectedChord}
-                onSelect={(i) => setSelectedChord(selectedChord === i ? null : i)}
+                onSelect={(i) => {
+                  const newIdx = selectedChord === i ? null : i;
+                  setSelectedChord(newIdx);
+                  onChordSelect?.(newIdx !== null ? section.chords[newIdx] : null);
+                }}
               />
             )}
 
@@ -221,7 +281,11 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate }: Pro
                   <ChordBadge
                     chord={chord}
                     selected={selectedChord === i}
-                    onClick={() => setSelectedChord(selectedChord === i ? null : i)}
+                    onClick={() => {
+                      const newIdx = selectedChord === i ? null : i;
+                      setSelectedChord(newIdx);
+                      onChordSelect?.(newIdx !== null ? section.chords[newIdx] : null);
+                    }}
                   />
                 </div>
               ))}
