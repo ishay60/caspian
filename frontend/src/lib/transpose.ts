@@ -72,7 +72,8 @@ export function parseChordRoot(symbol: string): [string, number, string] {
  *   transposeChordSymbol('A/C#', 2)   -> 'B/D#'
  */
 export function transposeChordSymbol(symbol: string, semitones: number): string {
-  if (semitones === 0) return normalizeChordSymbol(symbol);
+  // At 0, preserve API spelling (e.g. Bb in D minor); do not normalize to sharps
+  if (semitones === 0) return symbol;
 
   const [_rootName, rootPitch, remainder] = parseChordRoot(symbol);
 

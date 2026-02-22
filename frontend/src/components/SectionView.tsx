@@ -273,8 +273,8 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
               />
             )}
 
-            {/* Chord badges row */}
-            <div className="flex flex-wrap items-center gap-1.5">
+            {/* Chord badges row — always LTR so order matches ChordPlayer playback (e.g. Hebrew RTL page) */}
+            <div className="flex flex-wrap items-center gap-1.5" dir="ltr">
               {section.chords.map((chord, i) => (
                 <div key={i} className="flex items-center gap-1.5">
                   {i > 0 && <span className="text-sm select-none" style={{ color: 'var(--color-border)' }}>&rarr;</span>}

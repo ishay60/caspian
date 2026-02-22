@@ -82,12 +82,15 @@ export function AnalysisView({ result }: Props) {
   const [showFretboard, setShowFretboard] = useState(false);
   const [selectedChordForFretboard, setSelectedChordForFretboard] = useState<ChordAnalysis | null>(null);
 
-  // Compute transposed key and sections
+  // Compute transposed key and sections (at 0 preserve API key spelling e.g. Bb not A#)
   const currentKey = transposeKey(result.key, transposeSemitones);
   const modeLabel = (MODE_KEYS as readonly string[]).includes(currentKey.mode)
     ? t[currentKey.mode as typeof MODE_KEYS[number]]
     : currentKey.mode;
-  const displaySections = sections.map(s => transposeSection(s, transposeSemitones));
+  const displaySections =
+    transposeSemitones === 0
+      ? sections
+      : sections.map(s => transposeSection(s, transposeSemitones));
 
   // Reset when a new analysis result comes in
   useEffect(() => {

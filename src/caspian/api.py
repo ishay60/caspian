@@ -36,7 +36,7 @@ from caspian.models.analysis import (
     SectionAnalysis,
     SongAnalysis,
 )
-from caspian.theory.pitch import note_name
+from caspian.theory.pitch import note_name, note_name_in_key
 
 app = FastAPI(title="Caspian", description="Hebrew harmonic analysis API")
 
@@ -151,40 +151,58 @@ class LlmAnalyzeResponse(BaseModel):
 
 
 def _serialize_analysis(analysis: SongAnalysis) -> AnalyzeResponse:
+    key = analysis.key
     return AnalyzeResponse(
         title=analysis.title,
         artist=analysis.artist,
         key=KeyResponse(
-            root_name=analysis.key.root_name,
-            root=analysis.key.root,
-            mode=analysis.key.mode,
-            scale_pitches=list(analysis.key.scale_pitches),
+            root_name=key.root_name,
+            root=key.root,
+            mode=key.mode,
+            scale_pitches=list(key.scale_pitches),
         ),
-        sections=[_serialize_section(s) for s in analysis.sections],
+        sections=[_serialize_section(s, key) for s in analysis.sections],
     )
 
 
-def _serialize_section(section: SectionAnalysis) -> SectionResponse:
+def _serialize_section(section: SectionAnalysis, key: Key) -> SectionResponse:
     return SectionResponse(
         name=section.name,
-        chords=[_serialize_chord(ca) for ca in section.chords],
-        bass_line=[_serialize_bass_note(bn) for bn in section.bass_line],
-        chromatic_runs=[_serialize_chromatic_run(cr) for cr in section.chromatic_runs],
+        chords=[_serialize_chord(ca, key) for ca in section.chords],
+        bass_line=[_serialize_bass_note(bn, key) for bn in section.bass_line],
+        chromatic_runs=[_serialize_chromatic_run(cr, key) for cr in section.chromatic_runs],
         patterns=[PatternResponse(type=p.type, detail=p.detail, positions=p.positions)
                   for p in section.patterns],
     )
 
 
-def _serialize_chord(ca: ChordAnalysis) -> ChordAnalysisResponse:
+def _serialize_chord(ca: ChordAnalysis, key: Key) -> ChordAnalysisResponse:
+    scale_pitches = key.scale_pitches
+    mode = key.mode
+    chord = ca.chord
+    # Use key-appropriate spelling for diatonic chords (e.g. Bb not A# in D minor)
+    if ca.is_diatonic:
+        root_name = note_name_in_key(chord.root, scale_pitches, mode)
+        bass_name = note_name_in_key(chord.bass, scale_pitches, mode)
+        suffix = chord.symbol[len(chord.root_name):]
+        if "/" in suffix:
+            quality_part = suffix.split("/", 1)[0]
+            symbol = root_name + quality_part + "/" + bass_name
+        else:
+            symbol = root_name + suffix
+    else:
+        root_name = chord.root_name
+        bass_name = chord.bass_name
+        symbol = chord.symbol
     return ChordAnalysisResponse(
-        symbol=ca.chord.symbol,
-        root_name=ca.chord.root_name,
-        root=ca.chord.root,
-        quality=ca.chord.quality.value,
-        bass_name=ca.chord.bass_name,
-        bass=ca.chord.bass,
-        pitches=list(ca.chord.pitches),
-        is_inverted=ca.chord.is_inverted,
+        symbol=symbol,
+        root_name=root_name,
+        root=chord.root,
+        quality=chord.quality.value,
+        bass_name=bass_name,
+        bass=chord.bass,
+        pitches=list(chord.pitches),
+        is_inverted=chord.is_inverted,
         roman_numeral=ca.roman_numeral,
         is_diatonic=ca.is_diatonic,
         diatonic_in_scales=ca.diatonic_in_scales,
@@ -193,26 +211,28 @@ def _serialize_chord(ca: ChordAnalysis) -> ChordAnalysisResponse:
             for i in ca.interpretations
         ],
         bass_motion_from_previous=ca.bass_motion_from_previous,
-        common_tones_with_previous=[note_name(p) for p in ca.common_tones_with_previous],
-        common_tones_with_next=[note_name(p) for p in ca.common_tones_with_next],
+        common_tones_with_previous=[note_name_in_key(p, scale_pitches, mode) for p in ca.common_tones_with_previous],
+        common_tones_with_next=[note_name_in_key(p, scale_pitches, mode) for p in ca.common_tones_with_next],
         deceptive_resolution=ca.deceptive_resolution,
         secondary_dominant=ca.secondary_dominant,
     )
 
 
-def _serialize_bass_note(bn: BassNote) -> BassNoteResponse:
+def _serialize_bass_note(bn: BassNote, key: Key) -> BassNoteResponse:
+    name = note_name_in_key(bn.pitch, key.scale_pitches, key.mode)
     return BassNoteResponse(
         pitch=bn.pitch,
-        name=bn.name,
+        name=name,
         chord_symbol=bn.chord_symbol,
         position=bn.position,
         motion_from_previous=bn.motion_from_previous,
     )
 
 
-def _serialize_chromatic_run(cr: ChromaticRun) -> ChromaticRunResponse:
+def _serialize_chromatic_run(cr: ChromaticRun, key: Key) -> ChromaticRunResponse:
+    notes = [note_name_in_key(n.pitch, key.scale_pitches, key.mode) for n in cr.notes]
     return ChromaticRunResponse(
-        notes=[n.name for n in cr.notes],
+        notes=notes,
         direction=cr.direction,
         start_position=cr.start_position,
         length=cr.length,
@@ -278,7 +298,7 @@ def analyze_section_endpoint(req: AnalyzeSectionRequest):
                 detail=f"Invalid chord symbol: {symbol}",
             )
     section_analysis = analyze_section(req.section_name, chords, key)
-    return _serialize_section(section_analysis)
+    return _serialize_section(section_analysis, key)
 
 
 logger = logging.getLogger(__name__)

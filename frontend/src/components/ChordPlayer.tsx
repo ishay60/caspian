@@ -294,9 +294,9 @@ export function ChordPlayer({ chords, onChordHighlight }: Props) {
         )}
       </div>
 
-      {/* Chord symbols row */}
+      {/* Chord symbols row — always LTR so playback order matches visual order (e.g. Hebrew RTL page) */}
       {chords.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1 -mx-1">
+        <div className="flex flex-wrap items-center gap-1 -mx-1" dir="ltr">
           {chords.map((chord, i) => {
             const isActive = currentIndex === i;
             return (

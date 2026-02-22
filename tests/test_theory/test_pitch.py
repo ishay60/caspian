@@ -1,7 +1,7 @@
 """Tests for pitch class utilities."""
 
 import pytest
-from caspian.theory.pitch import parse_note_name, note_name, NOTE_TO_PITCH
+from caspian.theory.pitch import parse_note_name, note_name, note_name_in_key, NOTE_TO_PITCH
 
 
 @pytest.mark.parametrize("text,expected_name,expected_pitch", [
@@ -50,3 +50,16 @@ def test_parse_note_name_invalid():
 ])
 def test_note_name(pitch, sharp, expected):
     assert note_name(pitch, prefer_sharp=sharp) == expected
+
+
+def test_note_name_in_key_d_minor_flat_six():
+    """In D natural minor, scale degree 6 is Bb (pitch 10), not A#."""
+    scale_pitches = (2, 4, 5, 7, 9, 10, 0)  # D natural minor
+    assert note_name_in_key(10, scale_pitches, "natural_minor") == "Bb"
+    assert note_name_in_key(9, scale_pitches, "natural_minor") == "A"
+
+
+def test_note_name_in_key_chromatic_unchanged():
+    """Chromatic pitches keep default (sharp) spelling."""
+    scale_pitches = (2, 4, 5, 7, 9, 10, 0)
+    assert note_name_in_key(1, scale_pitches, "natural_minor") == "C#"

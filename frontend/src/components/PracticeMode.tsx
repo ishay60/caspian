@@ -562,9 +562,9 @@ export function PracticeMode({ chords, sectionName }: Props) {
           )}
         </div>
 
-        {/* Chord badges with beat indicators */}
+        {/* Chord badges with beat indicators — LTR so order matches playback (e.g. Hebrew RTL page) */}
         {chords.length > 0 && (
-          <div className="flex flex-wrap items-start gap-2">
+          <div className="flex flex-wrap items-start gap-2" dir="ltr">
             {chords.map((chord, i) => {
               const inLoop = i >= loopStart && i <= loopEnd;
               const isActive = currentChordIdx === i;

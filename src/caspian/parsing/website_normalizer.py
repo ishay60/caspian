@@ -127,6 +127,9 @@ def normalize_website_paste(text: str) -> str:
             title = s
             i += 1
             break
+        # Chord-only line at start: no title/artist here; leave for sections (don't consume)
+        if _is_chord_only_line(s):
+            break
         i += 1
         break
 
@@ -144,6 +147,9 @@ def normalize_website_paste(text: str) -> str:
             continue
         # If this line is a section header, stop artist search
         if _is_section_header(s):
+            break
+        # Only treat a line as artist if we already have a title (otherwise first line was chords and this may be lyrics)
+        if not title:
             break
         if has_hebrew(s) and not _is_chord_only_line(s) and not artist:
             artist = s
