@@ -95,6 +95,7 @@ export function ChordDetailPanel({ chord, keyInfo }: Props) {
                 pitches={chord.pitches}
                 root={chord.root}
                 color={color}
+                symbol={chord.symbol}
               />
             </div>
           )}

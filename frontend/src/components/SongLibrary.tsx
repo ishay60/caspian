@@ -1,18 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { AnalysisResult } from '../types';
+import { useSettings } from '../lib/settingsContext';
 import {
   getSongs,
   saveSong,
   deleteSong,
   touchSong,
   findExisting,
+  extractMetadata,
   type SavedSong,
 } from '../lib/songLibrary';
+import { searchSongs, emptyFilters, type FeatureFilters } from '../lib/songSearch';
 
 interface Props {
   onLoadSong: (inputText: string) => void;
   currentTitle?: string;
   currentArtist?: string;
   currentInputText?: string;
+  /** Current analysis result — used to save richer metadata. */
+  currentAnalysis?: AnalysisResult | null;
 }
 
 function timeAgo(timestamp: number): string {
@@ -29,10 +35,14 @@ export function SongLibrary({
   currentTitle,
   currentArtist,
   currentInputText,
+  currentAnalysis,
 }: Props) {
+  const { t } = useSettings();
   const [open, setOpen] = useState(false);
   const [songs, setSongs] = useState<SavedSong[]>([]);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState<FeatureFilters>(emptyFilters);
 
   const refresh = useCallback(() => {
     setSongs(getSongs());
@@ -87,12 +97,18 @@ export function SongLibrary({
       deleteSong(existing.id);
     }
 
+    // Extract analysis metadata if we have a current analysis result
+    const analysisMetadata = currentAnalysis
+      ? extractMetadata(currentAnalysis)
+      : undefined;
+
     saveSong({
       title: currentTitle,
       artist: currentArtist,
       keyRoot,
       keyMode,
       inputText: currentInputText,
+      analysisMetadata,
     });
 
     refresh();
@@ -113,6 +129,18 @@ export function SongLibrary({
       setConfirmDeleteId(id);
     }
   }
+
+  function toggleFilter(key: keyof FeatureFilters) {
+    setFilters(prev => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  const hasActiveFilters = query.trim() !== '' ||
+    filters.secondaryDominants || filters.borrowedChords ||
+    filters.deceptiveResolution || filters.diminished;
+
+  const displaySongs = hasActiveFilters
+    ? searchSongs(songs, query, filters)
+    : songs;
 
   return (
     <div className="relative">
@@ -142,13 +170,13 @@ export function SongLibrary({
             d="M5 19V5a2 2 0 012-2h10a2 2 0 012 2v14l-7-3.5L5 19z"
           />
         </svg>
-        Library
+        {t.library}
       </button>
 
       {/* Dropdown panel */}
       {open && (
         <div
-          className="absolute right-0 top-full mt-2 w-80 rounded-lg border shadow-xl z-50 overflow-hidden"
+          className="absolute right-0 top-full mt-2 w-96 rounded-lg border shadow-xl z-50 overflow-hidden"
           style={{
             backgroundColor: 'var(--color-surface)',
             borderColor: 'var(--color-border)',
@@ -163,7 +191,7 @@ export function SongLibrary({
               className="text-sm font-medium"
               style={{ color: 'var(--color-text)' }}
             >
-              Saved Songs
+              {t.savedSongs}
             </span>
             {hasCurrentSong && (
               <button
@@ -175,10 +203,70 @@ export function SongLibrary({
                   color: '#fff',
                 }}
               >
-                Save Current
+                {t.saveCurrent}
               </button>
             )}
           </div>
+
+          {/* Search & filters */}
+          {songs.length > 0 && (
+            <div className="px-4 py-2.5 border-b space-y-2" style={{ borderColor: 'var(--color-border)' }}>
+              {/* Search input */}
+              <div className="relative">
+                <svg
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  style={{ color: 'var(--color-neutral)' }}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder={t.searchPlaceholder}
+                  className="w-full text-xs pl-8 pr-3 py-1.5 rounded-md border outline-none transition-colors"
+                  style={{
+                    backgroundColor: 'var(--color-surface-2)',
+                    borderColor: 'var(--color-border)',
+                    color: 'var(--color-text)',
+                  }}
+                />
+              </div>
+
+              {/* Feature filter chips */}
+              <div className="flex flex-wrap gap-1.5">
+                {([
+                  ['secondaryDominants', t.filterSecDom, '--color-secondary-dom'],
+                  ['borrowedChords', t.filterBorrowed, '--color-borrowed'],
+                  ['deceptiveResolution', t.filterDeceptive, '--color-deceptive'],
+                  ['diminished', t.filterDim, '--color-diminished'],
+                ] as [keyof FeatureFilters, string, string][]).map(([key, label, colorVar]) => {
+                  const active = filters[key];
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => toggleFilter(key)}
+                      className="text-[10px] px-2 py-0.5 rounded-full border cursor-pointer transition-all"
+                      style={{
+                        borderColor: active ? `var(${colorVar})` : 'var(--color-border)',
+                        backgroundColor: active
+                          ? `color-mix(in srgb, var(${colorVar}) 20%, transparent)`
+                          : 'transparent',
+                        color: active ? `var(${colorVar})` : 'var(--color-neutral)',
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Song list */}
           <div className="max-h-80 overflow-y-auto">
@@ -200,12 +288,19 @@ export function SongLibrary({
                     d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
                   />
                 </svg>
-                No saved songs yet.
+                {t.noSavedSongs}
                 <br />
-                Analyze a song and save it here.
+                {t.analyzeSave}
+              </div>
+            ) : displaySongs.length === 0 ? (
+              <div
+                className="px-4 py-6 text-center text-xs"
+                style={{ color: 'var(--color-neutral)' }}
+              >
+                {t.noResults}
               </div>
             ) : (
-              songs.map((song) => (
+              displaySongs.map((song) => (
                 <div
                   key={song.id}
                   className="group border-b last:border-b-0 transition-colors"
@@ -249,6 +344,31 @@ export function SongLibrary({
                         )}
                         <span>{timeAgo(song.savedAt)}</span>
                       </div>
+                      {/* Chord & feature tags */}
+                      {song.analysisMetadata && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {song.analysisMetadata.chordSymbols.slice(0, 6).map(cs => (
+                            <span
+                              key={cs}
+                              className="text-[9px] px-1.5 py-0.5 rounded font-mono"
+                              style={{
+                                backgroundColor: 'var(--color-surface-2)',
+                                color: 'var(--color-text-secondary)',
+                              }}
+                            >
+                              {cs}
+                            </span>
+                          ))}
+                          {song.analysisMetadata.chordSymbols.length > 6 && (
+                            <span
+                              className="text-[9px] px-1 py-0.5"
+                              style={{ color: 'var(--color-neutral)' }}
+                            >
+                              +{song.analysisMetadata.chordSymbols.length - 6}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Delete button */}

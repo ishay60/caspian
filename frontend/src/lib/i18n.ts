@@ -97,6 +97,19 @@ const en = {
   capo: 'Capo',
   noCap: 'No capo',
   capoFret: 'Capo: fret',
+
+  // Song library & search
+  savedSongs: 'Saved Songs',
+  saveCurrent: 'Save Current',
+  noSavedSongs: 'No saved songs yet.',
+  analyzeSave: 'Analyze a song and save it here.',
+  searchPlaceholder: 'Search chords, keys, songs...',
+  filterSecDom: 'Sec. Dom',
+  filterBorrowed: 'Borrowed',
+  filterDeceptive: 'Deceptive',
+  filterDim: 'Dim',
+  noResults: 'No songs match your search.',
+  library: 'Library',
 };
 
 export type TranslationKeys = keyof typeof en;
@@ -184,6 +197,19 @@ const he: Translations = {
   capo: 'קאפו',
   noCap: 'ללא קאפו',
   capoFret: 'קאפו: סוגר',
+
+  // Song library & search
+  savedSongs: 'שירים שמורים',
+  saveCurrent: 'שמור נוכחי',
+  noSavedSongs: 'אין שירים שמורים.',
+  analyzeSave: 'נתח שיר ושמור אותו כאן.',
+  searchPlaceholder: 'חפש אקורדים, סולמות, שירים...',
+  filterSecDom: 'דומ. משנית',
+  filterBorrowed: 'שאול',
+  filterDeceptive: 'מטעה',
+  filterDim: 'דימ',
+  noResults: 'לא נמצאו שירים תואמים.',
+  library: 'ספרייה',
 };
 
 const translationMap: Record<Language, Translations> = { en, he };

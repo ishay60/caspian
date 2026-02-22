@@ -1,3 +1,25 @@
+import type { AnalysisResult } from '../types';
+
+/** Indexed analysis metadata stored alongside each saved song for search/filtering. */
+export interface SongAnalysisMetadata {
+  /** All unique chord symbols used across all sections. */
+  chordSymbols: string[];
+  /** All unique Roman numerals used across all sections. */
+  romanNumerals: string[];
+  /** Section names (e.g., "intro", "verse", "chorus"). */
+  sectionNames: string[];
+  /** Chord progressions per section as space-separated symbol strings. */
+  progressions: string[];
+  /** Whether any chord has a secondary dominant interpretation. */
+  hasSecondaryDominants: boolean;
+  /** Whether any chord is borrowed from a parallel mode. */
+  hasBorrowedChords: boolean;
+  /** Whether any chord triggers a deceptive resolution. */
+  hasDeceptiveResolution: boolean;
+  /** Whether any diminished chord appears. */
+  hasDiminished: boolean;
+}
+
 export interface SavedSong {
   id: string;
   title: string;
@@ -7,6 +29,8 @@ export interface SavedSong {
   inputText: string;
   savedAt: number;
   lastOpenedAt: number;
+  /** Analysis metadata for search/filter — absent on legacy entries. */
+  analysisMetadata?: SongAnalysisMetadata;
 }
 
 const STORAGE_KEY = 'caspian-songs';
@@ -27,6 +51,59 @@ function writeAll(songs: SavedSong[]): void {
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+/** Extract searchable metadata from an AnalysisResult. */
+export function extractMetadata(result: AnalysisResult): SongAnalysisMetadata {
+  const chordSymbols = new Set<string>();
+  const romanNumerals = new Set<string>();
+  const sectionNames: string[] = [];
+  const progressions: string[] = [];
+  let hasSecondaryDominants = false;
+  let hasBorrowedChords = false;
+  let hasDeceptiveResolution = false;
+  let hasDiminished = false;
+
+  for (const section of result.sections) {
+    sectionNames.push(section.name);
+    const sectionChords: string[] = [];
+
+    for (const chord of section.chords) {
+      chordSymbols.add(chord.symbol);
+      romanNumerals.add(chord.roman_numeral);
+      sectionChords.push(chord.symbol);
+
+      if (chord.secondary_dominant) hasSecondaryDominants = true;
+      if (chord.deceptive_resolution) hasDeceptiveResolution = true;
+
+      const q = chord.quality.toLowerCase();
+      if (q.includes('diminished') || q.includes('half_diminished')) hasDiminished = true;
+
+      // Check for borrowed chord interpretation
+      for (const interp of chord.interpretations) {
+        if (interp.type === 'borrowed') hasBorrowedChords = true;
+      }
+      // Also: non-diatonic + has diatonic_in_scales entries → borrowed
+      if (!chord.is_diatonic && chord.diatonic_in_scales.length > 0) {
+        hasBorrowedChords = true;
+      }
+    }
+
+    if (sectionChords.length > 0) {
+      progressions.push(sectionChords.join(' '));
+    }
+  }
+
+  return {
+    chordSymbols: [...chordSymbols],
+    romanNumerals: [...romanNumerals],
+    sectionNames,
+    progressions,
+    hasSecondaryDominants,
+    hasBorrowedChords,
+    hasDeceptiveResolution,
+    hasDiminished,
+  };
 }
 
 /** Save a song to the library. Returns the newly created SavedSong. */

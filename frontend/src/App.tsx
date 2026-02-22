@@ -118,6 +118,7 @@ function AppContent() {
               currentTitle={result?.title}
               currentArtist={result?.artist}
               currentInputText={currentInputRef.current || undefined}
+              currentAnalysis={result}
             />
 
             <SettingsBar />

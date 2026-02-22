@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
+import json as _json
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -297,6 +301,33 @@ async def llm_analyze(req: AnalyzeResponse):
         sections=sections,
         overall_summary=raw.get("overall_summary", ""),
     )
+
+
+# --- Uberchord API proxy ---
+
+_uberchord_cache: dict[str, list] = {}
+
+
+@app.get("/api/uberchord/{chord_name:path}")
+async def uberchord_proxy(chord_name: str):
+    """Proxy requests to the Uberchord API to avoid CORS issues."""
+    if chord_name in _uberchord_cache:
+        return _uberchord_cache[chord_name]
+
+    encoded = urllib.parse.quote(chord_name, safe="")
+    url = f"https://api.uberchord.com/v1/chords/{encoded}"
+
+    def _fetch():
+        try:
+            req = urllib.request.Request(url, headers={"Accept": "application/json"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                return _json.loads(resp.read())
+        except Exception:
+            return []
+
+    data = await asyncio.to_thread(_fetch)
+    _uberchord_cache[chord_name] = data
+    return data
 
 
 # Serve React static files in production
