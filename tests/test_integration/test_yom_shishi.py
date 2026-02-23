@@ -9,6 +9,9 @@ from caspian.parsing.input_parser import parse_format_a
 from caspian.analysis.analyzer import analyze_song
 
 
+# Minimal input for tests: intro + verse + one bridge (מעבר) so section[2] has
+# exactly the D#dim/F#dim/deceptive-resolution progression. Full song lives in
+# frontend/src/App.tsx (SAMPLE_INPUT) and examples/yom_shishi.txt.
 YOM_SHISHI_INPUT = """\
 key: Am
 title: יום שישי חזר
@@ -21,10 +24,10 @@ C C Am B Em Em Em E
 [verse]
 D Am | יום שישי חזר
 Am C | בלי שום חדשות
-B Em C | יום שישי אכזר
-E Am D | שוב שעות קשות
+C Em B | יום שישי אכזר
+D Am E | שוב שעות קשות
 
-[chorus]
+[bridge]
 D#dim Am/E | יש אולי סיכוי קרוב
 F F#dim | למצוא גן עדן ברחוב
 Dm E Am D | ואולי גם לילה טוב
@@ -47,7 +50,7 @@ class TestYomShishiEndToEnd:
         assert len(self.analysis.sections) == 3
         assert self.analysis.sections[0].name == "intro"
         assert self.analysis.sections[1].name == "verse"
-        assert self.analysis.sections[2].name == "chorus"
+        assert self.analysis.sections[2].name == "bridge"
 
     def test_intro_ltr_order(self):
         """Intro chords should be in LTR order."""
@@ -56,21 +59,20 @@ class TestYomShishiEndToEnd:
         assert symbols[:4] == ["Am", "Am", "D", "D"]
 
     def test_chorus_chord_order(self):
-        """CRITICAL: Chorus chords must be in RTL-reversed chronological order."""
+        """CRITICAL: Bridge (מעבר) chords must be in RTL-reversed chronological order."""
         chorus = self.analysis.sections[2]
         symbols = [ca.chord.symbol for ca in chorus.chords]
         # Input (visual): "D#dim Am/E | Hebrew" → reversed: Am/E, D#dim
-        # Input (visual): "F F#dim | Hebrew" → reversed: F#dim, F
-        # Input (visual): "Dm E Am D | Hebrew" → reversed: D, Am, E, Dm
+        # "F F#dim | Hebrew" → reversed: F#dim, F; "Dm E Am D | Hebrew" → reversed: D, Am, E, Dm
         assert symbols == [
-            "Am/E", "D#dim",       # line 1
-            "F#dim", "F",          # line 2
-            "D", "Am", "E", "Dm", # line 3
+            "Am/E", "D#dim",
+            "F#dim", "F",
+            "D", "Am", "E", "Dm",
         ]
 
     def test_chorus_d_sharp_dim_analysis(self):
         """D#dim should have chromatic descent and rootless B7b9 interpretations."""
-        chorus = self.analysis.sections[2]
+        chorus = self.analysis.sections[2]  # first [bridge]
         d_sharp_dim = chorus.chords[1]  # second chord
         assert d_sharp_dim.chord.symbol == "D#dim"
         assert d_sharp_dim.is_diatonic is False
@@ -83,7 +85,7 @@ class TestYomShishiEndToEnd:
 
     def test_chorus_f_sharp_dim_analysis(self):
         """F#dim should have chromatic approach to F and common tones."""
-        chorus = self.analysis.sections[2]
+        chorus = self.analysis.sections[2]  # first [bridge]
         f_sharp_dim = chorus.chords[2]
         assert f_sharp_dim.chord.symbol == "F#dim"
         assert f_sharp_dim.is_diatonic is False
@@ -94,7 +96,7 @@ class TestYomShishiEndToEnd:
 
     def test_chorus_d_major_borrowed(self):
         """D major should be detected as borrowed from Dorian."""
-        chorus = self.analysis.sections[2]
+        chorus = self.analysis.sections[2]  # first [bridge]
         d_major = chorus.chords[4]
         assert d_major.chord.symbol == "D"
         assert d_major.is_diatonic is False
@@ -105,7 +107,7 @@ class TestYomShishiEndToEnd:
 
     def test_chorus_deceptive_resolution(self):
         """E → Dm should be detected as deceptive resolution."""
-        chorus = self.analysis.sections[2]
+        chorus = self.analysis.sections[2]  # first [bridge]
         e_chord = chorus.chords[6]
         assert e_chord.chord.symbol == "E"
         assert e_chord.deceptive_resolution is not None
@@ -113,7 +115,7 @@ class TestYomShishiEndToEnd:
 
     def test_chorus_chromatic_pairs(self):
         """Should detect chromatic pairs E→D# and F#→F."""
-        chorus = self.analysis.sections[2]
+        chorus = self.analysis.sections[2]  # first [bridge]
         runs = chorus.chromatic_runs
         assert len(runs) >= 2
 
@@ -123,7 +125,7 @@ class TestYomShishiEndToEnd:
 
     def test_chorus_bass_line(self):
         """Bass line should be E → D# → F# → F → D → A → E → D."""
-        chorus = self.analysis.sections[2]
+        chorus = self.analysis.sections[2]  # first [bridge]
         bass_names = [b.name for b in chorus.bass_line]
         assert bass_names == ["E", "D#", "F#", "F", "D", "A", "E", "D"]
 

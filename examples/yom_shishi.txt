@@ -5,14 +5,93 @@ artist: מתי כספי
 [intro]
 Am Am D D Am Am D D
 C C Am B Em Em Em E
+Am Am D D Am Am D D
+C C Am B Em Em Em E
+Am Am D
+D Am
 
 [verse]
 D Am | יום שישי חזר
 Am C | בלי שום חדשות
-B Em C | יום שישי אכזר
-E Am D | שוב שעות קשות
+C Em B | יום שישי אכזר
+D Am E | שוב שעות קשות
+D Am | שמונה השעה
+Am C | תכניות לי אין
+Am F Em B | ואני מונה שתי אפשרויות
 
-[chorus]
-D#dim Am/E | יש אולי סיכוי קרוב
-F F#dim | למצוא גן עדן ברחוב
-Dm E Am D | ואולי גם לילה טוב
+[bridge]
+D Am Bsus7
+A E7 A E7
+Gsus4 C G F
+Am C F C | מיד אבטל אותה אך
+Am/C Bm7b5 | המודד את הרחובות
+Dm A/C# | נחמד דבר שיקרה עד
+Am/E D#dim | יש אולי סיכוי קרוב
+F#dim F | ברחוב עדן גן למצוא
+D Am E Dm | טוב לילה גם ואולי
+D Am | תכנית כבר לי יש
+
+[verse]
+Am C | במדרגות אור
+C Em B | מכונית לי יש
+D Am E | חגיגות לי אין
+D Am | מאוד ירוק גל
+Am C | העיריה עד
+Am E | לאותת מה אין
+F Em B | לאהוב מי אין
+
+[bridge]
+D Am Bsus7
+A E7 A E7
+Gsus4 C G F
+Am C F C | לאט מתקרב חלומי
+Am/C Bm7b5 | הארורה השעה
+Dm A/C# | כמעט שלוש כבר היא עכשיו
+Am/E D#dim | יש אולי סיכוי קרוב
+F#dim F | ברחוב עדן גן למצוא
+D Am E Dm | טוב לילה גם ואולי
+D Am | אחד סיבוב עוד
+
+[verse]
+Am C | ומר רע לי, רע
+C Em B | נפחד אני שוב
+D Am E | נגמר והטנק
+D Am | מת כבר הסיכוי
+Am C | צהוב הרמזור
+F Em B | לאותת מה אין
+Am E | לאהוב מי אין
+
+[bridge]
+D Am Bsus7
+A E7 A E7
+Gsus4 C G F
+Am C F C | וים שבת יום מעט עוד
+Am/C Bm7b5 | מידי גדולה והמיטה
+Dm A/C# | ומיילל דפוק אני אם
+Am/E D#dim | קיים אני משמע
+F#dim F | ברחוב עדן גן למצוא
+D Am E Dm | טוב לילה שום לא וגם
+D Am | אחד סיבוב עוד
+
+[verse]
+Am C | ומר לי רע
+C Em B | נפחד אני שוב
+D Am E | נגמר והטנק
+D Am | מת כבר הסיכוי
+Am C | צהוב הרמזור
+F Em B | לאותת מה אין
+Am E | לאהוב מי אין
+
+[outro]
+D D Am Am D D
+C C Am B Em Em Em E
+Am Am D D Am Am D D
+C C Am B Em Em Em E
+Am Am D D Am Am D D
+C C Am B Em Em Em E
+Am Am D D Am Am D D
+C C Am B Em Em Em E
+Am Am D D Am Am D D
+C C Am B Em Em Em E
+Am Am D D Am Am D D
+C C Am B Em Em Em E
