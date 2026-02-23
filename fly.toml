@@ -1,33 +1,26 @@
-# Fly.io configuration — free-tier deployment
-# Free allowance: 3 shared-cpu-1x VMs, 160 GB/month bandwidth
+# fly.toml app configuration file generated for caspian on 2026-02-23T12:04:06+02:00
 #
-# First-time deploy:
-#   fly auth login
-#   fly launch --no-deploy      # registers the app, skips auto-deploy
-#   fly secrets set ANTHROPIC_API_KEY=sk-...  # optional: enables LLM narrative
-#   fly deploy
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
-# The app name below is a placeholder; `fly launch` will rename it to whatever
-# you choose (must be globally unique on fly.io).
-app = "caspian"
-primary_region = "iad"   # US-East (lowest latency for most users)
+
+app = 'caspian'
+primary_region = 'fra'
 
 [build]
-  # Uses the Dockerfile at repo root — no extra config needed
 
 [env]
-  PORT = "8080"
-  # ALLOWED_ORIGINS is set below; override with `fly secrets set` if you use
-  # a custom domain (comma-separated list of origins).
-  ALLOWED_ORIGINS = "https://caspian.fly.dev"
+  ALLOWED_ORIGINS = 'https://caspian.fly.dev'
+  PORT = '8080'
 
 [http_service]
-  internal_port       = 8080
-  force_https         = true
-  auto_stop_machines  = "stop"   # machines stop when idle (saves free quota)
-  auto_start_machines = true     # machines wake on first request
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
   min_machines_running = 0
 
 [[vm]]
-  size   = "shared-cpu-1x"
-  memory = "256mb"
+  size = 'shared-cpu-1x'
+  memory = '256mb'
+  cpus = 1
+  memory_mb = 256
