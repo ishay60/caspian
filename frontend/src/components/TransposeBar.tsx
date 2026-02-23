@@ -36,33 +36,33 @@ export function TransposeBar({ currentKey, onTranspose }: Props) {
 
   return (
     <div
-      className="flex items-center gap-3 flex-wrap px-4 py-2 rounded-lg border"
+      className="flex items-center gap-3 flex-wrap px-4 py-3 rounded-xl border"
       style={{
-        backgroundColor: 'var(--color-surface)',
+        backgroundColor: 'var(--color-surface-2)',
         borderColor: 'var(--color-border)',
       }}
     >
       {/* Label */}
       <label
-        className="text-xs uppercase tracking-wider font-medium shrink-0"
+        className="text-[10px] uppercase tracking-widest font-semibold shrink-0"
         style={{ color: 'var(--color-neutral)' }}
       >
         {t.key}
       </label>
 
-      {/* 12 key buttons */}
-      <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: 'var(--color-border)' }}>
+      {/* 12 key buttons — piano-like row */}
+      <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: 'var(--color-border)' }}>
         {NOTE_NAMES.map((name, pitch) => {
           const isActive = pitch === currentRoot;
           return (
             <button
               key={name}
               onClick={() => handleKeyClick(pitch)}
-              className="px-2 py-1 text-xs font-mono font-medium transition-colors cursor-pointer"
+              className="px-2.5 py-1.5 text-xs font-mono font-semibold transition-all cursor-pointer"
               style={{
-                backgroundColor: isActive ? 'var(--color-accent)' : 'var(--color-surface-2)',
+                backgroundColor: isActive ? 'var(--color-accent)' : 'var(--color-surface)',
                 color: isActive ? '#fff' : 'var(--color-neutral)',
-                minWidth: '2rem',
+                minWidth: '2.25rem',
               }}
               title={`Transpose to ${name}${currentKey.mode === 'minor' ? 'm' : ''}`}
             >
@@ -76,21 +76,21 @@ export function TransposeBar({ currentKey, onTranspose }: Props) {
       <div className="flex items-center gap-1">
         <button
           onClick={() => onTranspose(-1)}
-          className="px-2 py-1 text-xs font-medium rounded transition-colors cursor-pointer border"
+          className="px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer border"
           style={{
-            backgroundColor: 'var(--color-surface-2)',
+            backgroundColor: 'var(--color-surface)',
             borderColor: 'var(--color-border)',
             color: 'var(--color-text)',
           }}
           title="Transpose down one half step"
         >
-          -1
+          −1
         </button>
         <button
           onClick={() => onTranspose(1)}
-          className="px-2 py-1 text-xs font-medium rounded transition-colors cursor-pointer border"
+          className="px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer border"
           style={{
-            backgroundColor: 'var(--color-surface-2)',
+            backgroundColor: 'var(--color-surface)',
             borderColor: 'var(--color-border)',
             color: 'var(--color-text)',
           }}
@@ -104,9 +104,9 @@ export function TransposeBar({ currentKey, onTranspose }: Props) {
       <button
         onClick={handleReset}
         disabled={currentRoot === originalRoot}
-        className="px-2 py-1 text-xs font-medium rounded transition-colors cursor-pointer border disabled:opacity-40"
+        className="px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer border disabled:opacity-40"
         style={{
-          backgroundColor: 'var(--color-surface-2)',
+          backgroundColor: 'var(--color-surface)',
           borderColor: 'var(--color-border)',
           color: 'var(--color-neutral)',
         }}
@@ -117,7 +117,7 @@ export function TransposeBar({ currentKey, onTranspose }: Props) {
 
       {/* Capo indicator */}
       <span
-        className="text-xs font-medium ml-auto shrink-0"
+        className="text-xs font-semibold ml-auto shrink-0"
         style={{ color: capo > 0 ? 'var(--color-accent)' : 'var(--color-neutral)' }}
       >
         {capo > 0

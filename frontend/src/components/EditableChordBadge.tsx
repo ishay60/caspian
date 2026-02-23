@@ -51,7 +51,7 @@ export function EditableChordBadge({ symbol, onChange, onDelete }: Props) {
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
           onKeyDown={handleKeyDown}
-          className="font-mono font-semibold text-sm rounded-lg px-3 py-1.5 border outline-none w-20 text-center"
+          className="font-mono font-semibold text-sm rounded-xl px-3 py-1.5 border outline-none w-20 text-center"
           style={{
             borderColor: 'var(--color-primary)',
             backgroundColor: 'var(--color-surface-2)',

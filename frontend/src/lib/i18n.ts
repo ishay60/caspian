@@ -37,6 +37,12 @@ const en = {
   viewStaff: 'Staff',
   viewPiano: 'Piano',
   viewGuitar: 'Guitar',
+  toolboxOpen: 'Open toolbox',
+  toolboxClose: 'Close toolbox',
+  toolboxOn: 'on',
+  toolboxOff: 'off',
+  notationTypes: 'Notation types',
+  toolboxHint: 'Toggle each type on or off. Hidden types stay out of the way until you need them.',
 
   // Analysis view
   untitled: 'Untitled',
@@ -137,6 +143,12 @@ const he: Translations = {
   viewStaff: 'תווים',
   viewPiano: 'פסנתר',
   viewGuitar: 'גיטרה',
+  toolboxOpen: 'פתח סרגל כלים',
+  toolboxClose: 'סגור סרגל כלים',
+  toolboxOn: 'פועל',
+  toolboxOff: 'כבוי',
+  notationTypes: 'סוגי תיווי',
+  toolboxHint: 'הפעל או כבה כל סוג. סוגים כבויים נשארים מחוץ לדרך עד שתצטרך אותם.',
 
   // Analysis view
   untitled: 'ללא שם',

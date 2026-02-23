@@ -13,18 +13,19 @@ export function ChordBadge({ chord, selected, onClick }: Props) {
   return (
     <button
       onClick={onClick}
-      className="group relative rounded-lg px-3 py-1.5 transition-all cursor-pointer border"
+      className="group relative rounded-xl px-4 py-2.5 transition-all cursor-pointer border-2 min-w-[3.5rem]"
       style={{
-        borderColor: selected ? color : 'transparent',
+        borderColor: selected ? color : 'var(--color-border)',
         backgroundColor: selected
-          ? `color-mix(in srgb, ${color} 15%, transparent)`
+          ? `color-mix(in srgb, ${color} 16%, var(--color-surface-2))`
           : 'var(--color-surface-2)',
+        boxShadow: selected ? `0 0 0 2px color-mix(in srgb, ${color} 35%, transparent)` : 'var(--shadow-sm)',
       }}
     >
-      <div className="font-mono font-semibold text-sm" style={{ color }}>
+      <div className="font-mono font-bold text-sm tracking-wide" style={{ color }}>
         {chord.symbol}
       </div>
-      <div className="text-[10px] text-center" style={{ color: 'var(--color-neutral)' }}>
+      <div className="text-[10px] font-semibold text-center mt-0.5 uppercase tracking-wider" style={{ color: 'var(--color-neutral)' }}>
         {chord.roman_numeral}
       </div>
     </button>

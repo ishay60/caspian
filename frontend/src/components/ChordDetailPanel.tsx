@@ -10,25 +10,26 @@ interface Props {
 }
 
 export function ChordDetailPanel({ chord, keyInfo }: Props) {
-  const { vizMode, t } = useSettings();
+  const { notation, t } = useSettings();
   const color = getChordColor(chord);
-  const showPiano = vizMode === 'piano' || vizMode === 'all';
-  const showGuitar = vizMode === 'guitar' || vizMode === 'all';
+  const showPiano = notation.showPiano;
+  const showGuitar = notation.showGuitar;
 
   return (
     <div
-      className="rounded-lg border p-5 space-y-4"
+      className="chord-detail-panel rounded-2xl border-2 p-6 space-y-5"
       style={{
-        borderColor: `color-mix(in srgb, ${color} 30%, transparent)`,
-        backgroundColor: `color-mix(in srgb, ${color} 5%, var(--color-surface))`,
+        borderColor: `color-mix(in srgb, ${color} 45%, var(--color-border))`,
+        backgroundColor: `color-mix(in srgb, ${color} 8%, var(--color-surface))`,
+        boxShadow: 'var(--shadow-md), 0 0 0 1px color-mix(in srgb, var(--color-border) 30%, transparent)',
       }}
     >
-      {/* Header */}
+      {/* Header — chord symbol prominent for notation clarity */}
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="font-mono font-bold text-xl" style={{ color }}>
+        <span className="font-mono font-bold text-2xl tracking-tight" style={{ color }}>
           {chord.symbol}
         </span>
-        <span className="text-sm" style={{ color: 'var(--color-neutral)' }}>{chord.roman_numeral}</span>
+        <span className="text-sm font-medium" style={{ color: 'var(--color-neutral)' }}>{chord.roman_numeral}</span>
         {chord.is_inverted && (
           <span className="text-xs" style={{ color: 'var(--color-neutral)' }}>
             ({chord.bass_name} {t.inBass})
@@ -69,13 +70,22 @@ export function ChordDetailPanel({ chord, keyInfo }: Props) {
         )}
       </div>
 
-      {/* Visualizations */}
+      {/* Piano & Guitar — visibility controlled by toolbox toggles */}
       {(showPiano || showGuitar) && (
-        <div className="flex flex-wrap gap-6 items-start">
+        <div
+          className="instruments-strip rounded-xl border p-4 flex flex-wrap gap-8 items-start"
+          style={{
+            borderColor: 'var(--color-border)',
+            backgroundColor: 'var(--color-surface-2)',
+            boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--color-text) 6%, transparent)',
+          }}
+        >
           {showPiano && (
-            <div className="space-y-1.5">
-              <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--color-neutral)' }}>
-                {t.piano}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase tracking-widest font-bold" style={{ color: 'var(--color-accent)' }}>
+                  &#9835; {t.piano}
+                </span>
               </div>
               <PianoKeyboard
                 pitches={chord.pitches}
@@ -87,9 +97,11 @@ export function ChordDetailPanel({ chord, keyInfo }: Props) {
             </div>
           )}
           {showGuitar && (
-            <div className="space-y-1.5">
-              <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--color-neutral)' }}>
-                {t.guitar}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase tracking-widest font-bold" style={{ color: 'var(--color-accent)' }}>
+                  &#9836; {t.guitar}
+                </span>
               </div>
               <GuitarDiagram
                 pitches={chord.pitches}
@@ -129,7 +141,7 @@ export function ChordDetailPanel({ chord, keyInfo }: Props) {
       {/* Interpretations */}
       {chord.interpretations.length > 0 && (
         <div className="space-y-1.5">
-          <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--color-neutral)' }}>
+          <div className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: 'var(--color-neutral)' }}>
             {t.interpretations}
           </div>
           {chord.interpretations.map((interp, i) => {

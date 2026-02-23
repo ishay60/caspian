@@ -351,14 +351,14 @@ export function Tuner() {
         borderColor: isListening ? tuningColor : 'var(--color-border)',
         borderWidth: 1,
         borderStyle: 'solid',
-        borderRadius: 12,
+        borderRadius: 18,
         padding: 24,
         maxWidth: 420,
         margin: '0 auto',
-        transition: 'border-color 0.3s, box-shadow 0.3s',
+        transition: 'border-color 0.2s, box-shadow 0.2s',
         boxShadow: isListening
           ? `0 0 24px color-mix(in srgb, ${tuningColor} 20%, transparent)`
-          : 'none',
+          : 'var(--shadow-sm)',
         fontFamily: 'var(--font-sans)',
       }}
     >

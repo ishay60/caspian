@@ -133,7 +133,7 @@ export function GuitarDiagram({ pitches, root, color, symbol }: Props) {
         textAnchor="middle"
         fill={neutral}
         fontSize="10"
-        fontFamily="IBM Plex Mono, monospace"
+        fontFamily="JetBrains Mono, ui-monospace, monospace"
       >
         {startFret}
       </text>
@@ -152,7 +152,7 @@ export function GuitarDiagram({ pitches, root, color, symbol }: Props) {
           textAnchor="middle"
           fill={staffLine}
           fontSize="11" fontWeight="bold"
-          fontFamily="IBM Plex Sans, sans-serif"
+          fontFamily="DM Sans, system-ui, sans-serif"
         >
           x
         </text>
@@ -177,7 +177,7 @@ export function GuitarDiagram({ pitches, root, color, symbol }: Props) {
             textAnchor="middle"
             fill={bg}
             fontSize="7" fontWeight="bold"
-            fontFamily="IBM Plex Sans, sans-serif"
+            fontFamily="DM Sans, system-ui, sans-serif"
           >
             R
           </text>
@@ -206,7 +206,7 @@ export function GuitarDiagram({ pitches, root, color, symbol }: Props) {
             textAnchor="middle"
             fill={bg}
             fontSize="8" fontWeight="bold"
-            fontFamily="IBM Plex Sans, sans-serif"
+            fontFamily="DM Sans, system-ui, sans-serif"
           >
             R
           </text>

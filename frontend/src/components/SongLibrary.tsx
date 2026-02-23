@@ -148,7 +148,7 @@ export function SongLibrary({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="text-xs px-3 py-1.5 rounded-md border transition-colors cursor-pointer flex items-center gap-1.5"
+        className="text-xs px-3.5 py-2 rounded-xl border font-medium transition-all cursor-pointer flex items-center gap-2"
         style={{
           backgroundColor: open
             ? 'var(--color-accent)'
@@ -158,7 +158,7 @@ export function SongLibrary({
         }}
       >
         <svg
-          className="w-3.5 h-3.5"
+          className="w-4 h-4"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -176,19 +176,20 @@ export function SongLibrary({
       {/* Dropdown panel */}
       {open && (
         <div
-          className="absolute right-0 top-full mt-2 w-96 rounded-lg border shadow-xl z-50 overflow-hidden"
+          className="absolute right-0 top-full mt-2 w-96 rounded-2xl border z-50 overflow-hidden"
           style={{
             backgroundColor: 'var(--color-surface)',
             borderColor: 'var(--color-border)',
+            boxShadow: 'var(--shadow-md)',
           }}
         >
           {/* Panel header */}
           <div
-            className="px-4 py-3 border-b flex items-center justify-between"
+            className="px-4 py-3.5 border-b flex items-center justify-between"
             style={{ borderColor: 'var(--color-border)' }}
           >
             <span
-              className="text-sm font-medium"
+              className="text-sm font-semibold"
               style={{ color: 'var(--color-text)' }}
             >
               {t.savedSongs}
@@ -197,7 +198,7 @@ export function SongLibrary({
               <button
                 type="button"
                 onClick={handleSave}
-                className="text-xs px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer"
+                className="text-xs px-3 py-1.5 rounded-xl font-semibold transition-colors cursor-pointer"
                 style={{
                   backgroundColor: 'var(--color-accent)',
                   color: '#fff',
@@ -214,7 +215,7 @@ export function SongLibrary({
               {/* Search input */}
               <div className="relative">
                 <svg
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -228,7 +229,7 @@ export function SongLibrary({
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   placeholder={t.searchPlaceholder}
-                  className="w-full text-xs pl-8 pr-3 py-1.5 rounded-md border outline-none transition-colors"
+                  className="w-full text-xs pl-9 pr-3 py-2 rounded-xl border outline-none transition-colors"
                   style={{
                     backgroundColor: 'var(--color-surface-2)',
                     borderColor: 'var(--color-border)',

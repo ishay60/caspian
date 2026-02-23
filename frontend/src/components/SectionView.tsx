@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Section, Key, ChordAnalysis } from '../types';
 import { useSettings } from '../lib/settingsContext';
 import { analyzeSectionChords } from '../api';
@@ -20,8 +20,10 @@ interface Props {
 }
 
 export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onChordSelect }: Props) {
-  const { vizMode, t } = useSettings();
-  const [selectedChord, setSelectedChord] = useState<number | null>(null);
+  const { notation, t } = useSettings();
+  const [selectedChord, setSelectedChord] = useState<number | null>(() =>
+    section.chords.length > 0 ? 0 : null
+  );
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editableSymbols, setEditableSymbols] = useState<string[]>([]);
@@ -36,7 +38,18 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
   const deceptive = section.chords.filter(c => c.deceptive_resolution);
   const hasAnalysisDetails = nonDiatonic.length > 0 || deceptive.length > 0 || section.chromatic_runs.length > 0;
 
-  const showStaff = vizMode === 'staff' || vizMode === 'all';
+  const showStaff = notation.showStaff;
+
+  // When section or chord list changes, auto-select first chord so Piano & Guitar show immediately
+  useEffect(() => {
+    if (section.chords.length > 0) {
+      setSelectedChord(0);
+      onChordSelect?.(section.chords[0]);
+    } else {
+      setSelectedChord(null);
+      onChordSelect?.(null);
+    }
+  }, [section.name, section.chords.length, onChordSelect]);
 
   function enterEditMode() {
     setEditableSymbols(section.chords.map(c => c.symbol));
@@ -93,26 +106,30 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
 
   return (
     <div
-      className="rounded-xl overflow-hidden section-card"
+      className="rounded-2xl overflow-hidden section-card"
       style={{
         border: `1px solid ${isEdited ? 'var(--color-primary)' : 'var(--color-border)'}`,
         backgroundColor: 'var(--color-surface)',
+        boxShadow: isEdited ? 'var(--shadow-glow)' : 'var(--shadow-sm)',
       }}
     >
-      {/* Section header */}
+      {/* Section header — section name + play/practice/edit */}
       <div
-        className="px-6 py-3 border-b flex items-center justify-between"
+        className="px-5 sm:px-6 py-3.5 border-b flex items-center justify-between"
         style={{
           backgroundColor: 'var(--color-surface-2)',
           borderColor: 'var(--color-border)',
         }}
       >
-        <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-sm uppercase tracking-wider" style={{ color: 'var(--color-neutral)' }}>
+        <div className="flex items-center gap-2.5">
+          <h3
+            className="font-semibold text-sm uppercase tracking-widest"
+            style={{ color: 'var(--color-neutral)', letterSpacing: '0.08em' }}
+          >
             {section.name}
           </h3>
           {isEdited && (
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--color-primary)', color: 'white' }}>
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-lg" style={{ backgroundColor: 'var(--color-primary)', color: 'white' }}>
               {t.edited}
             </span>
           )}
@@ -122,11 +139,11 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
             <>
               <button
                 onClick={() => { setShowPlayer(!showPlayer); if (!showPlayer) setShowPractice(false); }}
-                className="text-xs cursor-pointer px-2 py-1 rounded transition-colors border"
+                className="text-xs cursor-pointer px-3 py-1.5 rounded-xl font-medium transition-all border"
                 style={{
                   borderColor: showPlayer ? 'var(--color-accent)' : 'var(--color-border)',
                   color: showPlayer ? 'var(--color-accent)' : 'var(--color-neutral)',
-                  backgroundColor: showPlayer ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)' : 'transparent',
+                  backgroundColor: showPlayer ? 'color-mix(in srgb, var(--color-accent) 12%, transparent)' : 'transparent',
                 }}
                 title={t.play}
               >
@@ -134,11 +151,11 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
               </button>
               <button
                 onClick={() => { setShowPractice(!showPractice); if (!showPractice) setShowPlayer(false); }}
-                className="text-xs cursor-pointer px-2 py-1 rounded transition-colors border"
+                className="text-xs cursor-pointer px-3 py-1.5 rounded-xl font-medium transition-all border"
                 style={{
                   borderColor: showPractice ? 'var(--color-diatonic)' : 'var(--color-border)',
                   color: showPractice ? 'var(--color-diatonic)' : 'var(--color-neutral)',
-                  backgroundColor: showPractice ? 'color-mix(in srgb, var(--color-diatonic) 10%, transparent)' : 'transparent',
+                  backgroundColor: showPractice ? 'color-mix(in srgb, var(--color-diatonic) 12%, transparent)' : 'transparent',
                 }}
                 title={t.practice}
               >
@@ -149,7 +166,7 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
           {onSectionUpdate && !editMode && (
             <button
               onClick={enterEditMode}
-              className="text-sm cursor-pointer p-1 rounded transition-colors"
+              className="text-sm cursor-pointer p-1.5 rounded-lg transition-colors"
               style={{ color: 'var(--color-neutral)' }}
               title="Edit chords"
             >
@@ -159,7 +176,7 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
         </div>
       </div>
 
-      <div className="p-6 space-y-5">
+      <div className="p-5 sm:p-6 space-y-5">
         {/* Edit mode toolbar */}
         {editMode && (
           <div className="space-y-3">
@@ -214,7 +231,7 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
               <button
                 onClick={applyEdit}
                 disabled={loading || editableSymbols.length === 0}
-                className="px-3 py-1 text-sm font-medium rounded-md cursor-pointer transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm font-semibold rounded-xl cursor-pointer transition-all disabled:opacity-50"
                 style={{
                   backgroundColor: 'var(--color-primary)',
                   color: 'white',
@@ -225,7 +242,7 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
               <button
                 onClick={cancelEdit}
                 disabled={loading}
-                className="px-3 py-1 text-sm font-medium rounded-md cursor-pointer transition-colors border disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium rounded-xl cursor-pointer transition-colors border disabled:opacity-50"
                 style={{
                   borderColor: 'var(--color-border)',
                   color: 'var(--color-text-secondary)',
@@ -273,11 +290,11 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
               />
             )}
 
-            {/* Chord badges row — always LTR so order matches ChordPlayer playback (e.g. Hebrew RTL page) */}
-            <div className="flex flex-wrap items-center gap-1.5" dir="ltr">
+            {/* Chord row: click any chord to see Piano & Guitar below */}
+            <div className="flex flex-wrap items-center gap-2" dir="ltr">
               {section.chords.map((chord, i) => (
-                <div key={i} className="flex items-center gap-1.5">
-                  {i > 0 && <span className="text-sm select-none" style={{ color: 'var(--color-border)' }}>&rarr;</span>}
+                <div key={i} className="flex items-center gap-2">
+                  {i > 0 && <span className="text-sm select-none font-medium" style={{ color: 'var(--color-staff-line)' }}>&rarr;</span>}
                   <ChordBadge
                     chord={chord}
                     selected={selectedChord === i}
@@ -328,7 +345,7 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
                 </button>
 
                 {showAnalysis && (
-                  <div className="mt-3 space-y-4 pl-4 border-l-2" style={{ borderColor: 'var(--color-border)' }}>
+                  <div className="mt-3 space-y-4 pl-4 border-l-2 rounded-r" style={{ borderColor: 'color-mix(in srgb, var(--color-accent) 50%, var(--color-border))' }}>
                     {nonDiatonic.length > 0 && (
                       <div>
                         <h4 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--color-neutral)' }}>

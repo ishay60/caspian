@@ -192,13 +192,14 @@ export function ChordPlayer({ chords, onChordHighlight }: Props) {
 
   return (
     <div
-      className="rounded-lg border px-4 py-2.5 flex flex-col gap-2"
+      className="rounded-xl border px-4 py-3 flex flex-col gap-3"
       style={{
         backgroundColor: 'var(--color-surface)',
         borderColor: playing
           ? 'var(--color-diatonic)'
           : 'var(--color-border)',
-        transition: 'border-color 0.3s',
+        boxShadow: 'var(--shadow-sm)',
+        transition: 'border-color 0.2s, box-shadow 0.2s',
       }}
     >
       {/* Controls row */}
@@ -207,13 +208,13 @@ export function ChordPlayer({ chords, onChordHighlight }: Props) {
         <button
           onClick={togglePlay}
           disabled={noChords}
-          className="flex items-center justify-center w-9 h-9 rounded-full font-bold text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+          className="flex items-center justify-center w-10 h-10 rounded-full font-bold text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
           style={{
             backgroundColor: playing ? 'var(--color-diatonic)' : 'var(--color-accent)',
             color: '#fff',
             boxShadow: playing
-              ? '0 0 12px color-mix(in srgb, var(--color-diatonic) 50%, transparent)'
-              : 'none',
+              ? '0 0 14px color-mix(in srgb, var(--color-diatonic) 50%, transparent)'
+              : '0 2px 8px color-mix(in srgb, var(--color-accent) 35%, transparent)',
           }}
           title={playing ? 'Pause' : 'Play chord progression'}
         >
@@ -232,9 +233,9 @@ export function ChordPlayer({ chords, onChordHighlight }: Props) {
         </button>
 
         {/* BPM control */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <label
-            className="text-[10px] uppercase tracking-wider font-semibold select-none"
+            className="text-[10px] uppercase tracking-widest font-semibold select-none"
             style={{ color: 'var(--color-neutral)' }}
           >
             BPM
@@ -246,14 +247,14 @@ export function ChordPlayer({ chords, onChordHighlight }: Props) {
             step={1}
             value={bpm}
             onChange={(e) => setBpm(Number(e.target.value))}
-            className="w-20 h-1 appearance-none rounded-full cursor-pointer"
+            className="w-24 h-1.5 appearance-none rounded-full cursor-pointer"
             style={{
               accentColor: 'var(--color-accent)',
               backgroundColor: 'var(--color-surface-2)',
             }}
           />
           <span
-            className="text-xs font-mono w-7 text-right tabular-nums"
+            className="text-xs font-mono w-8 text-right tabular-nums font-medium"
             style={{ color: 'var(--color-text)' }}
           >
             {bpm}
@@ -261,9 +262,9 @@ export function ChordPlayer({ chords, onChordHighlight }: Props) {
         </div>
 
         {/* Volume control */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <label
-            className="text-[10px] uppercase tracking-wider font-semibold select-none"
+            className="text-[10px] uppercase tracking-widest font-semibold select-none"
             style={{ color: 'var(--color-neutral)' }}
           >
             Vol
@@ -296,16 +297,16 @@ export function ChordPlayer({ chords, onChordHighlight }: Props) {
 
       {/* Chord symbols row — always LTR so playback order matches visual order (e.g. Hebrew RTL page) */}
       {chords.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1 -mx-1" dir="ltr">
+        <div className="flex flex-wrap items-center gap-1.5 -mx-0.5" dir="ltr">
           {chords.map((chord, i) => {
             const isActive = currentIndex === i;
             return (
               <span
                 key={i}
-                className="px-1.5 py-0.5 rounded text-xs font-mono font-medium transition-all"
+                className="px-2 py-1 rounded-lg text-xs font-mono font-semibold transition-all"
                 style={{
                   backgroundColor: isActive
-                    ? 'color-mix(in srgb, var(--color-diatonic) 20%, transparent)'
+                    ? 'color-mix(in srgb, var(--color-diatonic) 18%, transparent)'
                     : 'transparent',
                   color: isActive
                     ? 'var(--color-diatonic)'

@@ -7,6 +7,7 @@ import { AnalysisView } from './components/AnalysisView';
 import { SectionSplitter } from './components/SectionSplitter';
 import { SettingsBar } from './components/SettingsBar';
 import { SongLibrary } from './components/SongLibrary';
+import { ViewToolboxSidebar } from './components/ViewToolboxSidebar';
 
 const Tuner = lazy(() => import('./components/Tuner').then(m => ({ default: m.Tuner })));
 
@@ -81,31 +82,64 @@ function AppContent() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text)' }}>
-      {/* Header */}
-      <header className="border-b" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-        <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-6">
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">{t.appName}</h1>
-              <p className="text-xs" style={{ color: 'var(--color-neutral)' }}>{t.appSubtitle}</p>
+      {/* Header — modern, approachable branding + chord legend */}
+      <header
+        className="border-b"
+        style={{
+          borderColor: 'var(--color-border)',
+          backgroundColor: 'var(--color-surface)',
+          boxShadow: '0 1px 0 color-mix(in srgb, var(--color-border) 30%, transparent)',
+        }}
+      >
+        <div className="mx-auto max-w-6xl px-5 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-6 flex-wrap">
+            <div className="flex items-baseline gap-3">
+              <span className="text-2xl select-none" style={{ color: 'var(--color-accent)' }} aria-hidden>&#9833;</span>
+              <h1
+                className="text-2xl sm:text-3xl font-bold tracking-tight"
+                style={{ fontFamily: 'var(--font-display)', letterSpacing: '0.02em' }}
+              >
+                {t.appName}
+              </h1>
+              <p
+                className="text-sm font-medium hidden sm:inline"
+                style={{ color: 'var(--color-neutral)', letterSpacing: '0.08em', textTransform: 'uppercase' }}
+              >
+                {t.appSubtitle}
+              </p>
             </div>
-            {/* Color legend */}
-            <div className="hidden sm:flex gap-2 text-xs">
-              <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-diatonic)' }} />{t.diatonic}</span>
-              <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-secondary-dom)' }} />{t.secDom}</span>
-              <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-borrowed)' }} />{t.borrowed}</span>
-              <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-diminished)' }} />{t.dim}</span>
-              <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-deceptive)' }} />{t.deceptive}</span>
+            {/* Chord color legend — pill style for clarity */}
+            <div className="hidden md:flex flex-wrap items-center gap-1.5">
+              {[
+                [t.diatonic, '--color-diatonic'],
+                [t.secDom, '--color-secondary-dom'],
+                [t.borrowed, '--color-borrowed'],
+                [t.dim, '--color-diminished'],
+                [t.deceptive, '--color-deceptive'],
+              ].map(([label, varName]) => (
+                <span
+                  key={String(label)}
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium"
+                  style={{
+                    backgroundColor: `color-mix(in srgb, var(${varName}) 14%, transparent)`,
+                    color: `var(${varName})`,
+                    border: `1px solid color-mix(in srgb, var(${varName}) 35%, transparent)`,
+                  }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: `var(${varName})` }} />
+                  {label}
+                </span>
+              ))}
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Tuner toggle */}
             <button
               onClick={() => setShowTuner(!showTuner)}
-              className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer"
+              className="rounded-xl border px-3.5 py-2 text-xs font-medium transition-all cursor-pointer"
               style={{
                 borderColor: showTuner ? 'var(--color-accent)' : 'var(--color-border)',
-                backgroundColor: showTuner ? 'color-mix(in srgb, var(--color-accent) 15%, var(--color-surface))' : 'var(--color-surface-2)',
+                backgroundColor: showTuner ? 'color-mix(in srgb, var(--color-accent) 14%, var(--color-surface))' : 'var(--color-surface-2)',
                 color: showTuner ? 'var(--color-accent)' : 'var(--color-neutral)',
               }}
             >
@@ -126,13 +160,13 @@ function AppContent() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-8">
+      <main className="mx-auto max-w-6xl px-6 py-8 pr-14">
         {/* Tuner panel */}
         {showTuner && (
           <div className="mb-8">
             <Suspense fallback={
-              <div className="rounded-xl border p-8 text-center" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-                <p style={{ color: 'var(--color-neutral)' }}>{t.loadingTuner}</p>
+              <div className="rounded-2xl border p-8 text-center" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', boxShadow: 'var(--shadow-sm)' }}>
+                <p className="font-medium" style={{ color: 'var(--color-neutral)' }}>{t.loadingTuner}</p>
               </div>
             }>
               <Tuner />
@@ -147,7 +181,14 @@ function AppContent() {
         />
 
         {error && (
-          <div className="mt-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-300 text-sm">
+          <div
+            className="mt-6 rounded-xl border px-4 py-3.5 text-sm font-medium"
+            style={{
+              borderColor: 'color-mix(in srgb, var(--color-diminished) 50%, transparent)',
+              backgroundColor: 'color-mix(in srgb, var(--color-diminished) 12%, transparent)',
+              color: 'var(--color-diminished)',
+            }}
+          >
             {error}
           </div>
         )}
@@ -166,6 +207,9 @@ function AppContent() {
         {/* Analysis results */}
         {result && !showSplitter && <AnalysisView result={result} />}
       </main>
+
+      {/* Sidebar toolbox: notation types (Staff / Piano / Guitar) + theme + language */}
+      <ViewToolboxSidebar />
     </div>
   );
 }

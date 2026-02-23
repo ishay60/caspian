@@ -10,6 +10,28 @@ export interface Theme {
 
 export const themes: Theme[] = [
   {
+    id: 'manuscript',
+    name: 'Manuscript',
+    desc: 'Warm score paper & ink',
+    vars: {
+      '--color-bg': '#1c1914',
+      '--color-surface': '#252219',
+      '--color-surface-2': '#322d22',
+      '--color-border': '#4a4235',
+      '--color-text': '#eae6dd',
+      '--color-text-secondary': '#d4cfc4',
+      '--color-diatonic': '#7cb87a',
+      '--color-secondary-dom': '#c9a0dc',
+      '--color-borrowed': '#e8b84a',
+      '--color-diminished': '#e07a6a',
+      '--color-deceptive': '#6ecad4',
+      '--color-neutral': '#9c9588',
+      '--color-staff-line': '#5c5548',
+      '--color-accent': '#c9a227',
+      '--color-primary': '#c9a227',
+    },
+  },
+  {
     id: 'midnight',
     name: 'Midnight',
     desc: 'Deep dark blue',
@@ -28,6 +50,7 @@ export const themes: Theme[] = [
       '--color-neutral': '#94a3b8',
       '--color-staff-line': '#475569',
       '--color-accent': '#6366f1',
+      '--color-primary': '#6366f1',
     },
   },
   {
@@ -49,6 +72,7 @@ export const themes: Theme[] = [
       '--color-neutral': '#99f6e4',
       '--color-staff-line': '#5eead4',
       '--color-accent': '#14b8a6',
+      '--color-primary': '#14b8a6',
     },
   },
   {
@@ -70,6 +94,7 @@ export const themes: Theme[] = [
       '--color-neutral': '#d6d3d1',
       '--color-staff-line': '#78716c',
       '--color-accent': '#f59e0b',
+      '--color-primary': '#f59e0b',
     },
   },
   {
@@ -91,6 +116,7 @@ export const themes: Theme[] = [
       '--color-neutral': '#64748b',
       '--color-staff-line': '#94a3b8',
       '--color-accent': '#4f46e5',
+      '--color-primary': '#4f46e5',
     },
   },
 ];

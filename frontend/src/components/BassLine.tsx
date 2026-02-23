@@ -18,25 +18,25 @@ export function BassLine({ bassLine, chromaticRuns }: Props) {
 
   return (
     <div>
-      <h4 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-neutral)' }}>
+      <h4 className="text-[10px] font-semibold uppercase tracking-widest mb-2.5" style={{ color: 'var(--color-neutral)', letterSpacing: '0.08em' }}>
         {t.bassLine}
       </h4>
-      <div className="flex flex-wrap items-center gap-1 font-mono text-sm">
+      <div className="flex flex-wrap items-center gap-1.5 font-mono text-sm">
         {bassLine.map((note, i) => {
           const isChromatic = chromaticPositions.has(note.position);
           return (
-            <div key={i} className="flex items-center gap-1">
+            <div key={i} className="flex items-center gap-1.5">
               {i > 0 && (
-                <span className="text-xs" style={{ color: 'var(--color-border)' }}>
+                <span className="text-xs font-medium" style={{ color: 'var(--color-border)' }}>
                   {getMotionArrow(note.motion_from_previous)}
                 </span>
               )}
               <span
-                className="px-1.5 py-0.5 rounded"
+                className="px-2 py-1 rounded-lg font-semibold"
                 style={isChromatic ? {
-                  backgroundColor: 'color-mix(in srgb, var(--color-diminished) 20%, transparent)',
+                  backgroundColor: 'color-mix(in srgb, var(--color-diminished) 18%, transparent)',
                   color: 'var(--color-diminished)',
-                  fontWeight: 600,
+                  border: '1px solid color-mix(in srgb, var(--color-diminished) 40%, transparent)',
                 } : {
                   color: 'var(--color-text-secondary)',
                 }}
