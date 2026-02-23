@@ -5,6 +5,7 @@ import { analyzeSectionChords } from '../api';
 import { ChordBadge } from './ChordBadge';
 import { EditableChordBadge } from './EditableChordBadge';
 import { BassLine } from './BassLine';
+import { getChordColor } from '../lib/chordColor';
 import { InterpretationPanel } from './InterpretationPanel';
 import { StaffNotation } from './StaffNotation';
 import { ChordDetailPanel } from './ChordDetailPanel';
@@ -20,7 +21,7 @@ interface Props {
 }
 
 export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onChordSelect }: Props) {
-  const { notation, t } = useSettings();
+  const { notation, t, dir } = useSettings();
   const [selectedChord, setSelectedChord] = useState<number | null>(() =>
     section.chords.length > 0 ? 0 : null
   );
@@ -94,6 +95,8 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
         keyInfo.root_name,
         keyInfo.mode,
       );
+      // Preserve original lyrics data (the re-analysis endpoint doesn't return it)
+      updated.lines = section.lines || [];
       onSectionUpdate(updated);
       setEditMode(false);
       setEditableSymbols([]);
@@ -295,6 +298,69 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
                 }}
               />
             )}
+
+            {/* Chord-above-lyrics display (tab-style) */}
+            {section.lines && section.lines.length > 0 && (() => {
+              // Build a lookup from chord symbol to analysis for coloring
+              const chordLookup = new Map<string, ChordAnalysis>();
+              for (const ca of section.chords) {
+                chordLookup.set(ca.symbol, ca);
+              }
+
+              return (
+                <div
+                  className="font-mono text-sm rounded-xl px-5 py-4"
+                  style={{
+                    backgroundColor: 'var(--color-surface-2)',
+                    overflowX: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: dir === 'rtl' ? 'flex-end' : 'flex-start',
+                  }}
+                >
+                  {section.lines.map((line, lineIdx) => {
+                    // Build the chord line: colored chord names at their original column positions
+                    const chordSpans: React.ReactNode[] = [];
+                    let prevEnd = 0;
+                    for (let ci = 0; ci < line.chords.length; ci++) {
+                      const [col, sym] = line.chords[ci];
+                      const ca = chordLookup.get(sym);
+                      const color = ca ? getChordColor(ca) : 'var(--color-neutral)';
+                      if (col > prevEnd) {
+                        chordSpans.push(' '.repeat(col - prevEnd));
+                      }
+                      chordSpans.push(
+                        <span key={`ch-${ci}`} style={{ color, fontWeight: 700 }}>{sym}</span>
+                      );
+                      prevEnd = col + sym.length;
+                    }
+
+                    return (
+                      <div
+                        key={lineIdx}
+                        className="mb-3"
+                        style={{
+                          direction: 'ltr',
+                          unicodeBidi: 'bidi-override',
+                          width: 'fit-content',
+                          marginLeft: dir === 'rtl' ? 'auto' : undefined,
+                          marginRight: dir === 'ltr' ? 'auto' : undefined,
+                        }}
+                      >
+                        <div style={{ whiteSpace: 'pre', lineHeight: '1.6' }}>
+                          {chordSpans}
+                        </div>
+                        {line.lyrics.trim() && (
+                          <div style={{ whiteSpace: 'pre', lineHeight: '1.6', color: 'var(--color-text-secondary)' }}>
+                            {line.lyrics}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
 
             {/* Chord row: click any chord to see Piano & Guitar below */}
             <div className="flex flex-wrap items-center gap-2" dir="ltr">

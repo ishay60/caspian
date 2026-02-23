@@ -115,12 +115,18 @@ class PatternResponse(BaseModel):
     positions: list[int]
 
 
+class ChordLyricsLineResponse(BaseModel):
+    chords: list[tuple[int, str]]  # (column_position, chord_symbol)
+    lyrics: str
+
+
 class SectionResponse(BaseModel):
     name: str
     chords: list[ChordAnalysisResponse]
     bass_line: list[BassNoteResponse]
     chromatic_runs: list[ChromaticRunResponse]
     patterns: list[PatternResponse]
+    lines: list[ChordLyricsLineResponse] = []
 
 
 class KeyResponse(BaseModel):
@@ -180,17 +186,20 @@ def _serialize_section(section: SectionAnalysis, key: Key) -> SectionResponse:
         chromatic_runs=[_serialize_chromatic_run(cr, key) for cr in section.chromatic_runs],
         patterns=[PatternResponse(type=p.type, detail=p.detail, positions=p.positions)
                   for p in section.patterns],
+        lines=[ChordLyricsLineResponse(chords=cl.chords, lyrics=cl.lyrics)
+               for cl in section.lines],
     )
 
 
 def _serialize_chord(ca: ChordAnalysis, key: Key) -> ChordAnalysisResponse:
     scale_pitches = key.scale_pitches
     mode = key.mode
+    krn = key.root_name
     chord = ca.chord
-    # Use key-appropriate spelling for diatonic chords (e.g. Bb not A# in D minor)
+    # Use key-appropriate spelling for diatonic chords (e.g. Bb not A# in Bb minor)
     if ca.is_diatonic:
-        root_name = note_name_in_key(chord.root, scale_pitches, mode)
-        bass_name = note_name_in_key(chord.bass, scale_pitches, mode)
+        root_name = note_name_in_key(chord.root, scale_pitches, mode, key_root_name=krn)
+        bass_name = note_name_in_key(chord.bass, scale_pitches, mode, key_root_name=krn)
         suffix = chord.symbol[len(chord.root_name):]
         if "/" in suffix:
             quality_part = suffix.split("/", 1)[0]
@@ -218,15 +227,15 @@ def _serialize_chord(ca: ChordAnalysis, key: Key) -> ChordAnalysisResponse:
             for i in ca.interpretations
         ],
         bass_motion_from_previous=ca.bass_motion_from_previous,
-        common_tones_with_previous=[note_name_in_key(p, scale_pitches, mode) for p in ca.common_tones_with_previous],
-        common_tones_with_next=[note_name_in_key(p, scale_pitches, mode) for p in ca.common_tones_with_next],
+        common_tones_with_previous=[note_name_in_key(p, scale_pitches, mode, key_root_name=krn) for p in ca.common_tones_with_previous],
+        common_tones_with_next=[note_name_in_key(p, scale_pitches, mode, key_root_name=krn) for p in ca.common_tones_with_next],
         deceptive_resolution=ca.deceptive_resolution,
         secondary_dominant=ca.secondary_dominant,
     )
 
 
 def _serialize_bass_note(bn: BassNote, key: Key) -> BassNoteResponse:
-    name = note_name_in_key(bn.pitch, key.scale_pitches, key.mode)
+    name = note_name_in_key(bn.pitch, key.scale_pitches, key.mode, key_root_name=key.root_name)
     return BassNoteResponse(
         pitch=bn.pitch,
         name=name,
@@ -237,7 +246,7 @@ def _serialize_bass_note(bn: BassNote, key: Key) -> BassNoteResponse:
 
 
 def _serialize_chromatic_run(cr: ChromaticRun, key: Key) -> ChromaticRunResponse:
-    notes = [note_name_in_key(n.pitch, key.scale_pitches, key.mode) for n in cr.notes]
+    notes = [note_name_in_key(n.pitch, key.scale_pitches, key.mode, key_root_name=key.root_name) for n in cr.notes]
     return ChromaticRunResponse(
         notes=notes,
         direction=cr.direction,

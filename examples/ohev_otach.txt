@@ -1,0 +1,55 @@
+intro: | Gm7b5 | Fm/Ab | F7/A | Bbm |
+| Fm/C | Dbmaj7 | Ebdim | Edim | F | Gm7b5 | F/A | Bbm | G9/B | C7(b9) | F | Faug | F7 |
+ verse:
+Cm7b5    Bbm/Db    Cm7b5      Bbm
+עוד מעט כמעט       אנו גוף      אחד
+Bbm   F7    Faug    Cm7b5   F#maj7     B
+את ידך נתת         בידי       שלי      ל - עד
+       Cm7b5     Bbm/Db   Cm7b5
+את לי עד           שאני          פוחד
+F7 Faug     Cm7b5    F#maj7    B
+ולכן רועד             כל    גופי הלי-לה
+ Bridge:
+Bbm Bbm/F   Ebm7b5   Db    F#     Bbm/F   Edim7    Ebm
+יום   יום וליל   כל הזמן   בנתיב אחד      לא             מסומן
+F7    Db/F  Ebm7b5   Db F#       Bbm/F  Edim7    Ebm
+יום   יום וליל   כל הזמן   יחד ו-לבד         לך       לעצמי נאמן
+Chorus:
+Bbm      F7/A    Fm/Ab      Gm7b5
+אוהב אותך הלילה     ואיתך   מתעצב
+Gm7b5  F         Edim     Ebdim   Dbmaj7      Fm/C
+אוהב אותך הלילה     ואית  Cm7b5  F#maj7           B
+מי אני מי את       ואולי     אולי     נל-מד
+    Cm7b5   Bbm/Db  Cm7b5
+לוותר             ולתת         יותר
+F7 Faug   Cm7b5  F#maj7     B
+עד שתיוותר      רק     אהבת-נו
+Bridge 2:
+Bbm Bbm/F   Ebm7b5   Db    F#     Bbm/F   Edim7   Ebm
+יום   יום וליל   כל הזמן   בנתיב אחד      לא             מסומן
+F7   Db/F   Ebm7b5   Db F#       Bbm/F  Edim7    Ebm
+יום   יום וליל   כל הזמן   יחד ו-לבד         לך       לעצמי נאמן
+Chorus:
+Bbm         F7/A    Fm/Ab      Gm7b5
+אוהב אותך הלילה     ואיתך   מתעצב
+Gm7b5  F         Edim     Ebdim   Dbmaj7      Fm/C
+אוהב אותך הלילה     ואיתך  מתלהב עד הלב
+         Bbm  F/A
+עד כאב
+F7 Faug F       C7(b9) G9/B
+מקווה             מתקרב
+ Instrumental:
+| Bbm | Cm7b5 | Bbm/Db | Cm7b5 |
+| B | F#maj7 | Cm7b5 | Faug | F7 |
+Chorus:
+Bbm         F7/A    Fm/Ab      Gm7b5
+אוהב אורב
+Outro:
+Cm7b5    Bbm/Db   Cm7b5    Bbm
+עוד         מעט         יעלה       האור
+Bbm F7    Faug    Cm7b5  F#maj7   B
+ואני שיכור    ורוצה      אותך     לז-כור
+    Cm7b5     Bbm/Db   Cm7b5
+ולשמור          עד      ימי הסוף
+Bbm  F7  Faug         Cm7b5  F#maj7   B
+עד שנחלוף    ותגווע       הל-מות    התוף

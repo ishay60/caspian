@@ -45,12 +45,18 @@ export interface Pattern {
   positions: number[];
 }
 
+export interface ChordLyricsLine {
+  chords: [number, string][];  // [column_position, chord_symbol]
+  lyrics: string;
+}
+
 export interface Section {
   name: string;
   chords: ChordAnalysis[];
   bass_line: BassNote[];
   chromatic_runs: ChromaticRun[];
   patterns: Pattern[];
+  lines: ChordLyricsLine[];
 }
 
 export interface Key {

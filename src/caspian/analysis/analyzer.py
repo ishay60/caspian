@@ -9,7 +9,7 @@ from caspian.models.analysis import (
     AnalysisInterpretation, ChordAnalysis, SectionAnalysis, SongAnalysis,
 )
 from caspian.models.chord import Chord, ChordQuality
-from caspian.models.input import SongInput
+from caspian.models.input import ChordLyricsLine, SongInput
 from caspian.models.key import Key
 from caspian.parsing.chord_parser import parse_chord
 from caspian.analysis.key_detector import detect_key
@@ -28,7 +28,7 @@ from caspian.theory.voice_leading import common_tones
 def analyze_song(song_input: SongInput) -> SongAnalysis:
     """Run the full analysis pipeline on a song input."""
     # Step 1: Parse all chords
-    sections_chords: list[tuple[str, list[Chord]]] = []
+    sections_chords: list[tuple[str, list[Chord], list[ChordLyricsLine]]] = []
     for section in song_input.sections:
         parsed = []
         for chord_input in section.chords:
@@ -36,16 +36,17 @@ def analyze_song(song_input: SongInput) -> SongAnalysis:
                 parsed.append(parse_chord(chord_input.symbol))
             except ValueError:
                 continue
-        sections_chords.append((section.name, parsed))
+        sections_chords.append((section.name, parsed, section.lines))
 
     # Step 2: Detect key
-    all_chords = [c for _, chords in sections_chords for c in chords]
+    all_chords = [c for _, chords, _ in sections_chords for c in chords]
     key = detect_key(all_chords, user_key=song_input.key or None, user_mode=song_input.key_mode)
 
     # Step 3: Analyze each section
     analyzed_sections: list[SectionAnalysis] = []
-    for section_name, chords in sections_chords:
+    for section_name, chords, lines in sections_chords:
         section_analysis = analyze_section(section_name, chords, key)
+        section_analysis.lines = lines
         analyzed_sections.append(section_analysis)
 
     return SongAnalysis(

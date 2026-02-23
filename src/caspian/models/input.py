@@ -9,6 +9,13 @@ class ChordInput(BaseModel):
     """A single chord with optional aligned lyrics."""
     symbol: str
     lyrics: str | None = None
+    position: int | None = None  # column offset in original chord line
+
+
+class ChordLyricsLine(BaseModel):
+    """A paired chord-line + lyrics-line from tab format."""
+    chords: list[tuple[int, str]]  # (column_position, chord_symbol)
+    lyrics: str = ""
 
 
 class SectionInput(BaseModel):
@@ -16,6 +23,7 @@ class SectionInput(BaseModel):
     name: str
     section_type: str = "vocal"  # "instrumental" or "vocal"
     chords: list[ChordInput] = Field(default_factory=list)
+    lines: list[ChordLyricsLine] = Field(default_factory=list)
 
 
 class SongInput(BaseModel):
