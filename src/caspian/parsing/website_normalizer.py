@@ -23,9 +23,15 @@ import re
 from caspian.parsing.rtl_handler import has_hebrew
 from caspian.parsing.section_detector import detect_section_bracket
 
-# Chord pattern: root + optional quality/slash (e.g. G6, Dm7/9, F7+, Bbdim)
+# Invisible Unicode characters that break chord parsing (bidi marks, zero-width chars).
+# Common when copying from RTL websites or PDF chord sheets.
+_BIDI_MARKS = re.compile(
+    "[\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]"
+)
+
+# Chord pattern: root + optional quality/slash (e.g. G6, Dm7/9, F7+, Bbdim, E/G#)
 # Must not match "x2" or pure numbers
-_CHORD_PATTERN = re.compile(r"[A-G][#b]?[a-zA-Z0-9+/]*")
+_CHORD_PATTERN = re.compile(r"[A-G][#b]?[a-zA-Z0-9+/#]*")
 
 
 def _looks_like_format_a(text: str) -> bool:
@@ -108,6 +114,8 @@ def normalize_website_paste(text: str) -> str:
     """Convert website-style paste to Format A; return unchanged if already Format A."""
     if not text or not text.strip():
         return text
+    # Strip invisible bidi marks that break chord parsing (e.g. G#\u200em → G#m)
+    text = _BIDI_MARKS.sub("", text)
     if _looks_like_format_a(text):
         return text
 

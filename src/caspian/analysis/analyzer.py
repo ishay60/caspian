@@ -16,6 +16,7 @@ from caspian.analysis.key_detector import detect_key
 from caspian.analysis.roman_numerals import assign_roman_numeral
 from caspian.analysis.secondary_dominants import detect_secondary_dominant
 from caspian.analysis.borrowed_chords import detect_borrowed_chord
+from caspian.analysis.augmented import analyze_augmented
 from caspian.analysis.diminished import analyze_diminished
 from caspian.analysis.deceptive import detect_deceptive_resolution
 from caspian.analysis.bass_line import extract_bass_line, detect_chromatic_runs
@@ -150,6 +151,11 @@ def _analyze_chord(
     if chord.quality in (ChordQuality.DIMINISHED, ChordQuality.DIMINISHED7):
         dim_interps = analyze_diminished(chord, prev, next_c, key)
         analysis.interpretations.extend(dim_interps)
+
+    # Augmented analysis
+    if chord.quality == ChordQuality.AUGMENTED:
+        aug_interps = analyze_augmented(chord, prev, next_c, key)
+        analysis.interpretations.extend(aug_interps)
 
     # Deceptive resolution
     deceptive = detect_deceptive_resolution(chord, next_c, key)
