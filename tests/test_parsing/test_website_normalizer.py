@@ -55,6 +55,21 @@ G6 Dm7
         out = normalize_website_paste(text)
         assert "G6 Dm7 G6 Dm7 | אלוהים מרחם" in out
 
+    def test_chord_line_then_lyrics_no_title_artist(self):
+        """Paste starting with chord line then Hebrew lyrics (no title/artist) must not drop first two lines."""
+        text = """Gm                        Dm      
+לקחת    את ידי בידך ואמרת לי  
+A4  Dm      C     Bb  
+בואי נרד אל הגן"""
+        out = normalize_website_paste(text)
+        assert "[verse]" in out
+        assert "Gm" in out and "Dm" in out
+        assert "לקחת" in out
+        assert "Gm" in out.split("|")[0] or "Dm" in out.split("|")[0]
+        # First verse line should pair Gm Dm with the first lyric line
+        lines = [ln.strip() for ln in out.split("\n") if "|" in ln]
+        assert any("Gm" in l and "Dm" in l and "לקחת" in l for l in lines), "First chord line and lyrics should be paired"
+
     def test_hebrew_section_siyum(self):
         text = """Title
 Artist

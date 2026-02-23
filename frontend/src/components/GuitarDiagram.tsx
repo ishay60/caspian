@@ -1,12 +1,16 @@
-/** Guitar chord diagram (5-fret box notation). Pure SVG. */
+/** Guitar chord diagram (5-fret box notation) with Uberchord voicing support. */
 
+import { useState, useEffect, useCallback } from 'react';
 import type { ReactElement } from 'react';
 import { getGuitarVoicing, GUITAR_STANDARD_TUNING } from '../lib/musicTheory';
+import { fetchUberchordVoicings, type UberchordVoicing } from '../lib/uberchord';
 
 interface Props {
   pitches: number[];
   root: number;
   color: string;
+  /** If provided, fetches real voicings from Uberchord API. */
+  symbol?: string;
 }
 
 /** Read a CSS variable from :root, with fallback. */
@@ -15,8 +19,47 @@ function cssVar(name: string, fallback: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
 
-export function GuitarDiagram({ pitches, root, color }: Props) {
-  const voicing = getGuitarVoicing(pitches, root);
+export function GuitarDiagram({ pitches, root, color, symbol }: Props) {
+  const [uberVoicings, setUberVoicings] = useState<UberchordVoicing[]>([]);
+  const [voicingIndex, setVoicingIndex] = useState(0);
+
+  // Fetch Uberchord voicings when symbol changes
+  useEffect(() => {
+    if (!symbol) return;
+    let cancelled = false;
+    fetchUberchordVoicings(symbol).then(v => {
+      if (!cancelled) {
+        setUberVoicings(v);
+        setVoicingIndex(0);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [symbol]);
+
+  // Compute algorithmic voicing as fallback (always available as index 0)
+  const algorithmicVoicing = getGuitarVoicing(pitches, root);
+
+  // Build the voicing list: algorithmic first, then Uberchord voicings
+  const allVoicings: (number | null)[][] = [algorithmicVoicing];
+  for (const uv of uberVoicings) {
+    if (uv.frets.length === 6) {
+      allVoicings.push(uv.frets);
+    }
+  }
+
+  // Clamp index
+  const safeIndex = Math.min(voicingIndex, allVoicings.length - 1);
+  const voicing = allVoicings[safeIndex];
+  const hasMultiple = allVoicings.length > 1;
+
+  const prev = useCallback(() => {
+    setVoicingIndex(i => (i - 1 + allVoicings.length) % allVoicings.length);
+  }, [allVoicings.length]);
+
+  const next = useCallback(() => {
+    setVoicingIndex(i => (i + 1) % allVoicings.length);
+  }, [allVoicings.length]);
+
   const rootPc = ((root % 12) + 12) % 12;
 
   const frettedNotes = voicing.filter((f): f is number => f !== null && f > 0);
@@ -44,7 +87,8 @@ export function GuitarDiagram({ pitches, root, color }: Props) {
   const leftPad = 30;
   const topPad = 24;
   const width = leftPad + 5 * stringSpacing + 20;
-  const height = topPad + displayFrets * fretSpacing + 20;
+  const navHeight = hasMultiple ? 20 : 0;
+  const height = topPad + displayFrets * fretSpacing + 20 + navHeight;
   const nutY = topPad;
 
   const strings: ReactElement[] = [];
@@ -171,12 +215,42 @@ export function GuitarDiagram({ pitches, root, color }: Props) {
     }
   }
 
+  // Voicing label
+  const labelText = safeIndex === 0 ? 'Computed' : `Voicing ${safeIndex}`;
+
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="block">
-      {frets}
-      {strings}
-      {markers}
-      {topMarkers}
-    </svg>
+    <div className="inline-flex flex-col items-center gap-0.5">
+      <svg width={width} height={height - navHeight} viewBox={`0 0 ${width} ${height - navHeight}`} className="block">
+        {frets}
+        {strings}
+        {markers}
+        {topMarkers}
+      </svg>
+      {hasMultiple && (
+        <div className="flex items-center gap-1.5" style={{ color: neutral }}>
+          <button
+            type="button"
+            onClick={prev}
+            className="w-5 h-5 flex items-center justify-center rounded text-xs cursor-pointer transition-colors hover:brightness-150"
+            style={{ color: neutral }}
+            aria-label="Previous voicing"
+          >
+            &#9664;
+          </button>
+          <span className="text-[9px] font-medium min-w-[52px] text-center select-none">
+            {labelText}
+          </span>
+          <button
+            type="button"
+            onClick={next}
+            className="w-5 h-5 flex items-center justify-center rounded text-xs cursor-pointer transition-colors hover:brightness-150"
+            style={{ color: neutral }}
+            aria-label="Next voicing"
+          >
+            &#9654;
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
