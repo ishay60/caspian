@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from caspian.models.chord import Chord
+from caspian.models.input import ChordLyricsLine
 from caspian.models.key import Key
 
 
@@ -66,6 +67,7 @@ class SectionAnalysis:
     bass_line: list[BassNote] = field(default_factory=list)
     chromatic_runs: list[ChromaticRun] = field(default_factory=list)
     patterns: list[Pattern] = field(default_factory=list)
+    lines: list[ChordLyricsLine] = field(default_factory=list)
 
 
 @dataclass

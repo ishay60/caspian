@@ -50,17 +50,29 @@ def note_name(pitch: int, prefer_sharp: bool = True) -> str:
     return PITCH_TO_NOTE_FLAT[pitch]
 
 
-def note_name_in_key(pitch: int, scale_pitches: tuple[int, ...], mode: str) -> str:
+def is_flat_key(root_name: str) -> bool:
+    """True if a key root implies flat spelling (Bb, Eb, Ab, Db, Gb, F and their minors)."""
+    return "b" in root_name or root_name == "F"
+
+
+def note_name_in_key(pitch: int, scale_pitches: tuple[int, ...], mode: str, key_root_name: str = "") -> str:
     """Convert pitch class to note name using key-appropriate spelling.
 
-    In natural/harmonic minor, scale degrees 6 and 7 (b6, b7) are spelled with
-    flats (e.g. Bb not A# in D minor) so they don't clash with scale degree 5 (A).
+    Uses flat spelling for flat keys (Bb, Eb, Ab, Db, Gb, F) and sharp
+    spelling for sharp keys. Falls back to the old heuristic when
+    key_root_name is not provided.
     """
     pitch = pitch % 12
+
+    # If we know the key root name, use it to decide flat vs sharp
+    if key_root_name:
+        prefer_flat = is_flat_key(key_root_name)
+        return note_name(pitch, prefer_sharp=not prefer_flat)
+
+    # Legacy fallback: minor keys use flats for upper scale degrees
     if pitch not in scale_pitches:
         return note_name(pitch, prefer_sharp=True)
     idx = scale_pitches.index(pitch)
-    # b6 and b7 in natural/harmonic minor → flat spelling (Bb, C in C minor; Bb, Eb in D minor's relative etc.)
     if mode in ("natural_minor", "harmonic_minor") and idx >= 5:
         return note_name(pitch, prefer_sharp=False)
     return note_name(pitch, prefer_sharp=True)

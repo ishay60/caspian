@@ -7,6 +7,7 @@ import sys
 from caspian.models.analysis import (
     ChordAnalysis, ChromaticRun, SectionAnalysis, SongAnalysis,
 )
+from caspian.models.input import ChordLyricsLine
 from caspian.theory.pitch import note_name
 
 # ANSI color codes
@@ -22,27 +23,70 @@ _BLUE = "\033[34m"       # info
 _WHITE = "\033[37m"
 
 
+def _chord_color(ca: ChordAnalysis) -> str:
+    """Return the ANSI color code for a chord based on its analysis."""
+    if ca.deceptive_resolution:
+        return _CYAN
+    elif any(i.type == "secondary_dominant" for i in ca.interpretations):
+        return _MAGENTA
+    elif any(i.type in ("chromatic_approach_from", "chromatic_approach_to",
+                         "rootless_dom7b9", "common_tone_dim")
+             for i in ca.interpretations):
+        return _RED
+    elif any(i.type == "borrowed" for i in ca.interpretations):
+        return _YELLOW
+    elif ca.is_diatonic:
+        return _GREEN
+    else:
+        return _WHITE
+
+
 def _color_chord(ca: ChordAnalysis) -> str:
     """Color a chord symbol based on its analysis."""
     symbol = ca.chord.symbol
     numeral = ca.roman_numeral
-
-    if ca.deceptive_resolution:
-        color = _CYAN
-    elif any(i.type == "secondary_dominant" for i in ca.interpretations):
-        color = _MAGENTA
-    elif any(i.type in ("chromatic_approach_from", "chromatic_approach_to",
-                         "rootless_dom7b9", "common_tone_dim")
-             for i in ca.interpretations):
-        color = _RED
-    elif any(i.type == "borrowed" for i in ca.interpretations):
-        color = _YELLOW
-    elif ca.is_diatonic:
-        color = _GREEN
-    else:
-        color = _WHITE
-
+    color = _chord_color(ca)
     return f"{color}{_BOLD}{symbol}{_RESET}{_DIM} ({numeral}){_RESET}"
+
+
+def _build_analysis_lookup(section: SectionAnalysis) -> dict[str, ChordAnalysis]:
+    """Build a lookup from chord symbol to its analysis (last wins for dupes)."""
+    lookup: dict[str, ChordAnalysis] = {}
+    for ca in section.chords:
+        lookup[ca.chord.symbol] = ca
+    return lookup
+
+
+def _render_chord_lyrics_lines(out, section: SectionAnalysis) -> None:
+    """Render chord-above-lyrics display with ANSI colors on chord symbols."""
+    lookup = _build_analysis_lookup(section)
+
+    for cl in section.lines:
+        # Build the colored chord line preserving column positions
+        chord_parts: list[tuple[int, str, str]] = []  # (col, raw_symbol, colored)
+        for col, sym in cl.chords:
+            ca = lookup.get(sym)
+            if ca:
+                color = _chord_color(ca)
+                colored = f"{color}{_BOLD}{sym}{_RESET}"
+            else:
+                colored = f"{_BOLD}{sym}{_RESET}"
+            chord_parts.append((col, sym, colored))
+
+        # Build chord line: place each colored chord at its original column
+        # Account for ANSI codes adding invisible characters
+        chord_line = ""
+        visible_pos = 0
+        for col, sym, colored in chord_parts:
+            if col > visible_pos:
+                chord_line += " " * (col - visible_pos)
+                visible_pos = col
+            chord_line += colored
+            visible_pos += len(sym)
+
+        _print(out, f"  {chord_line}")
+        if cl.lyrics.strip():
+            _print(out, f"  {cl.lyrics}")
 
 
 def print_analysis(analysis: SongAnalysis, file=None) -> None:
@@ -74,7 +118,12 @@ def _print_section(out, section: SectionAnalysis) -> None:
     """Print a single section analysis."""
     _print(out, f"{_BOLD}[{section.name}]{_RESET}")
 
-    # Chord progression with arrows
+    # Chord-above-lyrics display (if available)
+    if section.lines:
+        _render_chord_lyrics_lines(out, section)
+        _print(out, "")
+
+    # Chord progression with arrows (always show for analysis)
     colored = [_color_chord(ca) for ca in section.chords]
     _print(out, f"  {' → '.join(colored)}\n")
 

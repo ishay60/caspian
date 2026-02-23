@@ -29,12 +29,30 @@ _CHORD_PATTERN = re.compile(r"[A-G][#b]?[a-zA-Z0-9+/]*")
 
 
 def _looks_like_format_a(text: str) -> bool:
-    """Return True if text already uses Format A (explicit key: or [section] headers)."""
+    """Return True if text already uses Format A (explicit key:, [section], or leading section header).
+
+    A section header (like 'intro:', 'verse:') as one of the first non-empty lines
+    indicates structured Format A input, not a website paste.
+    """
     stripped = text.strip()
     if re.search(r"^\s*key\s*:\s*\S+", stripped, re.IGNORECASE | re.MULTILINE):
         return True
     if re.search(r"^\s*\[[\w\s]+\]\s*$", stripped, re.MULTILINE):
         return True
+    # Check if the first non-empty line is a section header (with or without inline content).
+    # Website pastes start with title/artist, not section names.
+    from caspian.parsing.section_detector import detect_section
+    for line in stripped.split("\n"):
+        s = line.strip()
+        if not s:
+            continue
+        # First non-empty line: check if it starts with a section name + colon
+        colon_match = re.match(r"^(\w[\w\s-]*):", s)
+        if colon_match:
+            field = colon_match.group(1).strip()
+            if detect_section(field + ":") is not None:
+                return True
+        break  # only check the very first non-empty line
     return False
 
 
