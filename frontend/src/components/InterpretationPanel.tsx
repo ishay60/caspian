@@ -32,33 +32,34 @@ export function InterpretationPanel({ chord }: Props) {
 
   return (
     <div
-      className="rounded-lg border p-3"
+      className="rounded-xl border p-4"
       style={{
         borderColor: 'var(--color-border)',
         backgroundColor: 'var(--color-surface-2)',
+        boxShadow: 'var(--shadow-sm)',
       }}
     >
-      <div className="font-mono font-semibold text-sm mb-2">{chord.symbol}</div>
-      <div className="space-y-1.5">
+      <div className="font-mono font-bold text-sm mb-2.5" style={{ color: 'var(--color-text)' }}>{chord.symbol}</div>
+      <div className="space-y-2">
         {chord.interpretations.map((interp, i) => {
           const pct = Math.round(interp.confidence * 100);
           const color = getTypeColor(interp.type);
           return (
             <div key={i} className="flex items-start gap-3 text-sm">
-              <div className="shrink-0 flex items-center gap-1.5 mt-0.5">
-                <div className="w-14 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface)' }}>
+              <div className="shrink-0 flex items-center gap-2 mt-0.5">
+                <div className="w-14 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface)' }}>
                   <div
-                    className="h-full rounded-full"
+                    className="h-full rounded-full transition-all"
                     style={{ width: `${pct}%`, backgroundColor: color }}
                   />
                 </div>
-                <span className="text-xs w-7" style={{ color: 'var(--color-neutral)' }}>{pct}%</span>
+                <span className="text-xs w-7 font-medium tabular-nums" style={{ color: 'var(--color-neutral)' }}>{pct}%</span>
               </div>
-              <div>
+              <div className="min-w-0">
                 <span
-                  className="text-xs font-medium px-1.5 py-0.5 rounded mr-2"
+                  className="text-[11px] font-semibold px-2 py-0.5 rounded-lg mr-2 inline-block"
                   style={{
-                    backgroundColor: `color-mix(in srgb, ${color} 20%, transparent)`,
+                    backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)`,
                     color,
                   }}
                 >

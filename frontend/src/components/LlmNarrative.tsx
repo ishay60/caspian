@@ -7,13 +7,14 @@ interface Props {
 export function LlmNarrative({ result }: Props) {
   return (
     <div
-      className="rounded-xl border p-6 space-y-4"
+      className="rounded-2xl border p-6 space-y-4"
       style={{
         borderColor: 'var(--color-border)',
         backgroundColor: 'var(--color-surface)',
+        boxShadow: 'var(--shadow-sm)',
       }}
     >
-      <h3 className="text-lg font-bold">Harmonic Narrative</h3>
+      <h3 className="text-lg font-bold" style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>Harmonic Narrative</h3>
 
       {result.overall_summary && (
         <div dir="rtl" style={{ whiteSpace: 'pre-wrap' }}>

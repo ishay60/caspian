@@ -334,30 +334,31 @@ export function PracticeMode({ chords, sectionName }: Props) {
   /* -- render -- */
   return (
     <div
-      className="rounded-xl overflow-hidden"
+      className="rounded-2xl overflow-hidden"
       style={{
         border: `1px solid ${playing ? 'var(--color-accent)' : 'var(--color-border)'}`,
         backgroundColor: 'var(--color-surface)',
-        transition: 'border-color 0.3s',
+        boxShadow: 'var(--shadow-sm)',
+        transition: 'border-color 0.2s, box-shadow 0.2s',
       }}
     >
       {/* Header */}
       <div
-        className="px-5 py-3 border-b flex items-center justify-between"
+        className="px-5 py-3.5 border-b flex items-center justify-between"
         style={{
           backgroundColor: 'var(--color-surface-2)',
           borderColor: 'var(--color-border)',
         }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <h3
-            className="font-semibold text-sm uppercase tracking-wider"
-            style={{ color: 'var(--color-neutral)' }}
+            className="font-semibold text-sm uppercase tracking-widest"
+            style={{ color: 'var(--color-neutral)', letterSpacing: '0.08em' }}
           >
             Practice Loop
           </h3>
           <span
-            className="text-xs font-medium px-1.5 py-0.5 rounded"
+            className="text-xs font-medium px-2 py-0.5 rounded-lg"
             style={{
               backgroundColor: 'var(--color-surface)',
               color: 'var(--color-neutral)',
@@ -396,13 +397,13 @@ export function PracticeMode({ chords, sectionName }: Props) {
           <button
             onClick={togglePlay}
             disabled={noChords}
-            className="flex items-center justify-center w-9 h-9 rounded-full font-bold text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+            className="flex items-center justify-center w-10 h-10 rounded-full font-bold text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
             style={{
               backgroundColor: playing ? 'var(--color-diatonic)' : 'var(--color-accent)',
               color: '#fff',
               boxShadow: playing
-                ? '0 0 12px color-mix(in srgb, var(--color-diatonic) 50%, transparent)'
-                : 'none',
+                ? '0 0 14px color-mix(in srgb, var(--color-diatonic) 50%, transparent)'
+                : '0 2px 8px color-mix(in srgb, var(--color-accent) 35%, transparent)',
             }}
             title={playing ? 'Stop' : 'Play practice loop'}
           >
@@ -420,10 +421,10 @@ export function PracticeMode({ chords, sectionName }: Props) {
           </button>
 
           {/* BPM control */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setBpm((b) => Math.max(40, b - 5))}
-              className="w-6 h-6 rounded flex items-center justify-center text-sm font-bold cursor-pointer transition-colors"
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold cursor-pointer transition-colors"
               style={{
                 backgroundColor: 'var(--color-surface-2)',
                 color: 'var(--color-text)',
@@ -431,10 +432,10 @@ export function PracticeMode({ chords, sectionName }: Props) {
               }}
               title="Decrease tempo"
             >
-              -
+              −
             </button>
             <label
-              className="text-[10px] uppercase tracking-wider font-semibold select-none"
+              className="text-[10px] uppercase tracking-widest font-semibold select-none"
               style={{ color: 'var(--color-neutral)' }}
             >
               BPM
@@ -460,7 +461,7 @@ export function PracticeMode({ chords, sectionName }: Props) {
             </span>
             <button
               onClick={() => setBpm((b) => Math.min(200, b + 5))}
-              className="w-6 h-6 rounded flex items-center justify-center text-sm font-bold cursor-pointer transition-colors"
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold cursor-pointer transition-colors"
               style={{
                 backgroundColor: 'var(--color-surface-2)',
                 color: 'var(--color-text)',
@@ -575,7 +576,7 @@ export function PracticeMode({ chords, sectionName }: Props) {
                   <button
                     onClick={() => handleChordClick(i)}
                     disabled={playing}
-                    className="relative rounded-lg px-3 py-1.5 transition-all cursor-pointer disabled:cursor-default border"
+                    className="relative rounded-xl px-3.5 py-2 transition-all cursor-pointer disabled:cursor-default border"
                     style={{
                       borderColor: isActive
                         ? 'var(--color-accent)'

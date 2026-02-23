@@ -90,26 +90,30 @@ export function SectionSplitter({ pairs, title, artist, onSubmit, onSkip }: Prop
     <div ref={containerRef} className="mt-8 space-y-0">
       {/* Header card */}
       <div
-        className="rounded-t-xl border border-b-0 px-6 py-5"
+        className="rounded-t-2xl border border-b-0 px-6 py-5"
         style={{
           borderColor: 'var(--color-accent)',
-          backgroundColor: 'var(--color-surface)',
+          backgroundColor: 'color-mix(in srgb, var(--color-accent) 8%, var(--color-surface))',
+          boxShadow: 'var(--shadow-sm)',
         }}
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold flex items-center gap-2">
-              <svg className="w-5 h-5" style={{ color: 'var(--color-accent)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <h2
+              className="text-lg font-bold flex items-center gap-2.5"
+              style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}
+            >
+              <svg className="w-5 h-5 shrink-0" style={{ color: 'var(--color-accent)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h7" />
               </svg>
               Section Segmentation
             </h2>
-            <p className="mt-1 text-sm" style={{ color: 'var(--color-neutral)' }}>
+            <p className="mt-1.5 text-sm" style={{ color: 'var(--color-neutral)' }}>
               This song has no section markers. Click <strong>+</strong> between lines to mark where new sections begin.
             </p>
           </div>
           <div className="text-right shrink-0">
-            {title && <div className="font-medium text-sm" dir="rtl">{title}</div>}
+            {title && <div className="font-semibold text-sm" dir="rtl">{title}</div>}
             {artist && <div className="text-xs" dir="rtl" style={{ color: 'var(--color-neutral)' }}>{artist}</div>}
           </div>
         </div>
@@ -117,7 +121,7 @@ export function SectionSplitter({ pairs, title, artist, onSubmit, onSkip }: Prop
 
       {/* Pairs list */}
       <div
-        className="border border-t-0 rounded-b-xl overflow-hidden"
+        className="border border-t-0 rounded-b-2xl overflow-hidden"
         style={{
           borderColor: 'var(--color-border)',
           backgroundColor: 'var(--color-surface)',
@@ -154,13 +158,13 @@ export function SectionSplitter({ pairs, title, artist, onSubmit, onSkip }: Prop
           className="px-6 py-4 flex items-center justify-between border-t"
           style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface-2)' }}
         >
-          <div className="text-sm" style={{ color: 'var(--color-neutral)' }}>
-            {sectionCount} section{sectionCount !== 1 ? 's' : ''} &middot; {pairs.length} line{pairs.length !== 1 ? 's' : ''}
+          <div className="text-sm font-medium" style={{ color: 'var(--color-neutral)' }}>
+            {sectionCount} section{sectionCount !== 1 ? 's' : ''} · {pairs.length} line{pairs.length !== 1 ? 's' : ''}
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={onSkip}
-              className="text-sm px-4 py-2 rounded-lg border transition-colors cursor-pointer"
+              className="text-sm px-4 py-2.5 rounded-xl border font-medium transition-colors cursor-pointer"
               style={{
                 borderColor: 'var(--color-border)',
                 color: 'var(--color-neutral)',
@@ -171,8 +175,11 @@ export function SectionSplitter({ pairs, title, artist, onSubmit, onSkip }: Prop
             </button>
             <button
               onClick={handleSubmit}
-              className="text-sm px-5 py-2 rounded-lg text-white font-medium transition-colors cursor-pointer flex items-center gap-2"
-              style={{ backgroundColor: 'var(--color-accent)' }}
+              className="text-sm px-5 py-2.5 rounded-xl text-white font-semibold transition-all cursor-pointer flex items-center gap-2"
+              style={{
+                backgroundColor: 'var(--color-accent)',
+                boxShadow: '0 2px 8px color-mix(in srgb, var(--color-accent) 35%, transparent)',
+              }}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />

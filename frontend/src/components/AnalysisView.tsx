@@ -136,48 +136,52 @@ export function AnalysisView({ result }: Props) {
 
   return (
     <div className="mt-8 space-y-6">
-      {/* Song header */}
+      {/* Song header — clear hierarchy, key prominent for musicians */}
       <div
-        className="rounded-xl border p-6"
+        className="rounded-2xl border p-6 sm:p-7"
         style={{
           borderColor: 'var(--color-border)',
           backgroundColor: 'var(--color-surface)',
+          boxShadow: 'var(--shadow-sm)',
         }}
       >
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="text-2xl font-bold">
+            <h2
+              className="text-2xl sm:text-3xl font-bold"
+              style={{ fontFamily: 'var(--font-display)', letterSpacing: '0.02em' }}
+            >
               {result.title || t.untitled}
             </h2>
             {result.artist && (
-              <p className="mt-1" style={{ color: 'var(--color-neutral)' }}>{result.artist}</p>
+              <p className="mt-1.5 text-base" style={{ color: 'var(--color-neutral)' }}>{result.artist}</p>
             )}
           </div>
           <div
-            className="rounded-lg border px-4 py-2 text-center"
+            className="rounded-xl border px-5 py-2.5 text-center shrink-0"
             style={{
-              backgroundColor: 'var(--color-surface-2)',
-              borderColor: 'var(--color-border)',
+              backgroundColor: 'color-mix(in srgb, var(--color-accent) 10%, var(--color-surface-2))',
+              borderColor: 'color-mix(in srgb, var(--color-accent) 40%, var(--color-border))',
             }}
           >
-            <div className="text-xs uppercase tracking-wider" style={{ color: 'var(--color-neutral)' }}>{t.key}</div>
-            <div className="text-lg font-bold font-mono mt-0.5">
+            <div className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: 'var(--color-neutral)' }}>{t.key}</div>
+            <div className="text-xl font-bold font-mono mt-0.5" style={{ color: 'var(--color-accent)' }}>
               {currentKey.root_name} {modeLabel}
             </div>
           </div>
         </div>
 
         {/* Transpose bar */}
-        <div className="mt-4">
+        <div className="mt-5">
           <TransposeBar currentKey={currentKey} onTranspose={handleTranspose} />
         </div>
 
         {/* Action buttons row */}
-        <div className="mt-4 flex items-center gap-3 flex-wrap">
+        <div className="mt-5 flex items-center gap-3 flex-wrap">
           <button
             onClick={handleLlmAnalysis}
             disabled={llmLoading}
-            className="rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
+            className="rounded-xl border px-4 py-2.5 text-sm font-medium transition-all cursor-pointer"
             style={{
               borderColor: 'var(--color-border)',
               backgroundColor: llmLoading ? 'var(--color-surface-2)' : 'var(--color-surface)',
@@ -190,10 +194,10 @@ export function AnalysisView({ result }: Props) {
 
           <button
             onClick={() => setShowFretboard(!showFretboard)}
-            className="rounded-lg border px-4 py-2 text-sm font-medium transition-colors cursor-pointer"
+            className="rounded-xl border px-4 py-2.5 text-sm font-medium transition-all cursor-pointer"
             style={{
               borderColor: showFretboard ? 'var(--color-accent)' : 'var(--color-border)',
-              backgroundColor: showFretboard ? 'color-mix(in srgb, var(--color-accent) 15%, var(--color-surface))' : 'var(--color-surface)',
+              backgroundColor: showFretboard ? 'color-mix(in srgb, var(--color-accent) 14%, var(--color-surface))' : 'var(--color-surface)',
               color: showFretboard ? 'var(--color-accent)' : 'var(--color-text)',
             }}
           >
@@ -201,7 +205,7 @@ export function AnalysisView({ result }: Props) {
           </button>
 
           {llmError && (
-            <p className="text-sm" style={{ color: 'var(--color-error, #ef4444)' }}>
+            <p className="text-sm font-medium" style={{ color: 'var(--color-diminished)' }}>
               {llmError}
             </p>
           )}
@@ -211,17 +215,18 @@ export function AnalysisView({ result }: Props) {
       {/* Fretboard Explorer */}
       {showFretboard && (
         <div
-          className="rounded-xl border p-4"
+          className="rounded-2xl border p-5"
           style={{
             borderColor: 'var(--color-border)',
             backgroundColor: 'var(--color-surface)',
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-neutral)' }}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--color-neutral)' }}>
               {t.fretboardExplorer}
               {selectedChordForFretboard && (
-                <span className="ml-2 font-mono normal-case" style={{ color: 'var(--color-accent)' }}>
+                <span className="ml-2 font-mono normal-case font-medium" style={{ color: 'var(--color-accent)' }}>
                   — {selectedChordForFretboard.symbol}
                 </span>
               )}
@@ -229,7 +234,7 @@ export function AnalysisView({ result }: Props) {
             {selectedChordForFretboard && (
               <button
                 onClick={() => setSelectedChordForFretboard(null)}
-                className="text-xs px-2 py-1 rounded border cursor-pointer"
+                className="text-xs px-3 py-1.5 rounded-xl border font-medium transition-colors cursor-pointer"
                 style={{ borderColor: 'var(--color-border)', color: 'var(--color-neutral)' }}
               >
                 {t.showScaleOnly}

@@ -36,6 +36,31 @@ export async function analyzeSectionChords(
   return resp.json();
 }
 
+export async function getChordCompletions(
+  prefix: string,
+  keyRootName: string,
+  keyMode: string,
+  prevChord?: string,
+  nextChord?: string,
+  limit = 30,
+): Promise<string[]> {
+  const params = new URLSearchParams({
+    prefix,
+    key_root_name: keyRootName,
+    key_mode: keyMode,
+    limit: String(limit),
+  });
+  if (prevChord != null && prevChord !== '') params.set('prev_chord', prevChord);
+  if (nextChord != null && nextChord !== '') params.set('next_chord', nextChord);
+  const resp = await fetch(`/api/chord-completions?${params.toString()}`);
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({ detail: 'Chord completion failed' }));
+    throw new Error(body.detail ?? 'Chord completion failed');
+  }
+  const data = await resp.json();
+  return data.completions ?? [];
+}
+
 export async function requestLlmAnalysis(
   analysisResult: AnalysisResult,
 ): Promise<LlmAnalysisResult> {

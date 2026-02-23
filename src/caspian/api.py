@@ -22,6 +22,7 @@ from caspian.analysis.llm_analysis import (
     LLMNotConfiguredError,
     generate_llm_analysis,
 )
+from caspian.completion.chord_completion import chord_completions
 from caspian.parsing.input_parser import parse_format_a
 from caspian.parsing.website_normalizer import normalize_website_paste
 from caspian.parsing.chord_parser import parse_chord
@@ -299,6 +300,30 @@ def analyze_section_endpoint(req: AnalyzeSectionRequest):
             )
     section_analysis = analyze_section(req.section_name, chords, key)
     return _serialize_section(section_analysis, key)
+
+
+@app.get("/api/chord-completions")
+def chord_completions_endpoint(
+    prefix: str,
+    key_root_name: str,
+    key_mode: str,
+    prev_chord: str | None = None,
+    next_chord: str | None = None,
+    limit: int = 30,
+):
+    """Return chord symbols matching prefix, ordered by musical anticipation."""
+    try:
+        completions = chord_completions(
+            prefix=prefix,
+            key_root_name=key_root_name,
+            key_mode=key_mode,
+            prev_chord_symbol=prev_chord,
+            next_chord_symbol=next_chord,
+            limit=limit,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"completions": completions}
 
 
 logger = logging.getLogger(__name__)
