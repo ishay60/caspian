@@ -72,7 +72,7 @@ function transposeKey(key: Key, semitones: number): Key {
 }
 
 export function AnalysisView({ result }: Props) {
-  const { t } = useSettings();
+  const { t, anthropicApiKey, openaiApiKey } = useSettings();
   const [transposeSemitones, setTransposeSemitones] = useState(0);
   const [sections, setSections] = useState<Section[]>(result.sections);
   const [editedSections, setEditedSections] = useState<Set<number>>(new Set());
@@ -121,11 +121,16 @@ export function AnalysisView({ result }: Props) {
     setSelectedChordForFretboard(chord);
   }, []);
 
+  const hasApiKey = Boolean(anthropicApiKey || openaiApiKey);
+
   async function handleLlmAnalysis() {
     setLlmLoading(true);
     setLlmError(null);
     try {
-      const res = await requestLlmAnalysis(result);
+      const res = await requestLlmAnalysis(result, {
+        anthropicApiKey: anthropicApiKey || undefined,
+        openaiApiKey: openaiApiKey || undefined,
+      });
       setLlmResult(res);
     } catch (err) {
       setLlmError(err instanceof Error ? err.message : 'LLM analysis failed');
@@ -180,17 +185,23 @@ export function AnalysisView({ result }: Props) {
         <div className="mt-5 flex items-center gap-3 flex-wrap">
           <button
             onClick={handleLlmAnalysis}
-            disabled={llmLoading}
-            className="rounded-xl border px-4 py-2.5 text-sm font-medium transition-all cursor-pointer"
+            disabled={llmLoading || !hasApiKey}
+            title={!hasApiKey ? 'Enter an API key in Settings to enable AI narrative' : undefined}
+            className="rounded-xl border px-4 py-2.5 text-sm font-medium transition-all"
             style={{
               borderColor: 'var(--color-border)',
               backgroundColor: llmLoading ? 'var(--color-surface-2)' : 'var(--color-surface)',
-              cursor: llmLoading ? 'not-allowed' : 'pointer',
-              opacity: llmLoading ? 0.7 : 1,
+              cursor: (llmLoading || !hasApiKey) ? 'not-allowed' : 'pointer',
+              opacity: (llmLoading || !hasApiKey) ? 0.5 : 1,
             }}
           >
             {llmLoading ? t.generating : t.generateNarrative}
           </button>
+          {!hasApiKey && (
+            <p className="text-xs" style={{ color: 'var(--color-neutral)' }}>
+              Add your API key in Settings to enable AI narrative
+            </p>
+          )}
 
           <button
             onClick={() => setShowFretboard(!showFretboard)}

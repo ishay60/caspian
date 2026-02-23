@@ -144,17 +144,26 @@ async def _call_openai(api_key: str, user_prompt: str) -> str:
     return response.choices[0].message.content
 
 
-async def generate_llm_analysis(analysis_json: dict[str, Any]) -> dict[str, Any]:
+async def generate_llm_analysis(
+    analysis_json: dict[str, Any],
+    *,
+    user_api_key: str | None = None,
+    user_provider: str | None = None,
+) -> dict[str, Any]:
     """Generate a harmonic narrative using the configured LLM provider.
 
+    Priority: user-supplied key (from request header) > server env vars.
     Raises LLMNotConfiguredError if no provider is configured.
     Raises RuntimeError on LLM API errors.
     """
-    config = get_llm_config()
-    if config is None:
-        raise LLMNotConfiguredError("No LLM provider configured")
+    if user_api_key and user_provider:
+        provider, api_key = user_provider, user_api_key
+    else:
+        config = get_llm_config()
+        if config is None:
+            raise LLMNotConfiguredError("No LLM provider configured")
+        provider, api_key = config
 
-    provider, api_key = config
     user_prompt = build_user_prompt(analysis_json)
 
     try:

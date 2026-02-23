@@ -9,7 +9,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -336,11 +336,32 @@ logger = logging.getLogger(__name__)
 
 
 @app.post("/api/llm-analyze", response_model=LlmAnalyzeResponse)
-async def llm_analyze(req: AnalyzeResponse):
+async def llm_analyze(
+    req: AnalyzeResponse,
+    x_anthropic_api_key: str | None = Header(default=None),
+    x_openai_api_key: str | None = Header(default=None),
+):
+    # Resolve user-supplied key; Anthropic takes priority over OpenAI
+    user_api_key: str | None = None
+    user_provider: str | None = None
+    if x_anthropic_api_key:
+        user_api_key = x_anthropic_api_key
+        user_provider = "claude"
+    elif x_openai_api_key:
+        user_api_key = x_openai_api_key
+        user_provider = "openai"
+
     try:
-        raw = await generate_llm_analysis(req.model_dump())
+        raw = await generate_llm_analysis(
+            req.model_dump(),
+            user_api_key=user_api_key,
+            user_provider=user_provider,
+        )
     except LLMNotConfiguredError:
-        raise HTTPException(status_code=503, detail="LLM analysis is not available")
+        raise HTTPException(
+            status_code=503,
+            detail="No API key configured. Enter your Anthropic or OpenAI key in settings.",
+        )
     except RuntimeError as exc:
         logger.exception("LLM analysis failed")
         raise HTTPException(status_code=502, detail=str(exc))

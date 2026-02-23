@@ -15,9 +15,13 @@ interface Settings {
   language: Language;
   dir: 'ltr' | 'rtl';
   t: Translations;
+  anthropicApiKey: string;
+  openaiApiKey: string;
   setTheme: (id: string) => void;
   setNotation: (next: Partial<NotationToggles>) => void;
   setLanguage: (lang: Language) => void;
+  setAnthropicApiKey: (key: string) => void;
+  setOpenaiApiKey: (key: string) => void;
 }
 
 const SettingsContext = createContext<Settings | null>(null);
@@ -63,6 +67,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() =>
     loadSetting('caspian-lang', 'en' as Language, (v): v is Language => typeof v === 'string' && languages.some(l => l.id === v))
   );
+  const [anthropicApiKey, setAnthropicApiKeyState] = useState(() =>
+    loadSetting('caspian-anthropic-key', '', (v): v is string => typeof v === 'string')
+  );
+  const [openaiApiKey, setOpenaiApiKeyState] = useState(() =>
+    loadSetting('caspian-openai-key', '', (v): v is string => typeof v === 'string')
+  );
 
   const theme = themes.find(t => t.id === themeId) ?? themes[0];
   const langDef = languages.find(l => l.id === language) ?? languages[0];
@@ -100,8 +110,18 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('caspian-lang', JSON.stringify(lang));
   }
 
+  function setAnthropicApiKey(key: string) {
+    setAnthropicApiKeyState(key);
+    localStorage.setItem('caspian-anthropic-key', JSON.stringify(key));
+  }
+
+  function setOpenaiApiKey(key: string) {
+    setOpenaiApiKeyState(key);
+    localStorage.setItem('caspian-openai-key', JSON.stringify(key));
+  }
+
   return (
-    <SettingsContext.Provider value={{ theme, notation, language, dir: langDef.dir, t, setTheme, setNotation, setLanguage }}>
+    <SettingsContext.Provider value={{ theme, notation, language, dir: langDef.dir, t, anthropicApiKey, openaiApiKey, setTheme, setNotation, setLanguage, setAnthropicApiKey, setOpenaiApiKey }}>
       {children}
     </SettingsContext.Provider>
   );
