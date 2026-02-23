@@ -180,8 +180,8 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
         {/* Edit mode toolbar */}
         {editMode && (
           <div className="space-y-3">
-            {/* Editable chord badges */}
-            <div className="flex flex-wrap items-center gap-1.5">
+            {/* Editable chord badges — overflow-visible so completion dropdowns are not clipped */}
+            <div className="flex flex-wrap items-center gap-1.5" style={{ overflow: 'visible' }}>
               {/* Insert button before first chord */}
               <button
                 onClick={() => insertSymbol(-1)}
@@ -201,6 +201,12 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
                     symbol={sym}
                     onChange={(newSym) => updateSymbol(i, newSym)}
                     onDelete={() => deleteSymbol(i)}
+                    completionContext={{
+                      keyRootName: keyInfo.root_name,
+                      keyMode: keyInfo.mode,
+                      prevChord: editableSymbols[i - 1],
+                      nextChord: editableSymbols[i + 1],
+                    }}
                   />
                   {/* Insert button after each chord */}
                   <button

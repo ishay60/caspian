@@ -7,6 +7,16 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Free ports so we don't get "Address already in use" from a previous run
+for port in 8000 5173; do
+  pids=$(lsof -ti :$port 2>/dev/null) || true
+  if [ -n "$pids" ]; then
+    echo "Stopping existing process(es) on port $port..."
+    kill $pids 2>/dev/null || kill -9 $pids 2>/dev/null || true
+    sleep 1
+  fi
+done
+
 cleanup() {
   echo ""
   echo "Shutting down..."
