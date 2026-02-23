@@ -101,7 +101,7 @@ export function transposeChordSymbol(symbol: string, semitones: number): string 
  * Normalize a chord symbol by converting flat notation to sharp notation.
  * This is applied when semitones = 0 in transposeChordSymbol.
  */
-function normalizeChordSymbol(symbol: string): string {
+export function normalizeChordSymbol(symbol: string): string {
   const [rootName, rootPitch, remainder] = parseChordRoot(symbol);
 
   const normalizedRoot = pitchToName(rootPitch);
