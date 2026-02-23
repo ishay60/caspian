@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json as _json
+import os
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -41,9 +42,14 @@ from caspian.theory.pitch import note_name, note_name_in_key
 
 app = FastAPI(title="Caspian", description="Hebrew harmonic analysis API")
 
+_allowed_origins = [
+    o.strip()
+    for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+    if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite dev server
+    allow_origins=_allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
