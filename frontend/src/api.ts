@@ -63,10 +63,15 @@ export async function getChordCompletions(
 
 export async function requestLlmAnalysis(
   analysisResult: AnalysisResult,
+  options?: { anthropicApiKey?: string; openaiApiKey?: string },
 ): Promise<LlmAnalysisResult> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (options?.anthropicApiKey) headers['X-Anthropic-Api-Key'] = options.anthropicApiKey;
+  else if (options?.openaiApiKey) headers['X-OpenAI-Api-Key'] = options.openaiApiKey;
+
   const resp = await fetch('/api/llm-analyze', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(analysisResult),
   });
   if (!resp.ok) {
