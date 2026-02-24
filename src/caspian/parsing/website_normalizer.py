@@ -8,6 +8,12 @@ Typical website paste format:
 - Sometimes standalone chord symbols on their own line (F7+, Dm7/9)
 - Section labels: סיום: (outro), etc.
 
+Enhanced in Phase 3.1:
+- Detects and parses HTML from Ultimate Guitar and Tab4u
+- Improved spacing normalization (tabs → spaces)
+- Bar line detection and preservation (| Am G | F C |)
+- More Hebrew section marker variants
+
 Rules:
 - If input already looks like Format A (key:, [section], or pipe "chords | lyrics"),
   return as-is.
@@ -19,6 +25,12 @@ Rules:
 from __future__ import annotations
 
 import re
+
+try:
+    from bs4 import BeautifulSoup
+    BS4_AVAILABLE = True
+except ImportError:
+    BS4_AVAILABLE = False
 
 from caspian.parsing.rtl_handler import has_hebrew
 from caspian.parsing.section_detector import detect_section_bracket
@@ -32,6 +44,148 @@ _BIDI_MARKS = re.compile(
 # Chord pattern: root + optional quality/slash (e.g. G6, Dm7/9, F7+, Bbdim, E/G#)
 # Must not match "x2" or pure numbers
 _CHORD_PATTERN = re.compile(r"[A-G][#b]?[a-zA-Z0-9+/#]*")
+
+# Bar line pattern: | chord(s) |
+_BAR_LINE_PATTERN = re.compile(r"\|[\s\w#b/+\-]+\|")
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.1: HTML Detection and Parsing
+# ---------------------------------------------------------------------------
+
+def detect_ultimate_guitar_html(text: str) -> bool:
+    """Detect if pasted text is HTML from Ultimate Guitar website."""
+    indicators = [
+        '<div class="js-tab-content"',
+        'data-content="chord"',
+        'www.ultimate-guitar.com',
+        'class="js-store"',
+        'ultimate-guitar.com',
+    ]
+    return any(indicator in text for indicator in indicators)
+
+
+def detect_tab4u_html(text: str) -> bool:
+    """Detect if pasted text is HTML from Tab4u website."""
+    indicators = [
+        'class="song_words"',
+        'tab4u.com',
+        'שיר:',  # Hebrew for "song:"
+        'class="chords"',
+        'class="lyrics"',
+    ]
+    return any(indicator in text for indicator in indicators)
+
+
+def parse_ultimate_guitar_html(html: str) -> str:
+    """Extract clean chord sheet text from Ultimate Guitar HTML.
+
+    Falls back to original text if BeautifulSoup is not available or parsing fails.
+    """
+    if not BS4_AVAILABLE:
+        return html
+
+    try:
+        soup = BeautifulSoup(html, 'html.parser')
+
+        # Find main content div (try multiple possible class names)
+        content = soup.find('div', class_='js-tab-content')
+        if not content:
+            content = soup.find('pre', class_='js-tab-content')
+        if not content:
+            content = soup.find('div', {'data-content': 'chord'})
+
+        if content:
+            # Extract text, preserve line breaks
+            text = content.get_text(separator='\n', strip=False)
+            return text.strip()
+    except Exception:
+        # If parsing fails, return original
+        pass
+
+    return html
+
+
+def parse_tab4u_html(html: str) -> str:
+    """Extract clean chord sheet text from Tab4u HTML.
+
+    Falls back to original text if BeautifulSoup is not available or parsing fails.
+    """
+    if not BS4_AVAILABLE:
+        return html
+
+    try:
+        soup = BeautifulSoup(html, 'html.parser')
+
+        # Find song content (try multiple possible class names)
+        content = soup.find('div', class_='song_words')
+        if not content:
+            content = soup.find('pre', class_='chords')
+        if not content:
+            content = soup.find('div', class_='lyrics')
+
+        if content:
+            # Extract text, preserve line breaks
+            text = content.get_text(separator='\n', strip=False)
+            return text.strip()
+    except Exception:
+        # If parsing fails, return original
+        pass
+
+    return html
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.1: Bar Line Detection
+# ---------------------------------------------------------------------------
+
+def detect_bar_lines(text: str) -> bool:
+    """Detect if text contains bar line notation like | Am G | F C |."""
+    return bool(_BAR_LINE_PATTERN.search(text))
+
+
+def is_bar_line(line: str) -> bool:
+    """Check if a specific line uses bar notation."""
+    stripped = line.strip()
+    if not stripped:
+        return False
+
+    # Must have pipes and chord-like content between them
+    if '|' not in stripped:
+        return False
+
+    # If it has Hebrew text, it's likely lyrics with | separator, not bars
+    if has_hebrew(stripped):
+        return False
+
+    # Check if it matches bar pattern
+    return bool(_BAR_LINE_PATTERN.search(stripped))
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.1: Spacing Normalization
+# ---------------------------------------------------------------------------
+
+def normalize_spacing(text: str) -> str:
+    """Normalize mixed tabs/spaces to consistent spacing.
+
+    - Converts tabs to 4 spaces
+    - Preserves relative spacing in chord lines
+    - Strips trailing whitespace
+    """
+    lines = text.split('\n')
+    normalized = []
+
+    for line in lines:
+        # Convert tabs to 4 spaces
+        line = line.replace('\t', '    ')
+
+        # Strip trailing whitespace (but preserve leading indent)
+        line = line.rstrip()
+
+        normalized.append(line)
+
+    return '\n'.join(normalized)
 
 
 def _looks_like_format_a(text: str) -> bool:
@@ -111,11 +265,28 @@ def _is_section_header(line: str) -> str | None:
 
 
 def normalize_website_paste(text: str) -> str:
-    """Convert website-style paste to Format A; return unchanged if already Format A."""
+    """Convert website-style paste to Format A; return unchanged if already Format A.
+
+    Phase 3.1 enhancements:
+    - Detects and parses HTML from Ultimate Guitar and Tab4u
+    - Normalizes spacing (tabs → spaces)
+    - Strips invisible bidi marks
+    """
     if not text or not text.strip():
         return text
+
+    # Phase 3.1: Detect and parse HTML pastes
+    if detect_ultimate_guitar_html(text):
+        text = parse_ultimate_guitar_html(text)
+    elif detect_tab4u_html(text):
+        text = parse_tab4u_html(text)
+
+    # Phase 3.1: Normalize spacing (tabs → spaces)
+    text = normalize_spacing(text)
+
     # Strip invisible bidi marks that break chord parsing (e.g. G#\u200em → G#m)
     text = _BIDI_MARKS.sub("", text)
+
     if _looks_like_format_a(text):
         return text
 

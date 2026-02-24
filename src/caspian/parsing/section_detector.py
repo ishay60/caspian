@@ -55,16 +55,42 @@ _ENGLISH_ALIASES: dict[str, str] = {
 }
 
 # ---------------------------------------------------------------------------
-# Hebrew section names
+# Hebrew section names (Phase 3.1: expanded variants)
 # ---------------------------------------------------------------------------
 _HEBREW_ALIASES: dict[str, str] = {
+    # Chorus variants
     "פזמון": "chorus",
+    "פז״מון": "chorus",  # With gershayim
+    "פז׳": "chorus",      # Abbreviated
+    "פזמ": "chorus",      # Abbreviated without geresh
+
+    # Verse variants
     "בית": "verse",
+    "כתובית": "verse",    # Alternative term
+
+    # Intro variants
     "הקדמה": "intro",
     "פתיחה": "intro",
+    "אינטרו": "intro",    # Transliteration
+    "התחלה": "intro",     # Beginning
+
+    # Outro variants
     "סיום": "outro",
+    "אאוטרו": "outro",    # Transliteration
+    "סוף": "outro",       # End
+
+    # Bridge variants
     "גשר": "bridge",
+    "ברידג׳": "bridge",   # Transliteration with geresh
+
+    # Pre-chorus variants
+    "טרום פזמון": "pre-chorus",
+    "לפני פזמון": "pre-chorus",
+    "טרום-פזמון": "pre-chorus",
+
+    # Solo and instrumental
     "סולו": "solo",
+    "נגינה": "instrumental",  # Playing/instrumental section
     "אינטרומנטל": "instrumental",
     "אינטרלוד": "interlude",
 }
