@@ -9,6 +9,8 @@ from caspian.analysis.bar_detection import (
     SpacingAnalysis,
     analyze_chord_count_consistency,
     analyze_chord_spacing,
+    combine_suggestions,
+    detect_bars,
     detect_bars_simple,
     find_repeating_patterns,
     suggest_bars_from_chord_count,
@@ -467,6 +469,188 @@ class TestSuggestBarsFromPatterns:
         assert len(suggestions) == 2
         positions = [s.position for s in suggestions]
         assert positions == [4, 8]
+
+
+class TestCombineSuggestions:
+    """Tests for combine_suggestions function."""
+
+    def test_empty_suggestions(self):
+        """Test with no suggestions."""
+        combined = combine_suggestions([])
+        assert len(combined) == 0
+
+    def test_single_suggestion(self):
+        """Test with single suggestion (no combining needed)."""
+        suggestions = [
+            BarSuggestion(
+                position=2,
+                confidence=0.70,
+                reason="2-chord pattern",
+                heuristic="chord_count",
+            )
+        ]
+        combined = combine_suggestions(suggestions)
+
+        assert len(combined) == 1
+        assert combined[0] == suggestions[0]
+
+    def test_two_heuristics_agree(self):
+        """Test confidence boost when two heuristics agree on same position."""
+        suggestions = [
+            BarSuggestion(
+                position=4,
+                confidence=0.70,
+                reason="2-chord pattern",
+                heuristic="chord_count",
+            ),
+            BarSuggestion(
+                position=4,
+                confidence=0.80,
+                reason="Repeating pattern",
+                heuristic="pattern",
+            ),
+        ]
+        combined = combine_suggestions(suggestions)
+
+        assert len(combined) == 1
+        assert combined[0].position == 4
+        # Should boost: max(0.70, 0.80) + 0.15 = 0.95
+        assert combined[0].confidence >= 0.94
+        assert combined[0].heuristic == "combined"
+        assert "Multiple heuristics" in combined[0].reason
+
+    def test_three_heuristics_agree(self):
+        """Test even higher boost when three heuristics agree."""
+        suggestions = [
+            BarSuggestion(position=2, confidence=0.70, reason="...", heuristic="chord_count"),
+            BarSuggestion(position=2, confidence=0.75, reason="...", heuristic="spacing"),
+            BarSuggestion(position=2, confidence=0.85, reason="...", heuristic="pattern"),
+        ]
+        combined = combine_suggestions(suggestions)
+
+        assert len(combined) == 1
+        # Should boost: max(0.70, 0.75, 0.85) + 0.25 = 1.10 → capped at 0.99
+        assert combined[0].confidence >= 0.99
+
+    def test_conflicting_positions_kept_separate(self):
+        """Test that different positions are kept separate."""
+        suggestions = [
+            BarSuggestion(position=2, confidence=0.70, reason="...", heuristic="chord_count"),
+            BarSuggestion(position=4, confidence=0.80, reason="...", heuristic="pattern"),
+        ]
+        combined = combine_suggestions(suggestions)
+
+        assert len(combined) == 2
+        positions = sorted([s.position for s in combined])
+        assert positions == [2, 4]
+
+    def test_mixed_agreement_and_conflict(self):
+        """Test mixture of agreeing and conflicting suggestions."""
+        suggestions = [
+            BarSuggestion(position=2, confidence=0.70, reason="...", heuristic="chord_count"),
+            BarSuggestion(position=2, confidence=0.80, reason="...", heuristic="pattern"),
+            BarSuggestion(position=4, confidence=0.75, reason="...", heuristic="spacing"),
+        ]
+        combined = combine_suggestions(suggestions)
+
+        assert len(combined) == 2
+        # Position 2 should have boosted confidence
+        pos2 = next(s for s in combined if s.position == 2)
+        assert pos2.confidence >= 0.94  # 0.80 + 0.15
+        # Position 4 should remain unchanged
+        pos4 = next(s for s in combined if s.position == 4)
+        assert pos4.confidence == 0.75
+
+
+class TestDetectBars:
+    """Tests for detect_bars function (full multi-heuristic detection)."""
+
+    def test_chord_count_only(self):
+        """Test detection with only chord sequence (no spacing data)."""
+        chords = ["Am", "F", "C", "G", "Am", "F", "C", "G"]
+        suggestions = detect_bars(chords)
+
+        # Should use chord_count and pattern heuristics
+        assert len(suggestions) >= 1
+        assert all(s.confidence >= 0.5 for s in suggestions)
+
+    def test_with_spacing_data(self):
+        """Test detection with spacing data available."""
+        chords = ["Am", "F", "C", "G"]
+        lines = [
+            ChordLyricsLine(
+                chords=[(0, "Am"), (10, "F"), (40, "C"), (50, "G")], lyrics="test"
+            )
+        ]
+        suggestions = detect_bars(chords, chord_lyrics_lines=lines)
+
+        # Should combine chord_count, spacing, and pattern heuristics
+        assert len(suggestions) >= 1
+
+    def test_confidence_threshold_filtering(self):
+        """Test that low-confidence suggestions are filtered out."""
+        chords = ["Am", "F", "C", "G", "Dm", "E", "Am"]  # Irregular (7 chords)
+        suggestions_low = detect_bars(chords, confidence_threshold=0.3)
+        suggestions_high = detect_bars(chords, confidence_threshold=0.7)
+
+        # Lower threshold should allow more suggestions
+        assert len(suggestions_low) >= len(suggestions_high)
+
+    def test_repeating_pattern_boosts_confidence(self):
+        """Test that repeating patterns result in high confidence."""
+        # Exact 4-chord pattern repeated
+        chords = ["Am", "F", "C", "G"] * 3
+        suggestions = detect_bars(chords)
+
+        # Should have very high confidence from both chord_count and pattern heuristics
+        assert len(suggestions) >= 1
+        # At least one suggestion should have boosted confidence
+        max_confidence = max(s.confidence for s in suggestions)
+        assert max_confidence >= 0.85
+
+    def test_hebrew_song_full_detection(self):
+        """Test full detection with Hebrew song example."""
+        chords = ["Am/E", "D#dim", "F#dim", "F", "D", "Am", "E", "Dm"]
+        lines = [
+            ChordLyricsLine(
+                chords=[
+                    (0, "Am/E"),
+                    (10, "D#dim"),
+                    (35, "F#dim"),
+                    (45, "F"),
+                    (70, "D"),
+                    (80, "Am"),
+                    (90, "E"),
+                    (100, "Dm"),
+                ],
+                lyrics="יום שישי חזר אלי הביתה",
+            )
+        ]
+        suggestions = detect_bars(chords, chord_lyrics_lines=lines)
+
+        # Should get suggestions combining all heuristics
+        assert len(suggestions) >= 1
+        assert all(s.confidence >= 0.5 for s in suggestions)
+
+    def test_all_heuristics_agree_maximum_confidence(self):
+        """Test that when all heuristics agree, we get maximum confidence."""
+        # Create perfect scenario: exact pattern + good spacing + even count
+        chords = ["Am", "F", "C", "G"] * 2
+        lines = [
+            ChordLyricsLine(
+                chords=[(0, "Am"), (10, "F"), (40, "C"), (50, "G")], lyrics="line 1"
+            ),
+            ChordLyricsLine(
+                chords=[(0, "Am"), (10, "F"), (40, "C"), (50, "G")], lyrics="line 2"
+            ),
+        ]
+        suggestions = detect_bars(chords, chord_lyrics_lines=lines)
+
+        # Should have high confidence from combining all heuristics
+        assert len(suggestions) >= 1
+        # Check if any suggestion has very high confidence
+        has_high_confidence = any(s.confidence >= 0.85 for s in suggestions)
+        assert has_high_confidence
 
 
 class TestDetectBarsSimple:

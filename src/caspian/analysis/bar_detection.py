@@ -422,11 +422,134 @@ def suggest_bars_from_patterns(chord_sequence: list[str]) -> list[BarSuggestion]
     return suggestions
 
 
+def combine_suggestions(
+    all_suggestions: list[BarSuggestion],
+) -> list[BarSuggestion]:
+    """Combine overlapping bar suggestions from multiple heuristics.
+
+    When multiple heuristics suggest the same bar position, boost confidence.
+    When heuristics conflict, use weighted average based on individual confidences.
+
+    Args:
+        all_suggestions: List of BarSuggestion from all heuristics
+
+    Returns:
+        Combined list with boosted/averaged confidences
+
+    Examples:
+        >>> s1 = BarSuggestion(position=2, confidence=0.70, reason="...", heuristic="chord_count")
+        >>> s2 = BarSuggestion(position=2, confidence=0.80, reason="...", heuristic="pattern")
+        >>> combined = combine_suggestions([s1, s2])
+        >>> len(combined)
+        1
+        >>> combined[0].confidence > 0.80  # Boosted
+        True
+    """
+    if not all_suggestions:
+        return []
+
+    # Group suggestions by position
+    from collections import defaultdict
+
+    position_groups: dict[int, list[BarSuggestion]] = defaultdict(list)
+    for suggestion in all_suggestions:
+        position_groups[suggestion.position].append(suggestion)
+
+    combined = []
+
+    for position, suggestions in position_groups.items():
+        if len(suggestions) == 1:
+            # Only one heuristic suggests this position
+            combined.append(suggestions[0])
+        else:
+            # Multiple heuristics agree - boost confidence
+            # Use highest confidence as base
+            base_confidence = max(s.confidence for s in suggestions)
+
+            # Add boost for each additional heuristic that agrees
+            num_heuristics = len(suggestions)
+            if num_heuristics == 2:
+                boost = 0.15
+            elif num_heuristics == 3:
+                boost = 0.25
+            else:  # 4+
+                boost = 0.35
+
+            final_confidence = min(0.99, base_confidence + boost)
+
+            # Combine reasons from all heuristics
+            heuristics = [s.heuristic for s in suggestions]
+            reasons = [s.reason for s in suggestions]
+            combined_reason = f"Multiple heuristics agree: {', '.join(heuristics)}"
+
+            combined_suggestion = BarSuggestion(
+                position=position,
+                confidence=final_confidence,
+                reason=combined_reason,
+                heuristic="combined",
+            )
+            combined.append(combined_suggestion)
+
+    # Sort by position
+    combined.sort(key=lambda s: s.position)
+
+    return combined
+
+
+def detect_bars(
+    chord_sequence: list[str],
+    chord_lyrics_lines: list[ChordLyricsLine] | None = None,
+    confidence_threshold: float = 0.5,
+) -> list[BarSuggestion]:
+    """Detect bar boundaries using all available heuristics.
+
+    Combines multiple heuristics:
+    1. Chord count consistency (2/4/1 chords per bar)
+    2. Spacing analysis (from ChordLyricsLine if available)
+    3. Repeating pattern detection
+
+    Args:
+        chord_sequence: List of chord symbols in chronological order
+        chord_lyrics_lines: Optional list of ChordLyricsLine with spacing info
+        confidence_threshold: Minimum confidence to include (default: 0.5)
+
+    Returns:
+        List of BarSuggestion objects sorted by position, filtered by confidence
+
+    Examples:
+        >>> detect_bars(["Am", "F", "C", "G", "Am", "F", "C", "G"])
+        [BarSuggestion(position=2, ...), BarSuggestion(position=4, ...),
+         BarSuggestion(position=6, ...), BarSuggestion(position=8, ...)]
+    """
+    all_suggestions = []
+
+    # Heuristic 1: Chord count consistency
+    count_suggestions = suggest_bars_from_chord_count(chord_sequence)
+    all_suggestions.extend(count_suggestions)
+
+    # Heuristic 2: Spacing analysis (if available)
+    if chord_lyrics_lines:
+        spacing_suggestions = suggest_bars_from_spacing(chord_lyrics_lines)
+        all_suggestions.extend(spacing_suggestions)
+
+    # Heuristic 3: Repeating patterns
+    pattern_suggestions = suggest_bars_from_patterns(chord_sequence)
+    all_suggestions.extend(pattern_suggestions)
+
+    # Combine overlapping suggestions
+    combined = combine_suggestions(all_suggestions)
+
+    # Filter by confidence threshold
+    filtered = [s for s in combined if s.confidence >= confidence_threshold]
+
+    return filtered
+
+
 def detect_bars_simple(chord_sequence: list[str]) -> list[BarSuggestion]:
     """Simple bar detection using only chord count heuristic.
 
     This is the MVP implementation for Task 4.7.2.
-    Future tasks will add additional heuristics.
+    Use detect_bars() for full multi-heuristic detection.
 
     Args:
         chord_sequence: List of chord symbols in chronological order
