@@ -421,6 +421,105 @@ function EditMode({
           }}
         />
       )}
+
+      {/* Section name input popup */}
+      {pendingSectionLine !== null && (
+        <>
+          {/* Backdrop */}
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.3)',
+              zIndex: 999,
+            }}
+            onClick={() => {
+              setPendingSectionLine(null);
+              setCustomSectionName('');
+            }}
+          />
+          {/* Modal */}
+          <div
+            className="section-input-popup"
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              backgroundColor: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: '8px',
+              padding: '20px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              zIndex: 1000,
+              minWidth: '300px',
+            }}
+          >
+            <h3 style={{ marginBottom: '12px', color: 'var(--color-text)', fontSize: '16px' }}>
+              Add Section at Line {pendingSectionLine + 1}
+            </h3>
+            <input
+              type="text"
+              value={customSectionName}
+              onChange={(e) => setCustomSectionName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleConfirmSectionMarker();
+                if (e.key === 'Escape') {
+                  setPendingSectionLine(null);
+                  setCustomSectionName('');
+                }
+              }}
+              placeholder="e.g. Verse, Chorus, Bridge"
+              autoFocus
+              style={{
+                width: '100%',
+                padding: '8px',
+                marginBottom: '12px',
+                border: '1px solid var(--color-border)',
+                borderRadius: '4px',
+                backgroundColor: 'var(--color-surface-2)',
+                color: 'var(--color-text)',
+              }}
+            />
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => {
+                  setPendingSectionLine(null);
+                  setCustomSectionName('');
+                }}
+                style={{
+                  padding: '6px 12px',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '4px',
+                  backgroundColor: 'var(--color-surface-2)',
+                  color: 'var(--color-text)',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmSectionMarker}
+                disabled={!customSectionName.trim()}
+                style={{
+                  padding: '6px 12px',
+                  border: '1px solid var(--color-accent)',
+                  borderRadius: '4px',
+                  backgroundColor: 'var(--color-accent)',
+                  color: 'white',
+                  cursor: customSectionName.trim() ? 'pointer' : 'not-allowed',
+                  opacity: customSectionName.trim() ? 1 : 0.5,
+                }}
+              >
+                Add Section
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -455,7 +554,12 @@ function LyricsLineEditable({
 
   return (
     <div className="lyrics-line-container">
-      <div className="line-number" title="Click to add section marker here">
+      <div
+        className="line-number"
+        title="Click to add section marker here"
+        onClick={() => onRequestSection(lineIndex)}
+        style={{ cursor: 'pointer' }}
+      >
         {lineIndex + 1}
       </div>
       <div
