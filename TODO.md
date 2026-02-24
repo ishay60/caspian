@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-02-24
 **Current Branch:** develop
-**Current Story Point:** Phase 4 Story Point 4.3 COMPLETE ✅ - Ready for 4.4
+**Current Story Point:** Phase 4 Story Point 4.4 COMPLETE ✅ - Ready for 4.5
 
 ---
 
@@ -327,20 +327,24 @@ This is the **Single Source of Truth (SSOT)** for all implementation tasks for t
 - [x] Task 4.3.7: Add validation for bar consistency
 - [x] Task 4.3.8: Write component tests
 
-### Story Point 4.4: Inline Riff/Instrumental Editor
-**Branch:** `story/4.4-riff-editor`
+### Story Point 4.4: Inline Riff/Instrumental Editor ✅ COMPLETED
+**Branch:** `story/4.4-riff-editor` (merged to develop)
+**Tests:** 40+ test cases written
+**Commits:** 7 commits
+**Files:** 3 new files created (RiffEditor.tsx, CSS, tests), 2 modified
+**Lines Added:** 3,351 lines
 
-- [ ] Task 4.4.1: Create `RiffEditor.tsx` component
-- [ ] Task 4.4.2: Implement beat range selection within bar
-- [ ] Task 4.4.3: Add "Add riff" button UI
-- [ ] Task 4.4.4: Implement note entry on beat grid
-- [ ] Task 4.4.5: Add quick entry mode (type note names)
-- [ ] Task 4.4.6: Implement auto-spacing of notes
-- [ ] Task 4.4.7: Add tab view switcher
-- [ ] Task 4.4.8: Implement string+fret position input
-- [ ] Task 4.4.9: Add riff label input
-- [ ] Task 4.4.10: Update collapsed view to show riff indicator
-- [ ] Task 4.4.11: Write component tests
+- [x] Task 4.4.1: Create `RiffEditor.tsx` component
+- [x] Task 4.4.2: Implement beat range selection within bar
+- [x] Task 4.4.3: Add "Add riff" button UI
+- [x] Task 4.4.4: Implement note entry on beat grid
+- [x] Task 4.4.5: Add quick entry mode (type note names)
+- [x] Task 4.4.6: Implement auto-spacing of notes
+- [x] Task 4.4.7: Add tab view switcher
+- [x] Task 4.4.8: Implement string+fret position input
+- [x] Task 4.4.9: Add riff label input
+- [x] Task 4.4.10: Update collapsed view to show riff indicator
+- [x] Task 4.4.11: Write component tests
 
 ### Story Point 4.5: Beat Grid Editor
 **Branch:** `story/4.5-beat-grid`
