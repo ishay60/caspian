@@ -55,7 +55,16 @@ class BarNotationParser:
     )
 
     # Pattern to validate chord symbols
-    CHORD_PATTERN = re.compile(r'^[A-G][#b]?(?:m|maj|min|dim|aug|sus|add)?[0-9]?(?:/[A-G][#b]?)?$')
+    # Supports: root (A-G), accidentals (#, b), qualities (m, maj, dim, aug, sus),
+    # extensions (7, 9, 11, 13), alterations (b5, #5, b9, #9), slash chords (/E)
+    CHORD_PATTERN = re.compile(
+        r'^[A-G][#b]?'  # Root note with optional accidental
+        r'(?:m|maj|min|dim|aug|sus|add)?'  # Optional quality
+        r'(?:[0-9]+)?'  # Optional extension (7, 9, 11, 13)
+        r'(?:[b#][0-9]+)?'  # Optional alteration (b5, #9, etc)
+        r'(?:/[A-G][#b]?)?'  # Optional slash chord
+        r'$'
+    )
 
     def parse(self, text: str) -> SongInput:
         """Parse bar notation text into a SongInput model.
