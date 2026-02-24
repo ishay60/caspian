@@ -28,8 +28,10 @@ from caspian.parsing.input_parser import parse_format_a
 from caspian.parsing.website_normalizer import normalize_website_paste
 from caspian.parsing.chord_parser import parse_chord
 from caspian.parsing.registry import get_global_registry
+from caspian.parsing.lyrics_converter import convert_lyrics_to_song_input
 from caspian.analysis.analyzer import analyze_song, analyze_section
 from caspian.models.key import Key
+from caspian.models.lyrics_input import LyricsInputRequest
 from caspian.models.analysis import (
     AnalysisInterpretation,
     BassNote,
@@ -596,6 +598,88 @@ async def get_cache_hit_rate():
         - Total hits and misses
     """
     return cache.get_hit_rate()
+
+
+# --- Lyrics Converter API ---
+
+
+@app.post("/api/convert-lyrics", response_model=AnalyzeResponse)
+def convert_lyrics(req: LyricsInputRequest):
+    """
+    Convert lyrics-based input from frontend editor to SongInput with analysis.
+
+    This endpoint accepts lyrics with chord placements, bar markers, and riff data
+    from the frontend LyricsChordEditor, BarOverlay, and RiffEditor components,
+    converts it to SongInput format, and returns the full harmonic analysis.
+
+    Args:
+        req: LyricsInputRequest with lyrics, chords, bars, and riffs
+
+    Returns:
+        AnalyzeResponse with complete harmonic analysis
+
+    Raises:
+        HTTPException: 400 if input is invalid or cannot be converted
+        HTTPException: 500 if conversion or analysis fails
+
+    Example frontend usage:
+        ```javascript
+        const response = await fetch('/api/convert-lyrics', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: "My Song",
+                artist: "Artist Name",
+                key_root_name: "Am",
+                key_mode: "natural_minor",
+                lyrics_lines: [
+                    { text: "Hello world", chords: [{ column: 0, symbol: "Am" }] }
+                ],
+                section_markers: [{ line_index: 0, name: "verse" }],
+                bar_markers: [{ chord_index: 0, time_signature: [4, 4] }],
+                chords_with_beats: [
+                    { symbol: "Am", column: 0, beat_position: { beat: 1, subdivision: 0 } }
+                ]
+            })
+        });
+        ```
+    """
+    try:
+        # Convert lyrics input to SongInput
+        song_input = convert_lyrics_to_song_input(req)
+
+        # Validate that we have at least one section with content
+        if not song_input.sections:
+            raise HTTPException(
+                status_code=400,
+                detail="No sections found in input. Please add lyrics and chords."
+            )
+
+        # Check if any section has chords or bars
+        has_content = any(
+            section.chords or section.bars or section.lines
+            for section in song_input.sections
+        )
+        if not has_content:
+            raise HTTPException(
+                status_code=400,
+                detail="No chords or bars found. Please add chord placements to your lyrics."
+            )
+
+        # Analyze the song
+        analysis = analyze_song(song_input)
+
+        # Serialize and return
+        return _serialize_analysis(analysis)
+
+    except ValueError as e:
+        # Pydantic validation errors or chord parsing errors
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        # Unexpected errors
+        import traceback
+        error_detail = f"{str(e)}\n{traceback.format_exc()}"
+        raise HTTPException(status_code=500, detail=error_detail)
 
 
 # Serve React static files in production
