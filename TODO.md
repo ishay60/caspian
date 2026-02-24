@@ -1,8 +1,8 @@
 # Caspian Grand Plan - Implementation TODO (SSOT)
 
 **Last Updated:** 2026-02-24
-**Current Branch:** develop
-**Current Story Point:** Ready for 1.2
+**Current Branch:** story/1.2-dual-path-analysis
+**Current Story Point:** 1.2 Complete - Ready for 1.3
 
 ---
 
@@ -49,20 +49,22 @@ This is the **Single Source of Truth (SSOT)** for all implementation tasks for t
 - [x] Task 1.1.11: Write unit tests for analysis models
 - [x] Task 1.1.12: Run full test suite to ensure backward compatibility
 
-### Story Point 1.2: Dual-Path Analysis Pipeline
-**Branch:** `story/1.2-dual-path-analysis`
+### Story Point 1.2: Dual-Path Analysis Pipeline ✅ COMPLETED
+**Branch:** `story/1.2-dual-path-analysis` (pushed to remote)
+**Tests:** 499 passing (483 original + 16 new integration tests)
+**Commits:** 2 (implementation + tests)
 
-- [ ] Task 1.2.1: Add bar-aware detection logic to `analyzer.py`
-- [ ] Task 1.2.2: Implement legacy path handler (section.chords exists)
-- [ ] Task 1.2.3: Implement bar-aware path handler (section.bars exists)
-- [ ] Task 1.2.4: Create `analyze_bar()` function for individual bar analysis
-- [ ] Task 1.2.5: Implement harmonic rhythm detection per bar
-- [ ] Task 1.2.6: Implement syncopation pattern detection
-- [ ] Task 1.2.7: Update `analyze_section()` to route to correct path
-- [ ] Task 1.2.8: Write integration tests for legacy path
-- [ ] Task 1.2.9: Write integration tests for bar-aware path
-- [ ] Task 1.2.10: Test dual-path with ground truth examples (yom_shishi.txt)
-- [ ] Task 1.2.11: Run full test suite
+- [x] Task 1.2.1: Add bar-aware detection logic to `analyzer.py`
+- [x] Task 1.2.2: Implement legacy path handler (section.chords exists)
+- [x] Task 1.2.3: Implement bar-aware path handler (section.bars exists)
+- [x] Task 1.2.4: Create `analyze_bar()` function for individual bar analysis
+- [x] Task 1.2.5: Implement harmonic rhythm detection per bar
+- [x] Task 1.2.6: Implement syncopation pattern detection
+- [x] Task 1.2.7: Update `analyze_section()` to route to correct path
+- [x] Task 1.2.8: Write integration tests for legacy path
+- [x] Task 1.2.9: Write integration tests for bar-aware path
+- [x] Task 1.2.10: Test dual-path with ground truth examples (yom_shishi.txt)
+- [x] Task 1.2.11: Run full test suite
 
 ### Story Point 1.3: Frontend Types & API Contract
 **Branch:** `story/1.3-frontend-types`

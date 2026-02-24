@@ -6,10 +6,10 @@ This is the main analysis entry point. It coordinates all analysis modules.
 from __future__ import annotations
 
 from caspian.models.analysis import (
-    AnalysisInterpretation, ChordAnalysis, SectionAnalysis, SongAnalysis,
+    AnalysisInterpretation, BarAnalysis, ChordAnalysis, SectionAnalysis, SongAnalysis,
 )
 from caspian.models.chord import Chord, ChordQuality
-from caspian.models.input import ChordLyricsLine, SongInput
+from caspian.models.input import Bar, ChordLyricsLine, SectionInput, SongInput
 from caspian.models.key import Key
 from caspian.parsing.chord_parser import parse_chord
 from caspian.analysis.key_detector import detect_key
@@ -28,26 +28,30 @@ from caspian.theory.voice_leading import common_tones
 
 def analyze_song(song_input: SongInput) -> SongAnalysis:
     """Run the full analysis pipeline on a song input."""
-    # Step 1: Parse all chords
-    sections_chords: list[tuple[str, list[Chord], list[ChordLyricsLine]]] = []
+    # Step 1: Parse all chords from all sections (for key detection)
+    all_chords: list[Chord] = []
     for section in song_input.sections:
-        parsed = []
+        # Extract chords from legacy format
         for chord_input in section.chords:
             try:
-                parsed.append(parse_chord(chord_input.symbol))
+                all_chords.append(parse_chord(chord_input.symbol))
             except ValueError:
                 continue
-        sections_chords.append((section.name, parsed, section.lines))
+        # Extract chords from bar-based format
+        for bar in section.bars:
+            for bar_chord in bar.content.chords:
+                try:
+                    all_chords.append(parse_chord(bar_chord.symbol))
+                except ValueError:
+                    continue
 
     # Step 2: Detect key
-    all_chords = [c for _, chords, _ in sections_chords for c in chords]
     key = detect_key(all_chords, user_key=song_input.key or None, user_mode=song_input.key_mode)
 
-    # Step 3: Analyze each section
+    # Step 3: Analyze each section using dual-path routing
     analyzed_sections: list[SectionAnalysis] = []
-    for section_name, chords, lines in sections_chords:
-        section_analysis = analyze_section(section_name, chords, key)
-        section_analysis.lines = lines
+    for section in song_input.sections:
+        section_analysis = analyze_section(section, key)
         analyzed_sections.append(section_analysis)
 
     return SongAnalysis(
@@ -58,10 +62,55 @@ def analyze_song(song_input: SongInput) -> SongAnalysis:
     )
 
 
-def analyze_section(name: str, chords: list[Chord], key: Key) -> SectionAnalysis:
-    """Analyze a single section."""
+def analyze_section(section: SectionInput, key: Key) -> SectionAnalysis:
+    """Analyze a single section with dual-path routing.
+
+    Routes to bar-aware analysis if section.bars is present,
+    otherwise uses legacy chord-based analysis.
+    """
+    if _should_use_bar_analysis(section):
+        return _analyze_section_bars(section, key)
+    else:
+        return _analyze_section_legacy(section, key)
+
+
+def _should_use_bar_analysis(section: SectionInput) -> bool:
+    """Detect if section should use bar-aware analysis.
+
+    Task 1.2.1: Detection Logic
+    """
+    # Prefer bars if present and non-empty
+    if section.bars:
+        return True
+    # Fall back to legacy if only chords present
+    return False
+
+
+def _try_parse_chord(symbol: str) -> bool:
+    """Try to parse a chord symbol, return True if successful."""
+    try:
+        parse_chord(symbol)
+        return True
+    except ValueError:
+        return False
+
+
+def _analyze_section_legacy(section: SectionInput, key: Key) -> SectionAnalysis:
+    """Analyze section using legacy flat chord list.
+
+    Task 1.2.2: Legacy Path Handler
+    This preserves the original analyze_section logic for backward compatibility.
+    """
+    # Parse chords from legacy format
+    chords: list[Chord] = []
+    for chord_input in section.chords:
+        try:
+            chords.append(parse_chord(chord_input.symbol))
+        except ValueError:
+            continue
+
     if not chords:
-        return SectionAnalysis(name=name)
+        return SectionAnalysis(name=section.name, lines=section.lines)
 
     # Analyze each chord
     chord_analyses: list[ChordAnalysis] = []
@@ -80,12 +129,158 @@ def analyze_section(name: str, chords: list[Chord], key: Key) -> SectionAnalysis
     patterns = detect_patterns(chords)
 
     return SectionAnalysis(
-        name=name,
+        name=section.name,
         chords=chord_analyses,
         bass_line=bass_line,
         chromatic_runs=chromatic_runs,
         patterns=patterns,
+        lines=section.lines,
     )
+
+
+def _analyze_section_bars(section: SectionInput, key: Key) -> SectionAnalysis:
+    """Analyze section using bar-aware approach.
+
+    Task 1.2.3: Bar-Aware Path Handler
+    Analyzes each bar individually with timing context.
+    """
+    if not section.bars:
+        return SectionAnalysis(name=section.name)
+
+    # First pass: extract all chords chronologically
+    all_chords: list[Chord] = []
+    for bar in section.bars:
+        for bar_chord in bar.content.chords:
+            try:
+                chord = parse_chord(bar_chord.symbol)
+                all_chords.append(chord)
+            except ValueError:
+                continue
+
+    # Second pass: analyze each bar with full context
+    bar_analyses: list[BarAnalysis] = []
+    chord_index = 0  # Track position in all_chords
+
+    for bar_index, bar in enumerate(section.bars):
+        bar_analysis = _analyze_bar(bar, bar_index, key, all_chords, chord_index)
+        bar_analyses.append(bar_analysis)
+        # Advance chord_index by number of chords in this bar
+        chord_index += len([c for c in bar.content.chords if _try_parse_chord(c.symbol)])
+
+    # Bass line analysis across all chords
+    bass_line = extract_bass_line(all_chords) if all_chords else []
+    chromatic_runs = detect_chromatic_runs(bass_line, min_length=2)
+
+    # Pattern detection across all chords
+    patterns = detect_patterns(all_chords)
+
+    # Collect all chord analyses for legacy compatibility
+    all_chord_analyses: list[ChordAnalysis] = []
+    for bar_analysis in bar_analyses:
+        all_chord_analyses.extend(bar_analysis.chord_analyses)
+
+    return SectionAnalysis(
+        name=section.name,
+        chords=all_chord_analyses,  # Maintain legacy field
+        bass_line=bass_line,
+        chromatic_runs=chromatic_runs,
+        patterns=patterns,
+        bars=bar_analyses,  # New bar-based field
+    )
+
+
+def _analyze_bar(bar: Bar, bar_index: int, key: Key, all_chords: list[Chord], chord_index: int) -> BarAnalysis:
+    """Analyze a single bar with timing context.
+
+    Task 1.2.4: Analyze Individual Bar
+    Extracts chords, analyzes each one, detects harmonic rhythm and riffs.
+
+    Args:
+        bar: The bar to analyze
+        bar_index: Index of this bar in the section
+        key: The song key
+        all_chords: All chords in the section (chronologically)
+        chord_index: Starting index of this bar's chords in all_chords
+    """
+    # Parse chords from bar
+    chords: list[Chord] = []
+    for bar_chord in bar.content.chords:
+        try:
+            chord = parse_chord(bar_chord.symbol)
+            chords.append(chord)
+        except ValueError:
+            continue
+
+    # Analyze each chord with full section context
+    chord_analyses: list[ChordAnalysis] = []
+    for i, chord in enumerate(chords):
+        global_idx = chord_index + i
+
+        # Get prev/next from global context
+        prev = all_chords[global_idx - 1] if global_idx > 0 else None
+        next_c = all_chords[global_idx + 1] if global_idx < len(all_chords) - 1 else None
+
+        analysis = _analyze_chord(chord, prev, next_c, key)
+        chord_analyses.append(analysis)
+
+    # Detect harmonic rhythm for this bar
+    harmonic_rhythm = _detect_harmonic_rhythm(bar)
+
+    # Check for riff content
+    has_riff = len(bar.content.notes) > 0 or len(bar.content.tab) > 0
+    riff_analysis = None
+    if has_riff:
+        if bar.content.label:
+            riff_analysis = bar.content.label
+        else:
+            note_count = len(bar.content.notes) + len(bar.content.tab)
+            riff_analysis = f"{note_count} notes"
+
+    return BarAnalysis(
+        bar_index=bar_index,
+        chord_analyses=chord_analyses,
+        harmonic_rhythm=harmonic_rhythm,
+        has_riff=has_riff,
+        riff_analysis=riff_analysis,
+    )
+
+
+def _detect_harmonic_rhythm(bar: Bar) -> str:
+    """Classify harmonic rhythm within a bar.
+
+    Task 1.2.5: Harmonic Rhythm Detection
+
+    Returns:
+        - "static": one chord for whole bar
+        - "half-bar": chord changes at halfway point
+        - "per-beat": chord changes every beat
+        - "syncopated": chords on off-beats
+    """
+    chords = bar.content.chords
+    if len(chords) == 0:
+        return "static"
+    if len(chords) == 1:
+        return "static"
+
+    # Check if any chord is on off-beat (subdivision > 0)
+    if any(c.beat_position.subdivision > 0 for c in chords):
+        return "syncopated"
+
+    # Check for halfway change first (beat 3 in 4/4, beat 2 in 3/4, etc.)
+    time_sig = bar.time_signature
+    halfway = (time_sig[0] // 2) + 1
+    if len(chords) == 2:
+        # Two chords: check if second is at halfway point
+        if chords[1].beat_position.beat == halfway:
+            return "half-bar"
+
+    # Check beat positions for per-beat changes
+    beats = [c.beat_position.beat for c in chords]
+    # Per-beat means chord on every beat (or most beats)
+    if len(chords) >= time_sig[0]:  # At least one chord per beat
+        return "per-beat"
+
+    return "static"
 
 
 def _analyze_chord(
