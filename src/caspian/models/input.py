@@ -64,6 +64,31 @@ class BarChord(BaseModel):
     duration_beats: float | None = None
 
 
+class BarNote(BaseModel):
+    """A single note for riffs, fills, or melodic lines.
+
+    Represents pitched notes within a bar for transcribing riffs,
+    melodic fills, or single-note passages.
+
+    Attributes:
+        pitch: Note name (e.g., "A", "B", "C#", "Db")
+        octave: Octave number (default: 4)
+        beat_position: When the note is played
+        duration_beats: How long the note sustains (default: 0.5 = eighth note)
+        technique: Optional playing technique (e.g., "bend", "slide", "hammer-on", "pull-off")
+
+    Example:
+        >>> BarNote(pitch="A", octave=4, beat_position=BeatPosition(beat=1, subdivision=0))
+        >>> BarNote(pitch="C#", octave=5, beat_position=BeatPosition(beat=2, subdivision=1),
+        ...         duration_beats=0.25, technique="bend")
+    """
+    pitch: str
+    octave: int = 4
+    beat_position: BeatPosition
+    duration_beats: float = 0.5
+    technique: str | None = None
+
+
 class ChordInput(BaseModel):
     """A single chord with optional aligned lyrics."""
     symbol: str
