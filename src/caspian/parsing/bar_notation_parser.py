@@ -34,18 +34,22 @@ class BarNotationParser:
 
     # Pattern to detect bar notation lines
     # Matches: | chord(s) | chord(s) |
+    # Supports: repeat markers (|:, :|), chord symbols with #, b, /, +, numbers
     BAR_LINE_PATTERN = re.compile(
-        r'^\s*\|:?\s*[\w#b/+\-\s]+\s*(?:\|:?\s*[\w#b/+\-\s]*)*\|:?\s*$'
+        r'^\s*\|:?\s*[A-G][#b]?[\w#b/+\-\s]*(?:\|:?\s*[A-G][#b]?[\w#b/+\-\s]*)*\|:?\s*$'
     )
 
-    # Pattern to split bars
-    # Splits on | but preserves repeat markers |: and :|
-    BAR_SPLIT_PATTERN = re.compile(r'\|:?')
+    # Pattern to extract individual bars from a line
+    # Captures content between pipes, handling repeat markers
+    BAR_CONTENT_PATTERN = re.compile(r'\|:?\s*([^|]+?)\s*(?=\||$)')
 
     # Pattern to detect section headers
     SECTION_HEADER_PATTERN = re.compile(
         r'^\s*\[?([a-z]+)\]?:?\s*$', re.IGNORECASE
     )
+
+    # Pattern to validate chord symbols
+    CHORD_PATTERN = re.compile(r'^[A-G][#b]?(?:m|maj|min|dim|aug|sus|add)?[0-9]?(?:/[A-G][#b]?)?$')
 
     def parse(self, text: str) -> SongInput:
         """Parse bar notation text into a SongInput model.
@@ -112,13 +116,55 @@ class BarNotationParser:
     def is_bar_notation_line(self, line: str) -> bool:
         """Check if a line contains bar notation.
 
+        Detection rules:
+        - Line must contain at least one pipe character |
+        - Must have chord-like content between pipes
+        - Chord symbols must start with A-G note names
+        - Supports repeat markers |: and :|
+
         Args:
             line: Line to check
 
         Returns:
             True if line contains bar notation pattern
         """
-        return bool(self.BAR_LINE_PATTERN.match(line))
+        line = line.strip()
+
+        # Must contain at least one pipe
+        if '|' not in line:
+            return False
+
+        # Must start and end with pipes (with optional repeat markers)
+        if not (line.startswith('|') or line.startswith('|:')):
+            return False
+        if not (line.endswith('|') or line.endswith(':|')):
+            return False
+
+        # Check that content between pipes looks like chords
+        # Extract all segments between pipes
+        segments = [s.strip() for s in line.split('|') if s.strip() and s.strip() != ':']
+
+        if not segments:
+            return False
+
+        # At least one segment must contain a valid chord
+        has_valid_chord = False
+        for segment in segments:
+            # Skip repeat markers
+            if segment == ':':
+                continue
+
+            # Check if segment contains chord-like content
+            tokens = segment.split()
+            for token in tokens:
+                if self.CHORD_PATTERN.match(token):
+                    has_valid_chord = True
+                    break
+
+            if has_valid_chord:
+                break
+
+        return has_valid_chord
 
     def parse_bar_line(self, line: str) -> List[Bar]:
         """Parse a single line of bar notation into Bar objects.
