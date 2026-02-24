@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-02-24
 **Current Branch:** develop
-**Current Story Point:** Phase 3 COMPLETE ✅ - Ready for Phase 4
+**Current Story Point:** Phase 4 Story Point 4.1 COMPLETE ✅ - Ready for 4.2
 
 ---
 
@@ -273,22 +273,25 @@ This is the **Single Source of Truth (SSOT)** for all implementation tasks for t
 **Branch Pattern:** `story/4.x-<description>`
 **Goal:** Build the visual chord sheet view and editing capabilities
 
-### Story Point 4.1: Chord Sheet View (Read-Only)
-**Branch:** `story/4.1-chord-sheet-view`
+### Story Point 4.1: Chord Sheet View (Read-Only) ✅ COMPLETED
+**Branch:** `story/4.1-chord-sheet-view` (merged to develop)
+**Tests:** 1,015 new test lines added
+**Commits:** 7 commits
+**Files:** 5 new files created (ChordSheetView.tsx, BarDisplay.tsx, CSS, tests), 1 modified
 
-- [ ] Task 4.1.1: Design Chord Sheet View component architecture
-- [ ] Task 4.1.2: Create `ChordSheetView.tsx` skeleton
-- [ ] Task 4.1.3: Implement bar rendering (collapsed view)
-- [ ] Task 4.1.4: Add chord positioning above lyrics
-- [ ] Task 4.1.5: Implement vertical bar separators (`|`)
-- [ ] Task 4.1.6: Add expand/collapse per bar
-- [ ] Task 4.1.7: Implement expanded view (show riffs, notes)
-- [ ] Task 4.1.8: Add RTL support for Hebrew lyrics
-- [ ] Task 4.1.9: Implement responsive bar wrapping
-- [ ] Task 4.1.10: Add print CSS styles
-- [ ] Task 4.1.11: Add click handlers for interactive features
-- [ ] Task 4.1.12: Write component tests
-- [ ] Task 4.1.13: Test with ground truth examples
+- [x] Task 4.1.1: Design Chord Sheet View component architecture
+- [x] Task 4.1.2: Create `ChordSheetView.tsx` skeleton
+- [x] Task 4.1.3: Implement bar rendering (collapsed view)
+- [x] Task 4.1.4: Add chord positioning above lyrics
+- [x] Task 4.1.5: Implement vertical bar separators (`|`)
+- [x] Task 4.1.6: Add expand/collapse per bar
+- [x] Task 4.1.7: Implement expanded view (show riffs, notes)
+- [x] Task 4.1.8: Add RTL support for Hebrew lyrics
+- [x] Task 4.1.9: Implement responsive bar wrapping
+- [x] Task 4.1.10: Add print CSS styles
+- [x] Task 4.1.11: Add click handlers for interactive features
+- [x] Task 4.1.12: Write component tests
+- [x] Task 4.1.13: Test with ground truth examples
 
 ### Story Point 4.2: Lyrics-First Input Mode
 **Branch:** `story/4.2-lyrics-input`
