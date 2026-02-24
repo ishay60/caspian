@@ -228,28 +228,31 @@ This is the **Single Source of Truth (SSOT)** for all implementation tasks for t
 - [x] Task 3.2.7: Write format detection tests
 - [x] Task 3.2.8: Update `input_parser.py` to use registry
 
-### Story Point 3.3: Bar Line Detection
-**Branch:** `story/3.3-bar-line-detection`
+### Story Point 3.3: Bar Line Detection ✅ COMPLETED
+**Branch:** `story/3.3-bar-line-detection` (merged to develop)
+**Tests:** 657 passing (36 new tests added)
 
-- [ ] Task 3.3.1: Create `parsing/bar_notation_parser.py`
-- [ ] Task 3.3.2: Implement bar line pattern detection (`| chord | chord |`)
-- [ ] Task 3.3.3: Map chords to beat positions within bars
-- [ ] Task 3.3.4: Handle multiple chords per bar
-- [ ] Task 3.3.5: Create `Bar` objects from detected patterns
-- [ ] Task 3.3.6: Write parser tests
-- [ ] Task 3.3.7: Integrate with format registry
+- [x] Task 3.3.1: Create `parsing/bar_notation_parser.py`
+- [x] Task 3.3.2: Implement bar line pattern detection (`| chord | chord |`)
+- [x] Task 3.3.3: Map chords to beat positions within bars
+- [x] Task 3.3.4: Handle multiple chords per bar
+- [x] Task 3.3.5: Create `Bar` objects from detected patterns
+- [x] Task 3.3.6: Write parser tests
+- [x] Task 3.3.7: Integrate with format registry
 
-### Story Point 3.4: ChordPro Format Support
-**Branch:** `story/3.4-chordpro-support`
+### Story Point 3.4: ChordPro Format Support ✅ COMPLETED
+**Branch:** `story/3.4-chordpro-support` (merged to develop)
+**Tests:** 702 passing (45 new tests added)
+**Examples:** 4 ChordPro files added (let_it_be.cho, hallelujah.chopro, etc.)
 
-- [ ] Task 3.4.1: Research ChordPro format specification
-- [ ] Task 3.4.2: Create `parsing/chord_pro_parser.py`
-- [ ] Task 3.4.3: Parse metadata directives (`{title:}`, `{key:}`)
-- [ ] Task 3.4.4: Parse inline chord notation (`[Am]lyrics`)
-- [ ] Task 3.4.5: Map to `SongInput` with chord-lyrics alignment
-- [ ] Task 3.4.6: Handle section markers
-- [ ] Task 3.4.7: Write ChordPro parser tests
-- [ ] Task 3.4.8: Add ChordPro examples to test fixtures
+- [x] Task 3.4.1: Research ChordPro format specification
+- [x] Task 3.4.2: Create `parsing/chord_pro_parser.py`
+- [x] Task 3.4.3: Parse metadata directives (`{title:}`, `{key:}`)
+- [x] Task 3.4.4: Parse inline chord notation (`[Am]lyrics`)
+- [x] Task 3.4.5: Map to `SongInput` with chord-lyrics alignment
+- [x] Task 3.4.6: Handle section markers
+- [x] Task 3.4.7: Write ChordPro parser tests
+- [x] Task 3.4.8: Add ChordPro examples to test fixtures
 
 ### Story Point 3.5: Frontend Paste Preview ✅ COMPLETED
 **Branch:** `story/3.5-paste-preview` (pushed to remote)
