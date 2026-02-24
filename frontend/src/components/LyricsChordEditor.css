@@ -248,13 +248,40 @@
 .section-marker {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   background: var(--color-section-bg, #f3f4f6);
   border-left: 3px solid var(--color-primary, #3b82f6);
   border-radius: 4px;
   font-weight: 600;
-  margin: 1rem 0;
+  margin: 1rem 0 0.5rem 0;
+}
+
+.section-marker-name {
+  flex: 1;
+}
+
+.section-marker-remove {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary, #666);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  transition: all 0.2s;
+}
+
+.section-marker-remove:hover {
+  background-color: var(--color-error-light, rgba(239, 68, 68, 0.1));
+  color: var(--color-error, #ef4444);
 }
 
 .section-marker-input {
@@ -272,6 +299,13 @@
   background: var(--color-surface, #f9fafb);
   border-radius: 8px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.toolbar-label {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #666);
+  margin-right: 0.5rem;
 }
 
 .toolbar-btn {

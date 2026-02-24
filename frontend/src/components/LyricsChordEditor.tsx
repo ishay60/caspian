@@ -251,6 +251,9 @@ function EditMode({
   onPreview,
   onComplete,
 }: EditModeProps) {
+  const [pendingSectionLine, setPendingSectionLine] = useState<number | null>(null);
+  const [customSectionName, setCustomSectionName] = useState('');
+
   // Handler: Click on character position to place chord
   const handleCharClick = useCallback((lineIndex: number, columnPosition: number) => {
     setSelectedPosition({ lineIndex, columnPosition });
@@ -272,6 +275,42 @@ function EditMode({
     );
   }, [placedChords]);
 
+  // Handler: Add section marker at line
+  const handleAddSectionMarker = useCallback((name: string) => {
+    // Prompt for line number or use next available line
+    const lineIndex = 0; // TODO: Could prompt user or auto-detect
+    const newMarker: SectionMarker = { lineIndex, name };
+    setSectionMarkers([...sectionMarkers, newMarker]);
+  }, [sectionMarkers, setSectionMarkers]);
+
+  // Handler: Request section marker insertion at specific line
+  const handleRequestSectionAtLine = useCallback((lineIndex: number) => {
+    setPendingSectionLine(lineIndex);
+  }, []);
+
+  // Handler: Confirm section marker with custom name
+  const handleConfirmSectionMarker = useCallback(() => {
+    if (pendingSectionLine !== null && customSectionName.trim()) {
+      const newMarker: SectionMarker = {
+        lineIndex: pendingSectionLine,
+        name: customSectionName.trim(),
+      };
+      setSectionMarkers([...sectionMarkers, newMarker]);
+      setPendingSectionLine(null);
+      setCustomSectionName('');
+    }
+  }, [pendingSectionLine, customSectionName, sectionMarkers, setSectionMarkers]);
+
+  // Handler: Remove section marker
+  const handleRemoveSectionMarker = useCallback((lineIndex: number) => {
+    setSectionMarkers(sectionMarkers.filter(m => m.lineIndex !== lineIndex));
+  }, [sectionMarkers, setSectionMarkers]);
+
+  // Get section marker at line
+  const getSectionMarkerAt = useCallback((lineIndex: number) => {
+    return sectionMarkers.find(m => m.lineIndex === lineIndex);
+  }, [sectionMarkers]);
+
   return (
     <div className="edit-mode">
       <div className="edit-header">
@@ -292,19 +331,59 @@ function EditMode({
         Click on any position in the lyrics to place a chord above it.
       </div>
 
+      {/* Toolbar for section markers */}
+      <div className="edit-toolbar">
+        <div className="toolbar-label">Insert section marker:</div>
+        <button className="toolbar-btn" onClick={() => handleAddSectionMarker('Verse')}>
+          + Verse
+        </button>
+        <button className="toolbar-btn" onClick={() => handleAddSectionMarker('Chorus')}>
+          + Chorus
+        </button>
+        <button className="toolbar-btn" onClick={() => handleAddSectionMarker('Bridge')}>
+          + Bridge
+        </button>
+        <button className="toolbar-btn" onClick={() => handleAddSectionMarker('Intro')}>
+          + Intro
+        </button>
+        <button className="toolbar-btn" onClick={() => handleAddSectionMarker('Outro')}>
+          + Outro
+        </button>
+      </div>
+
       {/* Render lyrics lines with clickable characters */}
       <div className="lyrics-display">
-        {lyricsLines.map((lineText, lineIndex) => (
-          <LyricsLineEditable
-            key={lineIndex}
-            lineIndex={lineIndex}
-            lineText={lineText}
-            placedChords={placedChords}
-            onCharClick={handleCharClick}
-            onRemoveChord={handleRemoveChord}
-            getChordAt={getChordAt}
-          />
-        ))}
+        {lyricsLines.map((lineText, lineIndex) => {
+          const sectionMarker = getSectionMarkerAt(lineIndex);
+          return (
+            <div key={lineIndex}>
+              {/* Section marker if present */}
+              {sectionMarker && (
+                <div className="section-marker">
+                  <span className="section-marker-name">{sectionMarker.name}</span>
+                  <button
+                    className="section-marker-remove"
+                    onClick={() => handleRemoveSectionMarker(lineIndex)}
+                    title="Remove section marker"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
+              {/* Lyrics line */}
+              <LyricsLineEditable
+                lineIndex={lineIndex}
+                lineText={lineText}
+                placedChords={placedChords}
+                onCharClick={handleCharClick}
+                onRemoveChord={handleRemoveChord}
+                getChordAt={getChordAt}
+                onRequestSection={handleRequestSectionAtLine}
+              />
+            </div>
+          );
+        })}
       </div>
 
       {/* Chord input popup */}
@@ -356,6 +435,7 @@ interface LyricsLineEditableProps {
   onCharClick: (lineIndex: number, columnPosition: number) => void;
   onRemoveChord: (lineIndex: number, columnPosition: number) => void;
   getChordAt: (lineIndex: number, columnPosition: number) => PlacedChord | undefined;
+  onRequestSection: (lineIndex: number) => void;
 }
 
 function LyricsLineEditable({
@@ -365,6 +445,7 @@ function LyricsLineEditable({
   onCharClick,
   onRemoveChord,
   getChordAt,
+  onRequestSection,
 }: LyricsLineEditableProps) {
   const lineRef = useRef<HTMLDivElement>(null);
 
@@ -374,7 +455,9 @@ function LyricsLineEditable({
 
   return (
     <div className="lyrics-line-container">
-      <div className="line-number">{lineIndex + 1}</div>
+      <div className="line-number" title="Click to add section marker here">
+        {lineIndex + 1}
+      </div>
       <div
         ref={lineRef}
         className="lyrics-line lyrics-line-editable"
