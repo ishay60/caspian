@@ -9,6 +9,7 @@ import { SettingsBar } from './components/SettingsBar';
 import { SongLibrary } from './components/SongLibrary';
 import { ViewToolboxSidebar } from './components/ViewToolboxSidebar';
 import { SongSearch } from './components/SongSearch';
+import { LyricsChordEditor } from './components/LyricsChordEditor';
 
 const Tuner = lazy(() => import('./components/Tuner').then(m => ({ default: m.Tuner })));
 
@@ -117,6 +118,7 @@ function AppContent() {
   const [error, setError] = useState<string | null>(null);
   const [showSplitter, setShowSplitter] = useState(false);
   const [showTuner, setShowTuner] = useState(false);
+  const [inputMode, setInputMode] = useState<'paste' | 'lyrics' | 'search'>('paste');
   const currentInputRef = useRef<string>('');
 
   async function handleAnalyze(text: string) {
@@ -164,6 +166,36 @@ function AppContent() {
     setResult(analysis);
     setShowSplitter(false);
     setError(null);
+  }
+
+  async function handleLyricsComplete(sections: { name: string; lines: { chords: [number, string][]; lyrics: string }[] }[]) {
+    // Convert lyrics editor format to text format for analysis
+    // For now, use a simple text representation
+    // TODO: Use /api/convert-lyrics endpoint for better integration
+    const textLines: string[] = [];
+
+    sections.forEach(section => {
+      textLines.push(`[${section.name}]`);
+      section.lines.forEach(line => {
+        if (line.chords.length > 0) {
+          // Build chord line
+          let chordLine = '';
+          let lastPos = 0;
+          line.chords.forEach(([pos, chord]) => {
+            chordLine += ' '.repeat(Math.max(0, pos - lastPos)) + chord;
+            lastPos = pos + chord.length;
+          });
+          textLines.push(chordLine);
+        }
+        if (line.lyrics) {
+          textLines.push(line.lyrics);
+        }
+      });
+      textLines.push(''); // Empty line between sections
+    });
+
+    const text = textLines.join('\n');
+    await handleAnalyze(text);
   }
 
   return (
@@ -260,45 +292,79 @@ function AppContent() {
           </div>
         )}
 
-        {/* Song Search */}
+        {/* Input Mode Tabs */}
         <div className="mb-8">
           <div
-            className="rounded-2xl border p-6"
+            className="rounded-2xl border overflow-hidden"
             style={{
               borderColor: 'var(--color-border)',
               backgroundColor: 'var(--color-surface)',
               boxShadow: 'var(--shadow-sm)'
             }}
           >
-            <h2
-              className="text-xl font-bold mb-4"
-              style={{ color: 'var(--color-text)' }}
+            {/* Tab Bar */}
+            <div
+              className="flex border-b"
+              style={{ borderColor: 'var(--color-border)' }}
             >
-              Search Online Chord Sheets
-            </h2>
-            <SongSearch onSongSelected={handleSongSelected} />
-          </div>
-        </div>
+              {[
+                { id: 'paste' as const, label: t.pasteText || 'Paste Text', icon: '📋' },
+                { id: 'lyrics' as const, label: t.lyricsFirst || 'Lyrics-First', icon: '✍️' },
+                { id: 'search' as const, label: t.searchOnline || 'Search Online', icon: '🔍' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setInputMode(tab.id)}
+                  className="flex-1 px-4 py-3 text-sm font-medium transition-all"
+                  style={{
+                    color: inputMode === tab.id ? 'var(--color-accent)' : 'var(--color-neutral)',
+                    backgroundColor: inputMode === tab.id ? 'color-mix(in srgb, var(--color-accent) 8%, transparent)' : 'transparent',
+                    borderBottom: inputMode === tab.id ? '2px solid var(--color-accent)' : '2px solid transparent',
+                  }}
+                >
+                  <span className="mr-2">{tab.icon}</span>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
-        <div
-          className="rounded-2xl border p-6 mb-8"
-          style={{
-            borderColor: 'var(--color-border)',
-            backgroundColor: 'var(--color-surface)',
-            boxShadow: 'var(--shadow-sm)'
-          }}
-        >
-          <h2
-            className="text-xl font-bold mb-4"
-            style={{ color: 'var(--color-text)' }}
-          >
-            Or Enter Chord Sheet Manually
-          </h2>
-          <InputForm
-            onAnalyze={handleAnalyze}
-            loading={loading}
-            sampleInput={SAMPLE_INPUT}
-          />
+            {/* Tab Content */}
+            <div className="p-6">
+              {inputMode === 'paste' && (
+                <div>
+                  <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--color-text)' }}>
+                    {t.pasteChordSheet || 'Paste Chord Sheet'}
+                  </h2>
+                  <InputForm
+                    onAnalyze={handleAnalyze}
+                    loading={loading}
+                    sampleInput={SAMPLE_INPUT}
+                  />
+                </div>
+              )}
+
+              {inputMode === 'lyrics' && (
+                <div>
+                  <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--color-text)' }}>
+                    {t.lyricsFirstMode || 'Lyrics-First Mode'}
+                  </h2>
+                  <p className="text-sm mb-4" style={{ color: 'var(--color-neutral)' }}>
+                    {t.lyricsFirstDesc || 'Enter lyrics, then click to add chords above each word'}
+                  </p>
+                  <LyricsChordEditor onComplete={handleLyricsComplete} />
+                </div>
+              )}
+
+              {inputMode === 'search' && (
+                <div>
+                  <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--color-text)' }}>
+                    {t.searchOnlineSheets || 'Search Online Chord Sheets'}
+                  </h2>
+                  <SongSearch onSongSelected={handleSongSelected} />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {error && (

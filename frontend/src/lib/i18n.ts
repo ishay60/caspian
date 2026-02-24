@@ -29,6 +29,15 @@ const en = {
   dim: 'Dim',
   deceptive: 'Deceptive',
 
+  // Input modes
+  pasteText: 'Paste Text',
+  lyricsFirst: 'Lyrics-First',
+  searchOnline: 'Search Online',
+  pasteChordSheet: 'Paste Chord Sheet',
+  lyricsFirstMode: 'Lyrics-First Mode',
+  lyricsFirstDesc: 'Enter lyrics, then click to add chords above each word',
+  searchOnlineSheets: 'Search Online Chord Sheets',
+
   // Settings bar
   view: 'View',
   theme: 'Theme',
@@ -134,6 +143,15 @@ const he: Translations = {
   borrowed: 'שאול',
   dim: 'דימ',
   deceptive: 'מטעה',
+
+  // Input modes
+  pasteText: 'הדבק טקסט',
+  lyricsFirst: 'מילים תחילה',
+  searchOnline: 'חפש באינטרנט',
+  pasteChordSheet: 'הדבק תרשים אקורדים',
+  lyricsFirstMode: 'מצב מילים תחילה',
+  lyricsFirstDesc: 'הזן מילים, ואז לחץ להוספת אקורדים מעל כל מילה',
+  searchOnlineSheets: 'חפש תרשימי אקורדים באינטרנט',
 
   // Settings bar
   view: 'תצוגה',
