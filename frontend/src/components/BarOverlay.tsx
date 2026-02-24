@@ -110,6 +110,11 @@ export function BarOverlay({
   const [mode, setMode] = useState<'edit' | 'preview'>('edit');
   const [selectedChordIndex, setSelectedChordIndex] = useState<number | null>(null);
   const [draggedChordIndex, setDraggedChordIndex] = useState<number | null>(null);
+  const [customBeatPositions, setCustomBeatPositions] = useState<Map<string, BeatPosition>>(new Map());
+  const [editingBeatPosition, setEditingBeatPosition] = useState<{
+    barIndex: number;
+    chordIndex: number;
+  } | null>(null);
 
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -122,6 +127,7 @@ export function BarOverlay({
     const sortedBarLines = [...barLines].sort((a, b) => a.position - b.position);
 
     let currentStartIndex = 0;
+    let barGroupIndex = 0;
 
     // Add bar lines at end if not present
     const allBarLines = [...sortedBarLines];
@@ -135,15 +141,25 @@ export function BarOverlay({
       const barChords = chordSequence.slice(currentStartIndex, endIndex);
 
       if (barChords.length > 0) {
-        // Assign chords to beat positions evenly for now
+        // Assign chords to beat positions
         const chordsWithPositions: ChordWithPosition[] = barChords.map((symbol, idx) => {
-          const beatNum = Math.floor((idx * timeSignature[0]) / barChords.length) + 1;
+          const globalChordIndex = currentStartIndex + idx;
+          const customKey = `${barGroupIndex}-${idx}`;
+
+          // Check if user has set a custom beat position
+          const customBeat = customBeatPositions.get(customKey);
+
+          let beatPosition: BeatPosition;
+          if (customBeat) {
+            beatPosition = customBeat;
+          } else {
+            // Auto-assign evenly distributed beat positions
+            beatPosition = calculateEvenBeatPosition(idx, barChords.length, timeSignature[0]);
+          }
+
           return {
             symbol,
-            beatPosition: {
-              beat: beatNum,
-              subdivision: 0,
-            },
+            beatPosition,
           };
         });
 
@@ -161,10 +177,11 @@ export function BarOverlay({
       }
 
       currentStartIndex = endIndex;
+      barGroupIndex++;
     }
 
     return groups;
-  }, [chordSequence, barLines, timeSignature]);
+  }, [chordSequence, barLines, timeSignature, customBeatPositions]);
 
   /**
    * Auto-suggest bar line positions based on chord count and time signature
@@ -236,6 +253,61 @@ export function BarOverlay({
   }, [buildBarGroups]);
 
   /**
+   * Update beat position for a chord
+   */
+  const updateBeatPosition = useCallback((
+    barIndex: number,
+    chordIndex: number,
+    newBeatPosition: BeatPosition
+  ) => {
+    const key = `${barIndex}-${chordIndex}`;
+    const newMap = new Map(customBeatPositions);
+    newMap.set(key, newBeatPosition);
+    setCustomBeatPositions(newMap);
+  }, [customBeatPositions]);
+
+  /**
+   * Handle drag start
+   */
+  const handleDragStart = useCallback((
+    barIndex: number,
+    chordIndex: number
+  ) => {
+    setDraggedChordIndex(chordIndex);
+  }, []);
+
+  /**
+   * Handle drag over beat position
+   */
+  const handleDragOver = useCallback((
+    e: React.DragEvent,
+    barIndex: number,
+    beat: number,
+    subdivision: number
+  ) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  /**
+   * Handle drop on beat position
+   */
+  const handleDrop = useCallback((
+    e: React.DragEvent,
+    barIndex: number,
+    chordIndex: number,
+    beat: number,
+    subdivision: number
+  ) => {
+    e.preventDefault();
+    if (draggedChordIndex === null) return;
+
+    const newBeatPosition: BeatPosition = { beat, subdivision };
+    updateBeatPosition(barIndex, chordIndex, newBeatPosition);
+    setDraggedChordIndex(null);
+  }, [draggedChordIndex, updateBeatPosition]);
+
+  /**
    * Handle complete button
    */
   const handleComplete = useCallback(() => {
@@ -267,7 +339,15 @@ export function BarOverlay({
             onSelectChord={setSelectedChordIndex}
           />
         ) : (
-          <PreviewMode barGroups={buildBarGroups()} />
+          <PreviewMode
+            barGroups={buildBarGroups()}
+            onUpdateBeatPosition={updateBeatPosition}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            editingBeatPosition={editingBeatPosition}
+            setEditingBeatPosition={setEditingBeatPosition}
+          />
         )}
       </div>
 
@@ -477,20 +557,44 @@ function ChordItem({ symbol, index, isSelected, onClick }: ChordItemProps) {
 }
 
 /**
- * PreviewMode: Preview of bar structure
+ * PreviewMode: Preview of bar structure with beat position editing
  */
 interface PreviewModeProps {
   barGroups: BarGroup[];
+  onUpdateBeatPosition: (barIndex: number, chordIndex: number, beatPosition: BeatPosition) => void;
+  onDragStart: (barIndex: number, chordIndex: number) => void;
+  onDragOver: (e: React.DragEvent, barIndex: number, beat: number, subdivision: number) => void;
+  onDrop: (e: React.DragEvent, barIndex: number, chordIndex: number, beat: number, subdivision: number) => void;
+  editingBeatPosition: { barIndex: number; chordIndex: number } | null;
+  setEditingBeatPosition: (pos: { barIndex: number; chordIndex: number } | null) => void;
 }
 
-function PreviewMode({ barGroups }: PreviewModeProps) {
+function PreviewMode({
+  barGroups,
+  onUpdateBeatPosition,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  editingBeatPosition,
+  setEditingBeatPosition,
+}: PreviewModeProps) {
   return (
     <div className="preview-mode">
-      <h3 className="preview-title">Preview Bar Structure</h3>
+      <h3 className="preview-title">Preview Bar Structure (Drag chords to adjust beat positions)</h3>
 
       <div className="preview-bars">
         {barGroups.map((group, index) => (
-          <BarGroupPreview key={index} group={group} barIndex={index} />
+          <BarGroupPreview
+            key={index}
+            group={group}
+            barIndex={index}
+            onUpdateBeatPosition={onUpdateBeatPosition}
+            onDragStart={onDragStart}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
+            editingBeatPosition={editingBeatPosition}
+            setEditingBeatPosition={setEditingBeatPosition}
+          />
         ))}
       </div>
     </div>
@@ -498,14 +602,29 @@ function PreviewMode({ barGroups }: PreviewModeProps) {
 }
 
 /**
- * BarGroupPreview: Preview of a single bar group
+ * BarGroupPreview: Preview of a single bar group with drag-and-drop editing
  */
 interface BarGroupPreviewProps {
   group: BarGroup;
   barIndex: number;
+  onUpdateBeatPosition: (barIndex: number, chordIndex: number, beatPosition: BeatPosition) => void;
+  onDragStart: (barIndex: number, chordIndex: number) => void;
+  onDragOver: (e: React.DragEvent, barIndex: number, beat: number, subdivision: number) => void;
+  onDrop: (e: React.DragEvent, barIndex: number, chordIndex: number, beat: number, subdivision: number) => void;
+  editingBeatPosition: { barIndex: number; chordIndex: number } | null;
+  setEditingBeatPosition: (pos: { barIndex: number; chordIndex: number } | null) => void;
 }
 
-function BarGroupPreview({ group, barIndex }: BarGroupPreviewProps) {
+function BarGroupPreview({
+  group,
+  barIndex,
+  onUpdateBeatPosition,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  editingBeatPosition,
+  setEditingBeatPosition,
+}: BarGroupPreviewProps) {
   const [beatsPerBar] = group.timeSignature;
 
   return (
@@ -516,29 +635,180 @@ function BarGroupPreview({ group, barIndex }: BarGroupPreviewProps) {
       </div>
 
       <div className="bar-chords">
-        {group.chords.map((chord, chordIdx) => (
-          <div key={chordIdx} className="bar-chord">
-            <span className="chord-symbol">{chord.symbol}</span>
-            <span className="beat-position">
-              {chord.beatPosition.beat}
-              {chord.beatPosition.subdivision > 0 && (
-                <sup className="subdivision">+{chord.beatPosition.subdivision}</sup>
+        {group.chords.map((chord, chordIdx) => {
+          const isEditing = editingBeatPosition?.barIndex === barIndex && editingBeatPosition?.chordIndex === chordIdx;
+
+          return (
+            <div
+              key={chordIdx}
+              className="bar-chord"
+              draggable
+              onDragStart={() => onDragStart(barIndex, chordIdx)}
+            >
+              <span className="chord-symbol">{chord.symbol}</span>
+              {isEditing ? (
+                <BeatPositionEditor
+                  beatPosition={chord.beatPosition}
+                  maxBeats={beatsPerBar}
+                  onUpdate={(newBeat) => {
+                    onUpdateBeatPosition(barIndex, chordIdx, newBeat);
+                    setEditingBeatPosition(null);
+                  }}
+                  onCancel={() => setEditingBeatPosition(null)}
+                />
+              ) : (
+                <button
+                  className="beat-position"
+                  onClick={() => setEditingBeatPosition({ barIndex, chordIndex: chordIdx })}
+                  title="Click to edit beat position"
+                >
+                  {chord.beatPosition.beat}
+                  {chord.beatPosition.subdivision > 0 && (
+                    <sup className="subdivision">+{chord.beatPosition.subdivision}</sup>
+                  )}
+                </button>
               )}
-            </span>
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Beat grid visualization */}
-      <div className="beat-grid">
+      {/* Interactive beat grid - drop zones */}
+      <div className="beat-grid-interactive">
         {Array.from({ length: beatsPerBar }, (_, beatIdx) => (
-          <div key={beatIdx} className="beat-marker">
-            {beatIdx + 1}
-          </div>
+          <BeatDropZone
+            key={beatIdx}
+            barIndex={barIndex}
+            beat={beatIdx + 1}
+            onDragOver={onDragOver}
+            onDrop={(e, chordIdx) => onDrop(e, barIndex, chordIdx, beatIdx + 1, 0)}
+            chords={group.chords.filter(c => c.beatPosition.beat === beatIdx + 1)}
+          />
         ))}
       </div>
     </div>
   );
+}
+
+/**
+ * BeatPositionEditor: Inline editor for beat positions
+ */
+interface BeatPositionEditorProps {
+  beatPosition: BeatPosition;
+  maxBeats: number;
+  onUpdate: (beatPosition: BeatPosition) => void;
+  onCancel: () => void;
+}
+
+function BeatPositionEditor({
+  beatPosition,
+  maxBeats,
+  onUpdate,
+  onCancel,
+}: BeatPositionEditorProps) {
+  const [beat, setBeat] = useState(beatPosition.beat);
+  const [subdivision, setSubdivision] = useState(beatPosition.subdivision);
+
+  const handleSave = () => {
+    onUpdate({ beat, subdivision });
+  };
+
+  return (
+    <div className="beat-position-editor" onClick={(e) => e.stopPropagation()}>
+      <div className="editor-inputs">
+        <select
+          value={beat}
+          onChange={(e) => setBeat(Number(e.target.value))}
+          className="beat-select"
+        >
+          {Array.from({ length: maxBeats }, (_, i) => (
+            <option key={i + 1} value={i + 1}>
+              {i + 1}
+            </option>
+          ))}
+        </select>
+        <select
+          value={subdivision}
+          onChange={(e) => setSubdivision(Number(e.target.value))}
+          className="subdivision-select"
+        >
+          <option value={0}>On beat</option>
+          <option value={1}>& (and)</option>
+          <option value={2}>e</option>
+          <option value={3}>a</option>
+        </select>
+      </div>
+      <div className="editor-actions">
+        <button className="btn-save" onClick={handleSave}>
+          ✓
+        </button>
+        <button className="btn-cancel" onClick={onCancel}>
+          ✗
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * BeatDropZone: Drop zone for a beat position
+ */
+interface BeatDropZoneProps {
+  barIndex: number;
+  beat: number;
+  onDragOver: (e: React.DragEvent, barIndex: number, beat: number, subdivision: number) => void;
+  onDrop: (e: React.DragEvent, chordIndex: number) => void;
+  chords: ChordWithPosition[];
+}
+
+function BeatDropZone({
+  barIndex,
+  beat,
+  onDragOver,
+  onDrop,
+  chords,
+}: BeatDropZoneProps) {
+  return (
+    <div
+      className="beat-drop-zone"
+      onDragOver={(e) => onDragOver(e, barIndex, beat, 0)}
+      onDrop={(e) => onDrop(e, 0)} // chord index is determined by dragged chord
+    >
+      <div className="beat-number">{beat}</div>
+      {chords.length > 0 && (
+        <div className="beat-chord-count">
+          {chords.length} chord{chords.length > 1 ? 's' : ''}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Helper: Calculate even beat position distribution
+ */
+function calculateEvenBeatPosition(
+  chordIndex: number,
+  totalChords: number,
+  beatsPerBar: number
+): BeatPosition {
+  // Distribute chords evenly across beats
+  const beatFraction = (chordIndex * beatsPerBar) / totalChords;
+  const beat = Math.floor(beatFraction) + 1;
+
+  // Calculate subdivision based on fractional part
+  const fractionalPart = beatFraction - Math.floor(beatFraction);
+  let subdivision = 0;
+
+  if (fractionalPart >= 0.75) {
+    subdivision = 3; // "a"
+  } else if (fractionalPart >= 0.5) {
+    subdivision = 2; // "e"
+  } else if (fractionalPart >= 0.25) {
+    subdivision = 1; // "&" (and)
+  }
+
+  return { beat: Math.min(beat, beatsPerBar), subdivision };
 }
 
 /**
