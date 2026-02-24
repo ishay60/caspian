@@ -86,6 +86,15 @@ def _should_use_bar_analysis(section: SectionInput) -> bool:
     return False
 
 
+def _try_parse_chord(symbol: str) -> bool:
+    """Try to parse a chord symbol, return True if successful."""
+    try:
+        parse_chord(symbol)
+        return True
+    except ValueError:
+        return False
+
+
 def _analyze_section_legacy(section: SectionInput, key: Key) -> SectionAnalysis:
     """Analyze section using legacy flat chord list.
 
@@ -138,13 +147,25 @@ def _analyze_section_bars(section: SectionInput, key: Key) -> SectionAnalysis:
     if not section.bars:
         return SectionAnalysis(name=section.name)
 
-    # Analyze each bar
+    # First pass: extract all chords chronologically
+    all_chords: list[Chord] = []
+    for bar in section.bars:
+        for bar_chord in bar.content.chords:
+            try:
+                chord = parse_chord(bar_chord.symbol)
+                all_chords.append(chord)
+            except ValueError:
+                continue
+
+    # Second pass: analyze each bar with full context
     bar_analyses: list[BarAnalysis] = []
-    all_chords: list[Chord] = []  # For bass line and pattern detection
+    chord_index = 0  # Track position in all_chords
 
     for bar_index, bar in enumerate(section.bars):
-        bar_analysis = _analyze_bar(bar, bar_index, key, all_chords)
+        bar_analysis = _analyze_bar(bar, bar_index, key, all_chords, chord_index)
         bar_analyses.append(bar_analysis)
+        # Advance chord_index by number of chords in this bar
+        chord_index += len([c for c in bar.content.chords if _try_parse_chord(c.symbol)])
 
     # Bass line analysis across all chords
     bass_line = extract_bass_line(all_chords) if all_chords else []
@@ -168,11 +189,18 @@ def _analyze_section_bars(section: SectionInput, key: Key) -> SectionAnalysis:
     )
 
 
-def _analyze_bar(bar: Bar, bar_index: int, key: Key, all_chords: list[Chord]) -> BarAnalysis:
+def _analyze_bar(bar: Bar, bar_index: int, key: Key, all_chords: list[Chord], chord_index: int) -> BarAnalysis:
     """Analyze a single bar with timing context.
 
     Task 1.2.4: Analyze Individual Bar
     Extracts chords, analyzes each one, detects harmonic rhythm and riffs.
+
+    Args:
+        bar: The bar to analyze
+        bar_index: Index of this bar in the section
+        key: The song key
+        all_chords: All chords in the section (chronologically)
+        chord_index: Starting index of this bar's chords in all_chords
     """
     # Parse chords from bar
     chords: list[Chord] = []
@@ -183,19 +211,14 @@ def _analyze_bar(bar: Bar, bar_index: int, key: Key, all_chords: list[Chord]) ->
         except ValueError:
             continue
 
-    # Add to global chord list for bass line/pattern analysis
-    all_chords.extend(chords)
-
-    # Analyze each chord in context
+    # Analyze each chord with full section context
     chord_analyses: list[ChordAnalysis] = []
     for i, chord in enumerate(chords):
-        # Context within this bar
-        prev = chords[i - 1] if i > 0 else None
-        next_c = chords[i + 1] if i < len(chords) - 1 else None
+        global_idx = chord_index + i
 
-        # If first chord in bar, check previous bar's last chord
-        if i == 0 and len(all_chords) > len(chords):
-            prev = all_chords[-(len(chords) + 1)]
+        # Get prev/next from global context
+        prev = all_chords[global_idx - 1] if global_idx > 0 else None
+        next_c = all_chords[global_idx + 1] if global_idx < len(all_chords) - 1 else None
 
         analysis = _analyze_chord(chord, prev, next_c, key)
         chord_analyses.append(analysis)
@@ -243,16 +266,19 @@ def _detect_harmonic_rhythm(bar: Bar) -> str:
     if any(c.beat_position.subdivision > 0 for c in chords):
         return "syncopated"
 
-    # Check beat positions
-    beats = [c.beat_position.beat for c in chords]
-    if len(set(beats)) == len(chords):  # each chord on different beat
-        return "per-beat"
-
-    # Check for halfway change (beat 3 in 4/4, beat 2 in 3/4, etc.)
+    # Check for halfway change first (beat 3 in 4/4, beat 2 in 3/4, etc.)
     time_sig = bar.time_signature
     halfway = (time_sig[0] // 2) + 1
-    if any(c.beat_position.beat == halfway for c in chords):
-        return "half-bar"
+    if len(chords) == 2:
+        # Two chords: check if second is at halfway point
+        if chords[1].beat_position.beat == halfway:
+            return "half-bar"
+
+    # Check beat positions for per-beat changes
+    beats = [c.beat_position.beat for c in chords]
+    # Per-beat means chord on every beat (or most beats)
+    if len(chords) >= time_sig[0]:  # At least one chord per beat
+        return "per-beat"
 
     return "static"
 
