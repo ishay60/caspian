@@ -132,7 +132,7 @@ export interface AnalysisResult {
   title: string;
   artist: string;
   key: Key | null;
-  sections: Section[];
+  sections?: Section[];
   segmentation_suggested?: boolean;
   pairs?: ChordLyricPair[];
 }

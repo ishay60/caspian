@@ -76,7 +76,7 @@ function transposeKey(key: Key | null | undefined, semitones: number): Key | nul
 export function AnalysisView({ result }: Props) {
   const { t, anthropicApiKey, openaiApiKey } = useSettings();
   const [transposeSemitones, setTransposeSemitones] = useState(0);
-  const [sections, setSections] = useState<Section[]>(result.sections);
+  const [sections, setSections] = useState<Section[]>(result.sections || []);
   const [editedSections, setEditedSections] = useState<Set<number>>(new Set());
   const [llmResult, setLlmResult] = useState<LlmAnalysisResult | null>(null);
   const [llmLoading, setLlmLoading] = useState(false);
@@ -97,7 +97,7 @@ export function AnalysisView({ result }: Props) {
 
   // Reset when a new analysis result comes in
   useEffect(() => {
-    setSections(result.sections);
+    setSections(result.sections || []);
     setEditedSections(new Set());
     setLlmResult(null);
     setLlmLoading(false);
