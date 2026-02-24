@@ -252,10 +252,11 @@ def convert_lyrics_to_song_input(request: LyricsInputRequest) -> SongInput:
 
         # Extract chord symbols for legacy chords field
         # (Flatten all chords from all lines in this section)
-        legacy_chord_symbols = []
+        from caspian.models.input import ChordInput
+        legacy_chords = []
         for line in section_lines:
             for chord_placement in line.chords:
-                legacy_chord_symbols.append(chord_placement.symbol)
+                legacy_chords.append(ChordInput(symbol=chord_placement.symbol))
 
         # Build bars for this section
         # Note: We need to filter bar_markers and chords_with_beats to this section
@@ -270,6 +271,7 @@ def convert_lyrics_to_song_input(request: LyricsInputRequest) -> SongInput:
         section = SectionInput(
             name=section_marker.name,
             section_type=section_marker.section_type,
+            chords=legacy_chords,
             lines=chord_lyrics_lines,
             bars=bars,
             tempo_bpm=request.tempo_bpm,
