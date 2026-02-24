@@ -115,9 +115,23 @@ class FormatDetector:
         """
         import re
 
-        # ChordPro directives: {title:}, {key:}, {artist:}, {comment:}, etc.
-        directive_pattern = re.compile(r'\{(?:title|key|artist|comment|start_of_chorus|end_of_chorus|soc|eoc):', re.IGNORECASE)
-        if directive_pattern.search(text):
+        # ChordPro directives with values: {title: ...}, {key: ...}, etc.
+        directive_with_value_pattern = re.compile(
+            r'\{(?:title|t|artist|a|key|tempo|time|capo|comment|c|st|subtitle|composer):',
+            re.IGNORECASE
+        )
+        if directive_with_value_pattern.search(text):
+            return True
+
+        # ChordPro section markers (both short form and long form, with or without values)
+        # {soc}, {eoc}, {start_of_chorus}, {start_of_verse: 2}, etc.
+        section_marker_pattern = re.compile(
+            r'\{(?:soc|eoc|sov|eov|sob|eob|sot|eot|'
+            r'start_of_chorus|end_of_chorus|start_of_verse|end_of_verse|'
+            r'start_of_bridge|end_of_bridge|start_of_tab|end_of_tab)(?:\s*:\s*.*)?\}',
+            re.IGNORECASE
+        )
+        if section_marker_pattern.search(text):
             return True
 
         # Inline chord notation: [Am], [G7], [Dmaj7]

@@ -32,7 +32,7 @@ class ChordProParser:
     # Pattern to match metadata directives: {title: Song Name}
     # Supports short forms: {t: ...}, {st: ...}, {a: ...}
     DIRECTIVE_PATTERN = re.compile(
-        r'^\s*\{\s*(?P<directive>[\w_]+)\s*:\s*(?P<value>.*?)\s*\}\s*$',
+        r'^\s*\{\s*(?P<directive>[\w_]+)\s*(?::\s*(?P<value>.*?))?\s*\}\s*$',
         re.IGNORECASE
     )
 
@@ -123,7 +123,7 @@ class ChordProParser:
         current_section: SectionInput | None = None
         current_section_name = 'section_1'
         section_counter = 1
-        section_stack: List[Tuple[str, str]] = []  # Stack of (section_name, section_type)
+        in_explicit_section = False  # Track if we're inside an explicit section
 
         for line in lines:
             # Skip empty lines
@@ -183,15 +183,14 @@ class ChordProParser:
                             name=section_name,
                             section_type=section_type,
                         )
-                        section_stack.append((section_name, section_type))
+                        in_explicit_section = True
 
                     elif marker_type == 'end':
                         # End current section
                         if current_section is not None:
                             sections.append(current_section)
                             current_section = None
-                        if section_stack:
-                            section_stack.pop()
+                        in_explicit_section = False
 
                     continue
 
@@ -210,7 +209,7 @@ class ChordProParser:
                 chord_lyrics_line = self._parse_chord_lyrics_line(line)
                 current_section.lines.append(chord_lyrics_line)
 
-        # Add final section
+        # Add final section if not already added by end marker
         if current_section is not None:
             sections.append(current_section)
 
@@ -240,7 +239,7 @@ class ChordProParser:
         Example:
             Input:  "[Am]When I find my[F]self in [C]times of [G]trouble"
             Output: ChordLyricsLine(
-                        chords=[(0, "Am"), (15, "F"), (24, "C"), (33, "G")],
+                        chords=[(0, "Am"), (14, "F"), (22, "C"), (31, "G")],
                         lyrics="When I find myself in times of trouble"
                     )
 
@@ -251,27 +250,27 @@ class ChordProParser:
             ChordLyricsLine with extracted chords and lyrics
         """
         chords: List[Tuple[int, str]] = []
-        lyrics = ""
-        current_position = 0
+        lyrics_parts: List[str] = []
 
-        # Find all chord matches and their positions
+        # Split on chord pattern but keep the chord info
         last_end = 0
         for match in self.INLINE_CHORD_PATTERN.finditer(line):
             chord_symbol = match.group(1)
             match_start = match.start()
             match_end = match.end()
 
-            # Add lyrics before this chord
+            # Get lyrics before this chord
             lyrics_before = line[last_end:match_start]
-            lyrics += lyrics_before
+            lyrics_parts.append(lyrics_before)
 
-            # Record chord position (where it appears in the final lyrics)
-            chord_position = len(lyrics)
+            # Calculate chord position in final lyrics string
+            chord_position = sum(len(part) for part in lyrics_parts)
             chords.append((chord_position, chord_symbol))
 
             last_end = match_end
 
         # Add remaining lyrics after last chord
-        lyrics += line[last_end:]
+        lyrics_parts.append(line[last_end:])
+        lyrics = ''.join(lyrics_parts)
 
         return ChordLyricsLine(chords=chords, lyrics=lyrics)
