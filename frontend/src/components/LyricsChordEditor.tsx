@@ -55,7 +55,7 @@ export function LyricsChordEditor({
   onComplete
 }: LyricsChordEditorProps) {
   // State management
-  const [mode, setMode] = useState<'input' | 'edit'>('input');
+  const [mode, setMode] = useState<'input' | 'edit' | 'preview'>('input');
   const [lyrics, setLyrics] = useState(initialLyrics);
   const [lyricsLines, setLyricsLines] = useState<string[]>([]);
   const [placedChords, setPlacedChords] = useState<PlacedChord[]>([]);
@@ -91,6 +91,31 @@ export function LyricsChordEditor({
     setSelectedPosition(null);
   }, []);
 
+  // Handler: Go to preview mode
+  const handleShowPreview = useCallback(() => {
+    setMode('preview');
+  }, []);
+
+  // Handler: Back to edit from preview
+  const handleBackToEdit = useCallback(() => {
+    setMode('edit');
+  }, []);
+
+  // Convert placed chords to ChordLyricsLine format
+  const buildChordLyricsLines = useCallback((): ChordLyricsLine[] => {
+    return lyricsLines.map((lineText, lineIndex) => {
+      const lineChords = placedChords
+        .filter(chord => chord.lineIndex === lineIndex)
+        .sort((a, b) => a.columnPosition - b.columnPosition)
+        .map(chord => [chord.columnPosition, chord.symbol] as [number, string]);
+
+      return {
+        chords: lineChords,
+        lyrics: lineText,
+      };
+    });
+  }, [lyricsLines, placedChords]);
+
   // Render based on mode
   return (
     <div className="lyrics-chord-editor">
@@ -101,7 +126,7 @@ export function LyricsChordEditor({
           onSubmit={handleSubmitLyrics}
           textareaRef={textareaRef}
         />
-      ) : (
+      ) : mode === 'edit' ? (
         <EditMode
           lyricsLines={lyricsLines}
           placedChords={placedChords}
@@ -118,7 +143,25 @@ export function LyricsChordEditor({
           keyRootName={keyRootName}
           keyMode={keyMode}
           onBack={handleBackToInput}
+          onPreview={handleShowPreview}
           onComplete={onComplete}
+        />
+      ) : (
+        <PreviewMode
+          lines={buildChordLyricsLines()}
+          sectionMarkers={sectionMarkers}
+          onBack={handleBackToEdit}
+          onComplete={() => {
+            // Convert to sections and call onComplete
+            const sections = buildSectionsFromMarkersAndLines(
+              lyricsLines,
+              placedChords,
+              sectionMarkers
+            );
+            if (onComplete) {
+              onComplete(sections);
+            }
+          }}
         />
       )}
     </div>
@@ -185,6 +228,7 @@ interface EditModeProps {
   keyRootName: string;
   keyMode: string;
   onBack: () => void;
+  onPreview: () => void;
   onComplete?: (sections: { name: string; lines: ChordLyricsLine[] }[]) => void;
 }
 
@@ -204,6 +248,7 @@ function EditMode({
   keyRootName,
   keyMode,
   onBack,
+  onPreview,
   onComplete,
 }: EditModeProps) {
   // Handler: Click on character position to place chord
@@ -236,11 +281,10 @@ function EditMode({
         <h2 className="mode-title">Add Chords</h2>
         <button
           className="btn-primary"
-          onClick={() => {
-            // TODO: Convert to sections and call onComplete
-          }}
+          onClick={onPreview}
+          disabled={placedChords.length === 0}
         >
-          Done
+          Preview
         </button>
       </div>
 
@@ -552,4 +596,135 @@ function ChordInputPopup({
       )}
     </div>
   );
+}
+
+/**
+ * PreviewMode: Display chords above lyrics in a read-only view
+ */
+interface PreviewModeProps {
+  lines: ChordLyricsLine[];
+  sectionMarkers: SectionMarker[];
+  onBack: () => void;
+  onComplete: () => void;
+}
+
+function PreviewMode({ lines, sectionMarkers, onBack, onComplete }: PreviewModeProps) {
+  return (
+    <div className="preview-mode">
+      <div className="preview-header">
+        <button className="btn-secondary" onClick={onBack}>
+          ← Back to Edit
+        </button>
+        <h2 className="mode-title">Preview</h2>
+        <button className="btn-primary" onClick={onComplete}>
+          Done
+        </button>
+      </div>
+
+      <div className="preview-content">
+        {lines.map((line, index) => (
+          <PreviewLine key={index} line={line} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * PreviewLine: Display a single line with chords above lyrics
+ */
+interface PreviewLineProps {
+  line: ChordLyricsLine;
+}
+
+function PreviewLine({ line }: PreviewLineProps) {
+  const { chords, lyrics } = line;
+  const isRTL = /[\u0590-\u05FF]/.test(lyrics);
+
+  // Build array of character positions with their chords
+  const positions: { char: string; chord?: string }[] = Array.from(lyrics).map((char, index) => {
+    const chordAtPos = chords.find(([col]) => col === index);
+    return {
+      char,
+      chord: chordAtPos ? chordAtPos[1] : undefined,
+    };
+  });
+
+  return (
+    <div className="preview-line" dir={isRTL ? 'rtl' : 'ltr'}>
+      <div className="preview-chords">
+        {positions.map((pos, index) => (
+          <span key={index} className="preview-chord-cell">
+            {pos.chord && <span className="preview-chord-badge">{pos.chord}</span>}
+            {!pos.chord && <span className="preview-chord-spacer">&nbsp;</span>}
+          </span>
+        ))}
+      </div>
+      <div className="preview-lyrics">
+        {lyrics || '\u00A0'}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Helper: Build sections from markers and lines
+ */
+function buildSectionsFromMarkersAndLines(
+  lyricsLines: string[],
+  placedChords: PlacedChord[],
+  sectionMarkers: SectionMarker[]
+): { name: string; lines: ChordLyricsLine[] }[] {
+  // If no section markers, create a single "Song" section
+  if (sectionMarkers.length === 0) {
+    const lines: ChordLyricsLine[] = lyricsLines.map((lineText, lineIndex) => {
+      const lineChords = placedChords
+        .filter(chord => chord.lineIndex === lineIndex)
+        .sort((a, b) => a.columnPosition - b.columnPosition)
+        .map(chord => [chord.columnPosition, chord.symbol] as [number, string]);
+
+      return {
+        chords: lineChords,
+        lyrics: lineText,
+      };
+    });
+
+    return [{ name: 'Song', lines }];
+  }
+
+  // Sort markers by line index
+  const sortedMarkers = [...sectionMarkers].sort((a, b) => a.lineIndex - b.lineIndex);
+
+  // Build sections
+  const sections: { name: string; lines: ChordLyricsLine[] }[] = [];
+
+  for (let i = 0; i < sortedMarkers.length; i++) {
+    const marker = sortedMarkers[i];
+    const nextMarker = sortedMarkers[i + 1];
+
+    const startLine = marker.lineIndex;
+    const endLine = nextMarker ? nextMarker.lineIndex : lyricsLines.length;
+
+    const sectionLines: ChordLyricsLine[] = [];
+
+    for (let lineIndex = startLine; lineIndex < endLine; lineIndex++) {
+      const lineText = lyricsLines[lineIndex];
+      const lineChords = placedChords
+        .filter(chord => chord.lineIndex === lineIndex)
+        .sort((a, b) => a.columnPosition - b.columnPosition)
+        .map(chord => [chord.columnPosition, chord.symbol] as [number, string]);
+
+      sectionLines.push({
+        chords: lineChords,
+        lyrics: lineText,
+      });
+    }
+
+    sections.push({
+      name: marker.name,
+      lines: sectionLines,
+    });
+  }
+
+  return sections;
 }
