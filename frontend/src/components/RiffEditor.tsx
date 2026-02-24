@@ -785,28 +785,231 @@ function NotationGridEditor({
 }: NotationGridEditorProps) {
   const [selectedPitch, setSelectedPitch] = useState<string>('C');
   const [selectedOctave, setSelectedOctave] = useState<number>(4);
+  const [showSubdivisions, setShowSubdivisions] = useState(false);
+
+  // Calculate beats to display in grid
+  const beatsToDisplay = useMemo(() => {
+    const beats: number[] = [];
+    const start = beatRange.startBeat;
+    const end = beatRange.endBeat;
+
+    if (start <= end) {
+      for (let i = start; i <= end; i++) {
+        beats.push(i);
+      }
+    } else {
+      for (let i = start; i >= end; i--) {
+        beats.push(i);
+      }
+    }
+
+    return beats;
+  }, [beatRange]);
+
+  // Handle grid cell click
+  const handleGridClick = useCallback((beat: number, subdivision: number) => {
+    onNoteAdd(beat, subdivision, selectedPitch, selectedOctave);
+  }, [onNoteAdd, selectedPitch, selectedOctave]);
+
+  // Get notes at specific position
+  const getNotesAtPosition = useCallback((beat: number, subdivision: number): RiffNote[] => {
+    return notes.filter(
+      note => note.beat_position.beat === beat && note.beat_position.subdivision === subdivision
+    );
+  }, [notes]);
 
   return (
     <div className="notation-grid-editor">
-      <div className="pitch-selector">
-        <label>Pitch:</label>
-        <select value={selectedPitch} onChange={(e) => setSelectedPitch(e.target.value)}>
-          {PITCH_NAMES.map(pitch => (
-            <option key={pitch} value={pitch}>{pitch}</option>
-          ))}
-        </select>
-        <label>Octave:</label>
-        <select value={selectedOctave} onChange={(e) => setSelectedOctave(Number(e.target.value))}>
-          {OCTAVES.map(octave => (
-            <option key={octave} value={octave}>{octave}</option>
-          ))}
-        </select>
+      <div className="editor-controls">
+        <div className="pitch-selector">
+          <label>Pitch:</label>
+          <select value={selectedPitch} onChange={(e) => setSelectedPitch(e.target.value)}>
+            {PITCH_NAMES.map(pitch => (
+              <option key={pitch} value={pitch}>{pitch}</option>
+            ))}
+          </select>
+          <label>Octave:</label>
+          <select value={selectedOctave} onChange={(e) => setSelectedOctave(Number(e.target.value))}>
+            {OCTAVES.map(octave => (
+              <option key={octave} value={octave}>{octave}</option>
+            ))}
+          </select>
+        </div>
+
+        <label className="subdivision-toggle-small">
+          <input
+            type="checkbox"
+            checked={showSubdivisions}
+            onChange={(e) => setShowSubdivisions(e.target.checked)}
+          />
+          <span>Show subdivisions</span>
+        </label>
       </div>
 
-      <div className="beat-grid">
-        {/* Grid will be implemented in Task 4.4.4 */}
-        <p className="text-sm text-gray-500">Grid entry coming in Task 4.4.4</p>
+      <div className="current-selection">
+        <span className="selection-label">Current selection:</span>
+        <span className="selection-value">{selectedPitch}{selectedOctave}</span>
+        <span className="selection-hint">Click a beat to add this note</span>
       </div>
+
+      <div className="notation-beat-grid">
+        {!showSubdivisions ? (
+          // Simple beat grid
+          <div className="simple-grid">
+            {beatsToDisplay.map(beat => {
+              const notesHere = getNotesAtPosition(beat, 0);
+              return (
+                <div key={beat} className="grid-column">
+                  <div className="beat-label">Beat {beat}</div>
+                  <button
+                    className={`grid-cell ${notesHere.length > 0 ? 'has-notes' : ''}`}
+                    onClick={() => handleGridClick(beat, 0)}
+                    title={`Add ${selectedPitch}${selectedOctave} on beat ${beat}`}
+                  >
+                    {notesHere.length > 0 ? (
+                      <div className="notes-at-position">
+                        {notesHere.map(note => (
+                          <div
+                            key={note.id}
+                            className={`note-display ${selectedNoteId === note.id ? 'selected' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onNoteSelect(note.id);
+                            }}
+                          >
+                            <span className="note-name">{note.pitch}{note.octave}</span>
+                            <button
+                              className="note-remove-inline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onNoteRemove(note.id);
+                              }}
+                              title="Remove note"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="add-note-icon">+</span>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          // Grid with subdivisions
+          <div className="subdivided-grid">
+            {beatsToDisplay.map(beat => (
+              <div key={beat} className="grid-column">
+                <div className="beat-label">Beat {beat}</div>
+                <div className="subdivision-cells">
+                  {[0, 1, 2, 3].map(subdivision => {
+                    const notesHere = getNotesAtPosition(beat, subdivision);
+                    const subdivLabel = ['on', '&', 'e', 'a'][subdivision];
+
+                    return (
+                      <div key={subdivision} className="subdivision-row">
+                        <span className="subdivision-label">{subdivLabel}</span>
+                        <button
+                          className={`grid-cell ${notesHere.length > 0 ? 'has-notes' : ''} ${subdivision === 0 ? 'on-beat' : ''}`}
+                          onClick={() => handleGridClick(beat, subdivision)}
+                          title={`Add ${selectedPitch}${selectedOctave} on beat ${beat}.${subdivision}`}
+                        >
+                          {notesHere.length > 0 ? (
+                            <div className="notes-at-position-compact">
+                              {notesHere.map(note => (
+                                <div
+                                  key={note.id}
+                                  className={`note-display-compact ${selectedNoteId === note.id ? 'selected' : ''}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onNoteSelect(note.id);
+                                  }}
+                                  title={`${note.pitch}${note.octave}`}
+                                >
+                                  <span>{note.pitch}{note.octave}</span>
+                                  <button
+                                    className="note-remove-tiny"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onNoteRemove(note.id);
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="add-note-icon-small">+</span>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {selectedNoteId && (
+        <div className="selected-note-editor">
+          <h4>Edit Selected Note</h4>
+          {(() => {
+            const note = notes.find(n => n.id === selectedNoteId);
+            if (!note) return null;
+
+            return (
+              <div className="note-editor-controls">
+                <div className="control-group">
+                  <label>Pitch:</label>
+                  <select
+                    value={note.pitch || 'C'}
+                    onChange={(e) => onNoteUpdate(selectedNoteId, { pitch: e.target.value })}
+                  >
+                    {PITCH_NAMES.map(pitch => (
+                      <option key={pitch} value={pitch}>{pitch}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="control-group">
+                  <label>Octave:</label>
+                  <select
+                    value={note.octave || 4}
+                    onChange={(e) => onNoteUpdate(selectedNoteId, { octave: Number(e.target.value) })}
+                  >
+                    {OCTAVES.map(octave => (
+                      <option key={octave} value={octave}>{octave}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="control-group">
+                  <label>Duration (beats):</label>
+                  <input
+                    type="number"
+                    min={0.25}
+                    max={4}
+                    step={0.25}
+                    value={note.duration_beats}
+                    onChange={(e) => onNoteUpdate(selectedNoteId, { duration_beats: Number(e.target.value) })}
+                  />
+                </div>
+                <button
+                  className="btn-deselect"
+                  onClick={() => onNoteSelect(null)}
+                >
+                  Done Editing
+                </button>
+              </div>
+            );
+          })()}
+        </div>
+      )}
     </div>
   );
 }
