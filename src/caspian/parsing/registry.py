@@ -275,12 +275,76 @@ class ParserRegistry:
         return self._parsers.get(format_type)
 
 
-# Global singleton registry instance
+# ---------------------------------------------------------------------------
+# Parser Adapters
+# ---------------------------------------------------------------------------
+
+class FormatAParser:
+    """Adapter for Format A parser."""
+
+    def parse(self, text: str) -> SongInput:
+        """Parse Format A text."""
+        from caspian.parsing.input_parser import parse_format_a
+        return parse_format_a(text)
+
+
+class WebsitePasteParser:
+    """Adapter for website paste parser."""
+
+    def parse(self, text: str) -> SongInput:
+        """Parse website paste text (with normalization)."""
+        from caspian.parsing.input_parser import parse_format_a
+        from caspian.parsing.website_normalizer import normalize_website_paste
+
+        normalized = normalize_website_paste(text)
+        return parse_format_a(normalized)
+
+
+class UGHTMLParser:
+    """Adapter for Ultimate Guitar HTML parser."""
+
+    def parse(self, text: str) -> SongInput:
+        """Parse Ultimate Guitar HTML."""
+        from caspian.parsing.input_parser import parse_format_a
+        from caspian.parsing.website_normalizer import (
+            parse_ultimate_guitar_html,
+            normalize_website_paste,
+        )
+
+        # Extract text from HTML, then normalize
+        extracted = parse_ultimate_guitar_html(text)
+        normalized = normalize_website_paste(extracted)
+        return parse_format_a(normalized)
+
+
+class Tab4uHTMLParser:
+    """Adapter for Tab4u HTML parser."""
+
+    def parse(self, text: str) -> SongInput:
+        """Parse Tab4u HTML."""
+        from caspian.parsing.input_parser import parse_format_a
+        from caspian.parsing.website_normalizer import (
+            parse_tab4u_html,
+            normalize_website_paste,
+        )
+
+        # Extract text from HTML, then normalize
+        extracted = parse_tab4u_html(text)
+        normalized = normalize_website_paste(extracted)
+        return parse_format_a(normalized)
+
+
+# ---------------------------------------------------------------------------
+# Global Registry Initialization
+# ---------------------------------------------------------------------------
+
 _global_registry: ParserRegistry | None = None
 
 
 def get_global_registry() -> ParserRegistry:
     """Get or create the global parser registry.
+
+    Automatically registers all available parsers on first access.
 
     Returns:
         The global ParserRegistry singleton
@@ -288,4 +352,26 @@ def get_global_registry() -> ParserRegistry:
     global _global_registry
     if _global_registry is None:
         _global_registry = ParserRegistry()
+        _register_default_parsers(_global_registry)
     return _global_registry
+
+
+def _register_default_parsers(registry: ParserRegistry) -> None:
+    """Register all default parsers in the registry.
+
+    Args:
+        registry: ParserRegistry to populate
+    """
+    # Format A (native Caspian format)
+    registry.register(InputFormat.FORMAT_A, FormatAParser())
+
+    # Website paste (plain text from websites)
+    registry.register(InputFormat.WEBSITE_PASTE, WebsitePasteParser())
+
+    # Ultimate Guitar HTML
+    registry.register(InputFormat.UG_HTML, UGHTMLParser())
+
+    # Tab4u HTML
+    registry.register(InputFormat.TAB4U_HTML, Tab4uHTMLParser())
+
+    # Note: ChordPro and bar_notation parsers to be added in future story points
