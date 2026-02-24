@@ -43,9 +43,15 @@ class BarNotationParser:
     # Captures content between pipes, handling repeat markers
     BAR_CONTENT_PATTERN = re.compile(r'\|:?\s*([^|]+?)\s*(?=\||$)')
 
-    # Pattern to detect section headers
+    # Pattern to detect section headers (standalone)
     SECTION_HEADER_PATTERN = re.compile(
         r'^\s*\[?([a-z]+)\]?:?\s*$', re.IGNORECASE
+    )
+
+    # Pattern to detect section header with inline content
+    # e.g., "intro: | Gm7b5 |" or "[verse]: | Am | F |"
+    SECTION_WITH_CONTENT_PATTERN = re.compile(
+        r'^\s*\[?([a-z]+)\]?:\s*(\|.+)$', re.IGNORECASE
     )
 
     # Pattern to validate chord symbols
@@ -79,7 +85,31 @@ class BarNotationParser:
             if not stripped:
                 continue
 
-            # Check if it's a section header
+            # Check if it's a section header with inline content
+            # e.g., "intro: | Gm7b5 |"
+            section_with_content_match = self.SECTION_WITH_CONTENT_PATTERN.match(stripped)
+            if section_with_content_match:
+                # Save previous section if exists
+                if current_section is not None:
+                    sections.append(current_section)
+
+                # Start new section
+                current_section_name = section_with_content_match.group(1).lower()
+                bar_content = section_with_content_match.group(2)
+
+                current_section = SectionInput(
+                    name=current_section_name,
+                    section_type="vocal" if current_section_name not in ["intro", "outro", "solo"] else "instrumental",
+                )
+
+                # Parse inline bar content
+                if self.is_bar_notation_line(bar_content):
+                    bars = self.parse_bar_line(bar_content)
+                    current_section.bars.extend(bars)
+
+                continue
+
+            # Check if it's a standalone section header
             section_match = self.SECTION_HEADER_PATTERN.match(stripped)
             if section_match:
                 # Save previous section if exists
