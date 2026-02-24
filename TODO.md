@@ -1,8 +1,8 @@
 # Caspian Grand Plan - Implementation TODO (SSOT)
 
 **Last Updated:** 2026-02-24
-**Current Branch:** develop
-**Current Story Point:** 3.1 Complete - Ready for 3.2
+**Current Branch:** story/3.2-parser-registry
+**Current Story Point:** 3.2 Complete - Ready for review and merge
 
 ---
 
@@ -214,17 +214,19 @@ This is the **Single Source of Truth (SSOT)** for all implementation tasks for t
 - [x] Task 3.1.7: Write tests for new detection patterns
 - [x] Task 3.1.8: Test with real-world paste examples
 
-### Story Point 3.2: Multi-Format Parser Registry
-**Branch:** `story/3.2-parser-registry`
+### Story Point 3.2: Multi-Format Parser Registry ✅ COMPLETED
+**Branch:** `story/3.2-parser-registry` (pushed to remote)
+**Tests:** 621 passing (36 new registry tests added)
+**Commits:** 5 (one per task group)
 
-- [ ] Task 3.2.1: Create `parsing/registry.py`
-- [ ] Task 3.2.2: Design `FormatDetector` class
-- [ ] Task 3.2.3: Implement format detection heuristics
-- [ ] Task 3.2.4: Add format enum (format_a, website_paste, ug_html, tab4u_html, etc.)
-- [ ] Task 3.2.5: Create parser interface/protocol
-- [ ] Task 3.2.6: Register existing parsers in registry
-- [ ] Task 3.2.7: Write format detection tests
-- [ ] Task 3.2.8: Update `input_parser.py` to use registry
+- [x] Task 3.2.1: Create `parsing/registry.py`
+- [x] Task 3.2.2: Design `FormatDetector` class
+- [x] Task 3.2.3: Implement format detection heuristics
+- [x] Task 3.2.4: Add format enum (format_a, website_paste, ug_html, tab4u_html, etc.)
+- [x] Task 3.2.5: Create parser interface/protocol
+- [x] Task 3.2.6: Register existing parsers in registry
+- [x] Task 3.2.7: Write format detection tests
+- [x] Task 3.2.8: Update `input_parser.py` to use registry
 
 ### Story Point 3.3: Bar Line Detection
 **Branch:** `story/3.3-bar-line-detection`
