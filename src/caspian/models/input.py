@@ -128,6 +128,34 @@ class TabNote(BaseModel):
         return v
 
 
+class BarContent(BaseModel):
+    """All musical content within a single bar.
+
+    Container for all types of musical notation that can appear
+    in a bar: chords, melodic notes, and tablature.
+
+    Attributes:
+        chords: List of chords with their timing
+        notes: List of pitched notes (for riffs/fills)
+        tab: List of tablature notes (for guitar-specific notation)
+        label: Optional text label for the bar (e.g., "intro riff", "solo", "fill")
+
+    Example:
+        >>> BarContent(
+        ...     chords=[BarChord(symbol="Am", beat_position=BeatPosition(beat=1, subdivision=0))],
+        ...     label="verse pattern"
+        ... )
+        >>> BarContent(
+        ...     notes=[BarNote(pitch="A", octave=4, beat_position=BeatPosition(beat=1, subdivision=0))],
+        ...     label="riff"
+        ... )
+    """
+    chords: list[BarChord] = Field(default_factory=list)
+    notes: list[BarNote] = Field(default_factory=list)
+    tab: list[TabNote] = Field(default_factory=list)
+    label: str | None = None
+
+
 class ChordInput(BaseModel):
     """A single chord with optional aligned lyrics."""
     symbol: str
