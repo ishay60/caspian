@@ -44,6 +44,26 @@ class BeatPosition(BaseModel):
         return v
 
 
+class BarChord(BaseModel):
+    """A chord at a specific beat position within a bar.
+
+    Represents when a chord starts and optionally how long it sustains.
+    Used for rhythm-aware chord analysis.
+
+    Attributes:
+        symbol: Chord symbol (e.g., "Am", "G7", "Dmaj7")
+        beat_position: When the chord is played
+        duration_beats: How long the chord rings (None = until next chord or end of bar)
+
+    Example:
+        >>> BarChord(symbol="Am", beat_position=BeatPosition(beat=1, subdivision=0))
+        >>> BarChord(symbol="G7", beat_position=BeatPosition(beat=3, subdivision=0), duration_beats=2.0)
+    """
+    symbol: str
+    beat_position: BeatPosition
+    duration_beats: float | None = None
+
+
 class ChordInput(BaseModel):
     """A single chord with optional aligned lyrics."""
     symbol: str
