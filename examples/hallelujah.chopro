@@ -1,0 +1,36 @@
+{t: Hallelujah}
+{st: (Leonard Cohen)}
+{a: Leonard Cohen}
+{key: C}
+{capo: 5}
+
+# Verse 1
+{sov}
+[C]I've heard there was a [Am]secret chord
+That [C]David played, and it [Am]pleased the Lord
+But [F]you don't really [G]care for music, [C]do you?[G]
+It [C]goes like this, the [F]fourth, the [G]fifth
+The [Am]minor fall, the [F]major lift
+The [G]baffled king com[Em]posing Halle[Am]lujah
+{eov}
+
+# Chorus
+{soc}
+Halle[F]lujah, Halle[Am]lujah
+Halle[F]lujah, Halle[C]lu[G]jah[C]
+{eoc}
+
+# Verse 2
+{start_of_verse: 2}
+Your [C]faith was strong but you [Am]needed proof
+You [C]saw her bathing [Am]on the roof
+Her [F]beauty and the [G]moonlight over[C]threw you[G]
+She [C]tied you to a [F]kitchen [G]chair
+She [Am]broke your throne, and she [F]cut your hair
+And [G]from your lips she [Em]drew the Halle[Am]lujah
+{end_of_verse}
+
+{start_of_chorus}
+Halle[F]lujah, Halle[Am]lujah
+Halle[F]lujah, Halle[C]lu[G]jah[C]
+{end_of_chorus}

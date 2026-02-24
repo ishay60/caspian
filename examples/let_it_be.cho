@@ -1,0 +1,26 @@
+{title: Let It Be}
+{artist: The Beatles}
+{key: C}
+{tempo: 73}
+
+{start_of_verse}
+[C]When I [G]find myself in [Am]times of [F]trouble
+[C]Mother [G]Mary [F]comes to [C]me
+[C]Speaking [G]words of [Am]wisdom, [F]let it [C]be
+{end_of_verse}
+
+{start_of_chorus}
+[Am]Let it [G]be, let it [F]be, let it [C]be
+[C]Whisper [G]words of [F]wisdom, let it [C]be
+{end_of_chorus}
+
+{start_of_verse: 2}
+[C]And when the [G]broken hearted [Am]people [F]living
+[C]In the [G]world a[F]gree, [C]yeah
+[C]There will [G]be an [Am]answer, [F]let it [C]be
+{end_of_verse}
+
+{start_of_chorus}
+[Am]Let it [G]be, let it [F]be, let it [C]be
+[C]There will [G]be an [F]answer, let it [C]be
+{end_of_chorus}
