@@ -130,19 +130,36 @@ function getBeatPosition(chordIndex: number, totalChords: number, beatsPerBar: n
 
 /**
  * Helper: Extract chord quality string (everything after root)
- * e.g., "Am7" -> "m7", "Cmaj9" -> "maj9"
+ * Handles complex chord symbols with extensions
+ * e.g., "Am7" -> "m7", "Cmaj9" -> "maj9", "D7sus4" -> "7sus4"
  */
 function getChordQuality(chord: ChordAnalysis): string {
   const rootName = chord.root_name;
   const symbol = chord.symbol;
 
-  // Handle slash chords (e.g., "C/E")
-  const baseSymbol = symbol.split('/')[0];
+  // Handle slash chords (e.g., "C/E" or "Am7/G")
+  const parts = symbol.split('/');
+  const baseSymbol = parts[0];
+  const bassNote = parts[1];
 
   // Remove root from symbol to get quality
+  let quality = '';
   if (baseSymbol.startsWith(rootName)) {
-    return baseSymbol.slice(rootName.length);
+    quality = baseSymbol.slice(rootName.length);
   }
 
-  return '';
+  // Handle common quality patterns for better display
+  // Convert "major" abbreviations for clarity
+  quality = quality
+    .replace(/^maj/, 'M')      // Cmaj7 -> CM7
+    .replace(/^min/, 'm')      // Dmin7 -> Dm7
+    .replace(/^dim/, '°')      // Gdim -> G°
+    .replace(/^aug/, '+');     // Caug -> C+
+
+  // Add slash bass if present
+  if (bassNote) {
+    quality += `/${bassNote}`;
+  }
+
+  return quality;
 }
