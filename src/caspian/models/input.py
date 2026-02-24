@@ -201,11 +201,24 @@ class ChordLyricsLine(BaseModel):
 
 
 class SectionInput(BaseModel):
-    """A section of a song (verse, chorus, etc.)."""
+    """A section of a song (verse, chorus, etc.).
+
+    Supports both legacy chord-based input and new bar-based input.
+
+    Attributes:
+        name: Section name (e.g., "verse", "chorus", "bridge")
+        section_type: "vocal" or "instrumental"
+        chords: Legacy chord list (for backward compatibility)
+        lines: Legacy chord-lyrics pairs (for backward compatibility)
+        bars: New bar-based content containers
+        tempo_bpm: Optional tempo in beats per minute for this section
+    """
     name: str
     section_type: str = "vocal"  # "instrumental" or "vocal"
     chords: list[ChordInput] = Field(default_factory=list)
     lines: list[ChordLyricsLine] = Field(default_factory=list)
+    bars: list[Bar] = Field(default_factory=list)
+    tempo_bpm: float | None = None
 
 
 class SongInput(BaseModel):
