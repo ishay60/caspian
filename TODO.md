@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-02-24
 **Current Branch:** develop
-**Current Story Point:** Phase 4 Story Point 4.2 COMPLETE ✅ - Ready for 4.3
+**Current Story Point:** Phase 4 Story Point 4.3 COMPLETE ✅ - Ready for 4.4
 
 ---
 
@@ -311,17 +311,21 @@ This is the **Single Source of Truth (SSOT)** for all implementation tasks for t
 - [x] Task 4.2.9: Add section marker insertion
 - [x] Task 4.2.10: Write component tests
 
-### Story Point 4.3: Bar Overlay Mode
-**Branch:** `story/4.3-bar-overlay`
+### Story Point 4.3: Bar Overlay Mode ✅ COMPLETED
+**Branch:** `story/4.3-bar-overlay` (merged to develop)
+**Tests:** 40+ test cases written
+**Commits:** 4 commits
+**Files:** 3 new files created (BarOverlay.tsx, CSS, tests)
+**Lines Added:** 1,989 lines
 
-- [ ] Task 4.3.1: Create `BarOverlay.tsx` component
-- [ ] Task 4.3.2: Implement bar line insertion UI (click between chords)
-- [ ] Task 4.3.3: Add auto-suggest bar lines algorithm
-- [ ] Task 4.3.4: Implement time signature selector per section
-- [ ] Task 4.3.5: Add beat position assignment within bars
-- [ ] Task 4.3.6: Implement drag-to-adjust beat positions
-- [ ] Task 4.3.7: Add validation for bar consistency
-- [ ] Task 4.3.8: Write component tests
+- [x] Task 4.3.1: Create `BarOverlay.tsx` component
+- [x] Task 4.3.2: Implement bar line insertion UI (click between chords)
+- [x] Task 4.3.3: Add auto-suggest bar lines algorithm
+- [x] Task 4.3.4: Implement time signature selector per section
+- [x] Task 4.3.5: Add beat position assignment within bars
+- [x] Task 4.3.6: Implement drag-to-adjust beat positions
+- [x] Task 4.3.7: Add validation for bar consistency
+- [x] Task 4.3.8: Write component tests
 
 ### Story Point 4.4: Inline Riff/Instrumental Editor
 **Branch:** `story/4.4-riff-editor`
