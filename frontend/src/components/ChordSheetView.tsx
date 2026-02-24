@@ -105,11 +105,11 @@ import './ChordSheetView.css';
 
 interface ChordSheetViewProps {
   section: Section;
-  onChordSelect?: (chordIndex: number) => void;
-  selectedChordIndex?: number | null;
+  onChordSelect?: (chord: ChordAnalysis) => void;
+  selectedChord?: ChordAnalysis | null;
 }
 
-export function ChordSheetView({ section, onChordSelect, selectedChordIndex }: ChordSheetViewProps) {
+export function ChordSheetView({ section, onChordSelect, selectedChord }: ChordSheetViewProps) {
   // Check if section has bar-aware data
   const hasBarData = section.bars && section.bars.length > 0;
 
@@ -144,7 +144,7 @@ export function ChordSheetView({ section, onChordSelect, selectedChordIndex }: C
             barIndex={index}
             timeSignature={timeSignature}
             onChordSelect={onChordSelect}
-            selectedChordIndex={selectedChordIndex}
+            selectedChord={selectedChord}
           />
         ))}
       </div>

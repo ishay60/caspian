@@ -3,6 +3,7 @@ import type { AnalysisResult, LlmAnalysisResult, Section, Key, ChordAnalysis } f
 import { requestLlmAnalysis } from '../api';
 import { useSettings } from '../lib/settingsContext';
 import { SectionView } from './SectionView';
+import { ChordSheetView } from './ChordSheetView';
 import { LlmNarrative } from './LlmNarrative';
 import { TransposeBar } from './TransposeBar';
 import { Fretboard } from './Fretboard';
@@ -81,6 +82,7 @@ export function AnalysisView({ result }: Props) {
   const [llmError, setLlmError] = useState<string | null>(null);
   const [showFretboard, setShowFretboard] = useState(false);
   const [selectedChordForFretboard, setSelectedChordForFretboard] = useState<ChordAnalysis | null>(null);
+  const [viewMode, setViewMode] = useState<'standard' | 'chord-sheet'>('standard');
 
   // Compute transposed key and sections (at 0 preserve API key spelling e.g. Bb not A#)
   const currentKey = transposeKey(result.key, transposeSemitones);
@@ -215,6 +217,18 @@ export function AnalysisView({ result }: Props) {
             {t.fretboard}
           </button>
 
+          <button
+            onClick={() => setViewMode(viewMode === 'standard' ? 'chord-sheet' : 'standard')}
+            className="rounded-xl border px-4 py-2.5 text-sm font-medium transition-all cursor-pointer"
+            style={{
+              borderColor: viewMode === 'chord-sheet' ? 'var(--color-accent)' : 'var(--color-border)',
+              backgroundColor: viewMode === 'chord-sheet' ? 'color-mix(in srgb, var(--color-accent) 14%, var(--color-surface))' : 'var(--color-surface)',
+              color: viewMode === 'chord-sheet' ? 'var(--color-accent)' : 'var(--color-text)',
+            }}
+          >
+            {viewMode === 'standard' ? 'Chord Sheet View' : 'Standard View'}
+          </button>
+
           {llmError && (
             <p className="text-sm font-medium" style={{ color: 'var(--color-diminished)' }}>
               {llmError}
@@ -265,16 +279,29 @@ export function AnalysisView({ result }: Props) {
       {llmResult && <LlmNarrative result={llmResult} />}
 
       {/* Sections */}
-      {displaySections.map((section, i) => (
-        <SectionView
-          key={i}
-          section={section}
-          keyInfo={currentKey}
-          isEdited={editedSections.has(i)}
-          onSectionUpdate={(updated) => handleSectionUpdate(i, updated)}
-          onChordSelect={handleChordSelect}
-        />
-      ))}
+      {displaySections.map((section, i) => {
+        // Check if section has bar data for chord sheet view
+        const hasBarData = section.bars && section.bars.length > 0;
+        const useChordSheetView = viewMode === 'chord-sheet' && hasBarData;
+
+        return useChordSheetView ? (
+          <ChordSheetView
+            key={i}
+            section={section}
+            onChordSelect={handleChordSelect}
+            selectedChord={selectedChordForFretboard}
+          />
+        ) : (
+          <SectionView
+            key={i}
+            section={section}
+            keyInfo={currentKey}
+            isEdited={editedSections.has(i)}
+            onSectionUpdate={(updated) => handleSectionUpdate(i, updated)}
+            onChordSelect={handleChordSelect}
+          />
+        );
+      })}
     </div>
   );
 }

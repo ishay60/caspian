@@ -16,8 +16,8 @@ interface BarDisplayProps {
   bar: BarAnalysis;
   barIndex: number;
   timeSignature: [number, number];
-  onChordSelect?: (chordIndex: number) => void;
-  selectedChordIndex?: number | null;
+  onChordSelect?: (chord: ChordAnalysis) => void;
+  selectedChord?: ChordAnalysis | null;
 }
 
 export function BarDisplay({
@@ -25,7 +25,7 @@ export function BarDisplay({
   barIndex,
   timeSignature,
   onChordSelect,
-  selectedChordIndex,
+  selectedChord,
 }: BarDisplayProps) {
   const [beatsPerBar] = timeSignature;
   const chords = bar.chord_analyses;
@@ -47,8 +47,8 @@ export function BarDisplay({
               chord={chord}
               chordIndex={chordIdx}
               beatPosition={getBeatPosition(chordIdx, chords.length, beatsPerBar)}
-              isSelected={selectedChordIndex === chordIdx}
-              onClick={() => onChordSelect?.(chordIdx)}
+              isSelected={selectedChord?.symbol === chord.symbol}
+              onClick={() => onChordSelect?.(chord)}
             />
           ))}
         </div>
