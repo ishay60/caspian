@@ -160,6 +160,144 @@ def suggest_bars_from_chord_count(
     return suggestions
 
 
+@dataclass(frozen=True)
+class SpacingAnalysis:
+    """Result of spacing analysis for chord duration heuristic.
+
+    Attributes:
+        gaps: List of character gaps between consecutive chords
+        avg_gap: Average gap size
+        std_dev: Standard deviation of gaps
+        large_gap_positions: Positions (indices) where large gaps occur
+                             (likely bar boundaries)
+    """
+
+    gaps: list[int]
+    avg_gap: float
+    std_dev: float
+    large_gap_positions: list[int]
+
+
+def analyze_chord_spacing(chord_lyrics_line: ChordLyricsLine) -> SpacingAnalysis:
+    """Analyze spacing between chords to detect bar boundaries.
+
+    Wider spacing between chords suggests longer duration and likely bar boundaries.
+
+    Args:
+        chord_lyrics_line: ChordLyricsLine with column positions
+
+    Returns:
+        SpacingAnalysis with gap information
+
+    Examples:
+        >>> line = ChordLyricsLine(chords=[(0, "Am"), (15, "F"), (30, "C")], lyrics="...")
+        >>> analysis = analyze_chord_spacing(line)
+        >>> analysis.gaps
+        [15, 15]
+    """
+    if len(chord_lyrics_line.chords) < 2:
+        return SpacingAnalysis(gaps=[], avg_gap=0.0, std_dev=0.0, large_gap_positions=[])
+
+    # Calculate gaps between consecutive chords
+    gaps = []
+    positions = [pos for pos, _ in chord_lyrics_line.chords]
+
+    for i in range(len(positions) - 1):
+        gap = positions[i + 1] - positions[i]
+        gaps.append(gap)
+
+    # Calculate statistics
+    avg_gap = sum(gaps) / len(gaps)
+
+    # Calculate standard deviation
+    if len(gaps) > 1:
+        variance = sum((g - avg_gap) ** 2 for g in gaps) / len(gaps)
+        std_dev = variance**0.5
+    else:
+        std_dev = 0.0
+
+    # Identify large gaps (> avg + 0.5 * std_dev)
+    # These are likely bar boundaries
+    threshold = avg_gap + 0.5 * std_dev
+    large_gap_positions = []
+
+    for i, gap in enumerate(gaps):
+        if gap > threshold and gap >= 12:  # Minimum gap of 12 characters
+            # Position after chord at index i
+            large_gap_positions.append(i + 1)
+
+    return SpacingAnalysis(
+        gaps=gaps, avg_gap=avg_gap, std_dev=std_dev, large_gap_positions=large_gap_positions
+    )
+
+
+def suggest_bars_from_spacing(
+    chord_lyrics_lines: list[ChordLyricsLine],
+) -> list[BarSuggestion]:
+    """Generate bar suggestions based on spacing heuristic.
+
+    Analyzes horizontal spacing between chords to detect bar boundaries.
+    Wider gaps suggest longer chord durations and likely bar boundaries.
+
+    Args:
+        chord_lyrics_lines: List of ChordLyricsLine objects with spacing info
+
+    Returns:
+        List of BarSuggestion objects for suggested bar boundaries
+
+    Examples:
+        >>> lines = [ChordLyricsLine(chords=[(0, "Am"), (20, "F"), (40, "C")], lyrics="...")]
+        >>> suggestions = suggest_bars_from_spacing(lines)
+        >>> len(suggestions) >= 0
+        True
+    """
+    if not chord_lyrics_lines:
+        return []
+
+    suggestions = []
+    cumulative_chord_count = 0
+
+    for line in chord_lyrics_lines:
+        if len(line.chords) < 2:
+            cumulative_chord_count += len(line.chords)
+            continue
+
+        analysis = analyze_chord_spacing(line)
+
+        # Generate suggestions for large gaps
+        for local_position in analysis.large_gap_positions:
+            # Convert to global position across all lines
+            global_position = cumulative_chord_count + local_position
+
+            # Calculate confidence based on gap size relative to average
+            gap_index = local_position - 1  # gap before this position
+            if gap_index < len(analysis.gaps):
+                gap_size = analysis.gaps[gap_index]
+                relative_gap = gap_size / analysis.avg_gap if analysis.avg_gap > 0 else 1.0
+
+                # Higher confidence for larger relative gaps
+                if relative_gap >= 2.0:
+                    confidence = min(0.90, 0.70 + (relative_gap - 2.0) * 0.10)
+                elif relative_gap >= 1.5:
+                    confidence = 0.75
+                elif relative_gap >= 1.2:
+                    confidence = 0.65
+                else:
+                    confidence = 0.55
+
+                suggestion = BarSuggestion(
+                    position=global_position,
+                    confidence=confidence,
+                    reason=f"Large spacing gap ({gap_size} chars, {relative_gap:.1f}x avg)",
+                    heuristic="spacing",
+                )
+                suggestions.append(suggestion)
+
+        cumulative_chord_count += len(line.chords)
+
+    return suggestions
+
+
 def detect_bars_simple(chord_sequence: list[str]) -> list[BarSuggestion]:
     """Simple bar detection using only chord count heuristic.
 

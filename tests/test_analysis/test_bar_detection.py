@@ -5,10 +5,14 @@ import pytest
 from caspian.analysis.bar_detection import (
     BarSuggestion,
     ChordCountPattern,
+    SpacingAnalysis,
     analyze_chord_count_consistency,
+    analyze_chord_spacing,
     detect_bars_simple,
     suggest_bars_from_chord_count,
+    suggest_bars_from_spacing,
 )
+from caspian.models.input import ChordLyricsLine
 
 
 class TestBarSuggestion:
@@ -173,6 +177,161 @@ class TestSuggestBarsFromChordCount:
         assert len(suggestions) == 8
         positions = [s.position for s in suggestions]
         assert positions == [2, 4, 6, 8, 10, 12, 14, 16]
+
+
+class TestChordSpacing:
+    """Tests for analyze_chord_spacing function."""
+
+    def test_empty_chords(self):
+        """Test with no chords."""
+        line = ChordLyricsLine(chords=[], lyrics="")
+        analysis = analyze_chord_spacing(line)
+        assert analysis.gaps == []
+        assert analysis.avg_gap == 0.0
+        assert analysis.large_gap_positions == []
+
+    def test_single_chord(self):
+        """Test with single chord."""
+        line = ChordLyricsLine(chords=[(0, "Am")], lyrics="test")
+        analysis = analyze_chord_spacing(line)
+        assert analysis.gaps == []
+        assert analysis.avg_gap == 0.0
+        assert analysis.large_gap_positions == []
+
+    def test_uniform_spacing(self):
+        """Test with uniform spacing (no clear bar boundaries)."""
+        line = ChordLyricsLine(
+            chords=[(0, "Am"), (10, "F"), (20, "C"), (30, "G")], lyrics="test lyrics"
+        )
+        analysis = analyze_chord_spacing(line)
+        assert analysis.gaps == [10, 10, 10]
+        assert analysis.avg_gap == 10.0
+        assert analysis.std_dev == 0.0
+        # No large gaps (all equal to average)
+        assert len(analysis.large_gap_positions) == 0
+
+    def test_large_gap_detection(self):
+        """Test detection of large gaps indicating bar boundaries."""
+        # Small gaps, then large gap, then small gaps
+        line = ChordLyricsLine(
+            chords=[(0, "Am"), (8, "F"), (35, "C"), (43, "G")], lyrics="test lyrics"
+        )
+        analysis = analyze_chord_spacing(line)
+        assert analysis.gaps == [8, 27, 8]
+        # Large gap at index 1 → position 2 (after chord "F")
+        assert 2 in analysis.large_gap_positions
+
+    def test_multiple_large_gaps(self):
+        """Test multiple bar boundaries in one line."""
+        # Pattern: small, large, small, large
+        line = ChordLyricsLine(
+            chords=[(0, "Am"), (8, "F"), (30, "C"), (38, "G"), (60, "Am")],
+            lyrics="test lyrics",
+        )
+        analysis = analyze_chord_spacing(line)
+        # Gaps: 8, 22, 8, 22
+        # Large gaps at indices 1 and 3 → positions 2 and 4
+        assert 2 in analysis.large_gap_positions
+        assert 4 in analysis.large_gap_positions
+
+    def test_hebrew_song_spacing(self):
+        """Test with Hebrew song example (RTL-normalized chord positions)."""
+        # "יום שישי חזר" chorus spacing pattern
+        line = ChordLyricsLine(
+            chords=[
+                (0, "Am/E"),
+                (10, "D#dim"),
+                (35, "F#dim"),
+                (45, "F"),
+                (70, "D"),
+                (80, "Am"),
+            ],
+            lyrics="יום שישי חזר אלי הביתה",
+        )
+        analysis = analyze_chord_spacing(line)
+        # Should detect large gaps before F and D
+        assert len(analysis.large_gap_positions) >= 1
+
+
+class TestSuggestBarsFromSpacing:
+    """Tests for suggest_bars_from_spacing function."""
+
+    def test_empty_lines(self):
+        """Test with no lines."""
+        suggestions = suggest_bars_from_spacing([])
+        assert len(suggestions) == 0
+
+    def test_no_spacing_info(self):
+        """Test with lines that have no spacing gaps."""
+        lines = [
+            ChordLyricsLine(chords=[(0, "Am")], lyrics="test"),
+            ChordLyricsLine(chords=[(0, "F")], lyrics="test"),
+        ]
+        suggestions = suggest_bars_from_spacing(lines)
+        assert len(suggestions) == 0
+
+    def test_single_line_with_gaps(self):
+        """Test single line with clear bar boundaries."""
+        lines = [
+            ChordLyricsLine(
+                chords=[(0, "Am"), (8, "F"), (35, "C"), (43, "G")], lyrics="test"
+            )
+        ]
+        suggestions = suggest_bars_from_spacing(lines)
+
+        # Should suggest bar after "F" (before large gap)
+        assert len(suggestions) >= 1
+        assert any(s.position == 2 for s in suggestions)
+        assert all(s.heuristic == "spacing" for s in suggestions)
+
+    def test_multiple_lines(self):
+        """Test multiple lines with cumulative chord counting."""
+        lines = [
+            # Line 1: chords 0-1 (Am, F)
+            ChordLyricsLine(chords=[(0, "Am"), (8, "F")], lyrics="line 1"),
+            # Line 2: chords 2-4 (C, G, Dm) with gap before Dm
+            ChordLyricsLine(chords=[(0, "C"), (8, "G"), (30, "Dm")], lyrics="line 2"),
+        ]
+        suggestions = suggest_bars_from_spacing(lines)
+
+        # Should suggest bar at position 4 (after G, before Dm)
+        # Position 4 = 2 chords from line 1 + 2 chords from line 2
+        assert any(s.position == 4 for s in suggestions)
+
+    def test_confidence_scores(self):
+        """Test that confidence scores are reasonable and vary with gap size."""
+        lines = [
+            # Very large gap (3x average)
+            ChordLyricsLine(
+                chords=[(0, "Am"), (10, "F"), (40, "C"), (50, "G")], lyrics="test"
+            )
+        ]
+        suggestions = suggest_bars_from_spacing(lines)
+
+        # Should have high confidence for very large gap
+        assert len(suggestions) >= 1
+        large_gap_suggestion = next(s for s in suggestions if s.position == 2)
+        assert large_gap_suggestion.confidence >= 0.70
+
+    def test_hebrew_song_ohev_otach(self):
+        """Test with 'אוהב אותך' Hebrew song (chord-above-lyrics format)."""
+        # Typical Hebrew song spacing pattern
+        lines = [
+            ChordLyricsLine(
+                chords=[
+                    (0, "Bbm"),
+                    (15, "Gb"),
+                    (45, "Db"),
+                    (60, "Ab"),
+                ],
+                lyrics="אוהב אותך כל כך",
+            )
+        ]
+        suggestions = suggest_bars_from_spacing(lines)
+
+        # Should detect bar boundaries based on spacing
+        assert len(suggestions) >= 1
+        assert all(0.0 <= s.confidence <= 1.0 for s in suggestions)
 
 
 class TestDetectBarsSimple:
