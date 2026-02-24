@@ -185,6 +185,12 @@ export function RiffEditor({
    * Handle beat range selection
    */
   const handleBeatClick = useCallback((beat: number, subdivision: number) => {
+    // Reset if beat is 0 (reset button clicked)
+    if (beat === 0) {
+      setBeatRange(null);
+      return;
+    }
+
     if (!beatRange) {
       // Start new range
       setBeatRange({
@@ -193,7 +199,9 @@ export function RiffEditor({
         endBeat: beat,
         endSubdivision: subdivision,
       });
-    } else if (!beatRange.endBeat || beatRange.endBeat === beatRange.startBeat) {
+    } else if (!beatRange.endBeat ||
+               (beatRange.endBeat === beatRange.startBeat &&
+                beatRange.endSubdivision === beatRange.startSubdivision)) {
       // Complete range
       setBeatRange({
         ...beatRange,
@@ -587,7 +595,7 @@ function EditingModeSelector({ mode, onModeChange }: EditingModeSelectorProps) {
 }
 
 /**
- * BeatRangeSelector: Interactive beat range selection
+ * BeatRangeSelector: Interactive beat range selection with subdivision support
  */
 interface BeatRangeSelectorProps {
   beatsPerBar: number;
@@ -600,26 +608,107 @@ function BeatRangeSelector({
   onBeatClick,
   selectedRange,
 }: BeatRangeSelectorProps) {
+  const [showSubdivisions, setShowSubdivisions] = useState(false);
+
+  // Check if a beat is in the selected range
+  const isBeatInRange = (beat: number): boolean => {
+    if (!selectedRange) return false;
+    if (!selectedRange.endBeat) return selectedRange.startBeat === beat;
+
+    const start = selectedRange.startBeat;
+    const end = selectedRange.endBeat;
+
+    if (start <= end) {
+      return beat >= start && beat <= end;
+    } else {
+      return beat >= end && beat <= start;
+    }
+  };
+
+  // Check if a beat is a range endpoint
+  const isRangeEndpoint = (beat: number): boolean => {
+    if (!selectedRange) return false;
+    return selectedRange.startBeat === beat || selectedRange.endBeat === beat;
+  };
+
   return (
     <div className="beat-range-selector">
-      <h3 className="selector-title">Select Beat Range for Riff</h3>
-      <div className="beat-grid-selector">
-        {Array.from({ length: beatsPerBar }, (_, beatIdx) => (
-          <BeatButton
-            key={beatIdx}
-            beat={beatIdx + 1}
-            subdivision={0}
-            onClick={onBeatClick}
-            isSelected={
-              selectedRange !== null &&
-              (selectedRange.startBeat === beatIdx + 1 || selectedRange.endBeat === beatIdx + 1)
-            }
+      <div className="selector-header">
+        <h3 className="selector-title">Select Beat Range for Riff</h3>
+        <label className="subdivision-toggle">
+          <input
+            type="checkbox"
+            checked={showSubdivisions}
+            onChange={(e) => setShowSubdivisions(e.target.checked)}
           />
-        ))}
+          <span>Show subdivisions</span>
+        </label>
       </div>
-      <p className="selector-instructions">
-        Click a beat to start selection, then click another beat to complete the range.
-      </p>
+
+      {!showSubdivisions ? (
+        // Simple beat grid (no subdivisions)
+        <div className="beat-grid-selector">
+          {Array.from({ length: beatsPerBar }, (_, beatIdx) => {
+            const beat = beatIdx + 1;
+            return (
+              <BeatButton
+                key={beatIdx}
+                beat={beat}
+                subdivision={0}
+                onClick={onBeatClick}
+                isSelected={isRangeEndpoint(beat)}
+                isInRange={isBeatInRange(beat)}
+              />
+            );
+          })}
+        </div>
+      ) : (
+        // Beat grid with subdivisions (quarter notes)
+        <div className="beat-grid-subdivisions">
+          {Array.from({ length: beatsPerBar }, (_, beatIdx) => {
+            const beat = beatIdx + 1;
+            return (
+              <div key={beatIdx} className="beat-with-subdivisions">
+                <div className="subdivision-group">
+                  {[0, 1, 2, 3].map(subdivision => (
+                    <SubdivisionButton
+                      key={subdivision}
+                      beat={beat}
+                      subdivision={subdivision}
+                      onClick={onBeatClick}
+                      isSelected={
+                        selectedRange !== null &&
+                        ((selectedRange.startBeat === beat && selectedRange.startSubdivision === subdivision) ||
+                         (selectedRange.endBeat === beat && selectedRange.endSubdivision === subdivision))
+                      }
+                    />
+                  ))}
+                </div>
+                <div className="beat-label">Beat {beat}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="selector-info">
+        <p className="selector-instructions">
+          {!selectedRange
+            ? "Click a beat to start selection, then click another beat to complete the range."
+            : selectedRange.endBeat
+            ? `Range selected: Beat ${selectedRange.startBeat}${selectedRange.startSubdivision > 0 ? `.${selectedRange.startSubdivision}` : ''} to ${selectedRange.endBeat}${selectedRange.endSubdivision > 0 ? `.${selectedRange.endSubdivision}` : ''}`
+            : `Start: Beat ${selectedRange.startBeat}${selectedRange.startSubdivision > 0 ? `.${selectedRange.startSubdivision}` : ''}. Click another beat to complete.`
+          }
+        </p>
+        {selectedRange && (
+          <button
+            className="btn-reset-range"
+            onClick={() => onBeatClick(0, 0)} // This will trigger reset in parent
+          >
+            Reset Range
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -632,15 +721,42 @@ interface BeatButtonProps {
   subdivision: number;
   onClick: (beat: number, subdivision: number) => void;
   isSelected: boolean;
+  isInRange: boolean;
 }
 
-function BeatButton({ beat, subdivision, onClick, isSelected }: BeatButtonProps) {
+function BeatButton({ beat, subdivision, onClick, isSelected, isInRange }: BeatButtonProps) {
   return (
     <button
-      className={`beat-button ${isSelected ? 'selected' : ''}`}
+      className={`beat-button ${isSelected ? 'selected' : ''} ${isInRange ? 'in-range' : ''}`}
       onClick={() => onClick(beat, subdivision)}
+      aria-label={`Beat ${beat}`}
     >
-      Beat {beat}
+      <span className="beat-number">{beat}</span>
+    </button>
+  );
+}
+
+/**
+ * SubdivisionButton: Individual subdivision button for precise beat selection
+ */
+interface SubdivisionButtonProps {
+  beat: number;
+  subdivision: number;
+  onClick: (beat: number, subdivision: number) => void;
+  isSelected: boolean;
+}
+
+const SUBDIVISION_LABELS = ['', '&', 'e', 'a'];
+
+function SubdivisionButton({ beat, subdivision, onClick, isSelected }: SubdivisionButtonProps) {
+  return (
+    <button
+      className={`subdivision-button ${isSelected ? 'selected' : ''} ${subdivision === 0 ? 'on-beat' : ''}`}
+      onClick={() => onClick(beat, subdivision)}
+      aria-label={`Beat ${beat}, subdivision ${SUBDIVISION_LABELS[subdivision] || subdivision}`}
+      title={`${subdivision === 0 ? 'On beat' : SUBDIVISION_LABELS[subdivision]}`}
+    >
+      {subdivision === 0 ? beat : SUBDIVISION_LABELS[subdivision]}
     </button>
   );
 }
