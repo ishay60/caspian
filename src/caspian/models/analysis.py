@@ -60,6 +60,31 @@ class Pattern:
 
 
 @dataclass
+class BarAnalysis:
+    """Analysis of a single bar.
+
+    Contains harmonic analysis and rhythmic information for one bar.
+    Links to the individual chord analyses within the bar.
+
+    Attributes:
+        bar_index: 0-based index of this bar in the section
+        chord_analyses: List of chord analyses for chords in this bar
+        harmonic_rhythm: Description of chord change frequency
+            - "static": One chord for entire bar
+            - "half-bar": Chord changes at half-bar (beat 3 in 4/4)
+            - "per-beat": Chord changes on each beat
+            - "syncopated": Chord changes on off-beats or irregular timing
+        has_riff: Whether this bar contains a riff or melodic fill
+        riff_analysis: Optional description of the riff if present
+    """
+    bar_index: int
+    chord_analyses: list[ChordAnalysis] = field(default_factory=list)
+    harmonic_rhythm: str = "static"  # "static", "half-bar", "per-beat", "syncopated"
+    has_riff: bool = False
+    riff_analysis: str | None = None
+
+
+@dataclass
 class SectionAnalysis:
     """Analysis of a song section."""
     name: str
