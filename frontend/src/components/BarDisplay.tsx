@@ -30,12 +30,17 @@ export function BarDisplay({
   const [beatsPerBar] = timeSignature;
   const chords = bar.chord_analyses;
 
+  // Dynamic grid columns based on time signature
+  const gridStyle = {
+    gridTemplateColumns: `repeat(${beatsPerBar}, 1fr)`,
+  };
+
   return (
     <div className="bar-display">
       {/* Bar container with beat grid */}
       <div className="bar-content">
         {/* Chord symbols layer */}
-        <div className="chords-layer">
+        <div className="chords-layer" style={gridStyle}>
           {chords.map((chord, chordIdx) => (
             <ChordSymbol
               key={chordIdx}
@@ -49,7 +54,7 @@ export function BarDisplay({
         </div>
 
         {/* Beat grid */}
-        <div className="beat-grid">
+        <div className="beat-grid" style={gridStyle}>
           {Array.from({ length: beatsPerBar }, (_, beatIdx) => (
             <BeatMarker key={beatIdx} beatNumber={beatIdx + 1} />
           ))}

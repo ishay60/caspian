@@ -101,6 +101,7 @@
 
 import type { Section, BarAnalysis, BarChord, BeatPosition } from '../types';
 import { BarDisplay } from './BarDisplay';
+import './ChordSheetView.css';
 
 interface ChordSheetViewProps {
   section: Section;
