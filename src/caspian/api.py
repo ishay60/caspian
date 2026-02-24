@@ -27,6 +27,7 @@ from caspian.completion.chord_completion import chord_completions
 from caspian.parsing.input_parser import parse_format_a
 from caspian.parsing.website_normalizer import normalize_website_paste
 from caspian.parsing.chord_parser import parse_chord
+from caspian.parsing.registry import get_global_registry
 from caspian.analysis.analyzer import analyze_song, analyze_section
 from caspian.models.key import Key
 from caspian.models.analysis import (
@@ -293,14 +294,16 @@ def _needs_segmentation(song_input) -> bool:
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
 def analyze(req: AnalyzeRequest):
-    text = normalize_website_paste(req.text)
-    song_input = parse_format_a(text)
+    # Use registry for auto-detection and parsing
+    registry = get_global_registry()
+    song_input = registry.parse(req.text)
+
     analysis = analyze_song(song_input)
     resp = _serialize_analysis(analysis)
 
     if _needs_segmentation(song_input):
         resp.segmentation_suggested = True
-        resp.pairs = _extract_pairs(text)
+        resp.pairs = _extract_pairs(req.text)  # Use original text for pair extraction
 
     return resp
 

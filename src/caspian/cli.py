@@ -6,6 +6,7 @@ import argparse
 import sys
 
 from caspian.parsing.input_parser import parse_format_a
+from caspian.parsing.registry import get_global_registry
 from caspian.analysis.analyzer import analyze_song
 from caspian.output.terminal import print_analysis
 
@@ -39,7 +40,9 @@ def main() -> None:
         sys.exit(1)
 
     # Parse → Analyze → Print
-    song_input = parse_format_a(text)
+    # Use registry for auto-detection and parsing
+    registry = get_global_registry()
+    song_input = registry.parse(text)
     analysis = analyze_song(song_input)
     print_analysis(analysis)
 

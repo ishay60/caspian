@@ -7,6 +7,13 @@ Format A rules:
 - Pure chord lines (no pipe, no Hebrew): "Am Am D D" (LTR)
 - Pure chord lines with Hebrew (no pipe): RTL
 - Chord-above-lyrics: chord line on one line, Hebrew lyrics on the next
+
+Note: As of Phase 3.2, consider using the parser registry for automatic
+format detection instead of calling parse_format_a directly:
+
+    from caspian.parsing.registry import get_global_registry
+    registry = get_global_registry()
+    song_input = registry.parse(text)  # Auto-detects format
 """
 
 from __future__ import annotations
@@ -54,7 +61,14 @@ def _is_pure_chord_line(line: str) -> bool:
 
 
 def parse_format_a(text: str) -> SongInput:
-    """Parse Format A text into a SongInput model."""
+    """Parse Format A text into a SongInput model.
+
+    Note: This function expects text to already be in Format A.
+    For automatic format detection, use the parser registry instead:
+
+        from caspian.parsing.registry import get_global_registry
+        song_input = get_global_registry().parse(text)
+    """
     # Strip invisible bidi marks that break chord parsing (e.g. G#\u200em → G#m)
     text = _BIDI_MARKS.sub("", text)
     lines = text.strip().split("\n")
@@ -212,3 +226,37 @@ def parse_format_a(text: str) -> SongInput:
         key_mode=key_mode,
         sections=sections,
     )
+
+
+def parse_song(text: str) -> SongInput:
+    """Parse song input with automatic format detection.
+
+    This is a convenience wrapper around the parser registry.
+    Detects the input format and routes to the appropriate parser.
+
+    Supported formats:
+    - Format A (native Caspian format)
+    - Website paste (chord/lyrics alternating)
+    - Ultimate Guitar HTML
+    - Tab4u HTML
+    - ChordPro (future)
+    - Bar notation (future)
+
+    Args:
+        text: Raw input text in any supported format
+
+    Returns:
+        Validated SongInput model
+
+    Raises:
+        ValueError: If format cannot be detected or parsing fails
+
+    Example:
+        >>> text = "key: Am\\n[verse]\\nAm G F C"
+        >>> song = parse_song(text)
+        >>> song.key
+        'Am'
+    """
+    from caspian.parsing.registry import get_global_registry
+    registry = get_global_registry()
+    return registry.parse(text)
