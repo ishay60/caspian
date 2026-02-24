@@ -1,8 +1,8 @@
 # Caspian Grand Plan - Implementation TODO (SSOT)
 
 **Last Updated:** 2026-02-24
-**Current Branch:** develop
-**Current Story Point:** 3.2 Complete - Ready for 3.3
+**Current Branch:** story/3.5-paste-preview
+**Current Story Point:** 3.5 Complete - Ready for Phase 4
 
 ---
 
@@ -251,16 +251,17 @@ This is the **Single Source of Truth (SSOT)** for all implementation tasks for t
 - [ ] Task 3.4.7: Write ChordPro parser tests
 - [ ] Task 3.4.8: Add ChordPro examples to test fixtures
 
-### Story Point 3.5: Frontend Paste Preview
-**Branch:** `story/3.5-paste-preview`
+### Story Point 3.5: Frontend Paste Preview ✅ COMPLETED
+**Branch:** `story/3.5-paste-preview` (pushed to remote)
+**Commits:** 3 (UI mockup + implementation + tests)
 
-- [ ] Task 3.5.1: Design paste preview UI mockup
-- [ ] Task 3.5.2: Update `InputForm.tsx` to show detected format
-- [ ] Task 3.5.3: Add format indicator badge
-- [ ] Task 3.5.4: Show preview of parsed structure before analysis
-- [ ] Task 3.5.5: Add format selector dropdown (override auto-detection)
-- [ ] Task 3.5.6: Add format switch handler
-- [ ] Task 3.5.7: Write component tests
+- [x] Task 3.5.1: Design paste preview UI mockup
+- [x] Task 3.5.2: Update `InputForm.tsx` to show detected format
+- [x] Task 3.5.3: Add format indicator badge
+- [x] Task 3.5.4: Show preview of parsed structure before analysis
+- [x] Task 3.5.5: Add format selector dropdown (override auto-detection)
+- [x] Task 3.5.6: Add format switch handler
+- [x] Task 3.5.7: Write component tests
 
 ---
 
