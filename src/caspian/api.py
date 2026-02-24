@@ -42,6 +42,7 @@ from caspian.models.key import Key
 from caspian.models.lyrics_input import LyricsInputRequest
 from caspian.models.analysis import (
     AnalysisInterpretation,
+    BarAnalysis,
     BassNote,
     ChordAnalysis,
     ChromaticRun,
@@ -135,6 +136,14 @@ class ChordLyricsLineResponse(BaseModel):
     lyrics: str
 
 
+class BarAnalysisResponse(BaseModel):
+    bar_index: int
+    chord_analyses: list[ChordAnalysisResponse]
+    harmonic_rhythm: str  # "static" | "half-bar" | "per-beat" | "syncopated"
+    has_riff: bool = False
+    riff_analysis: str | None = None
+
+
 class SectionResponse(BaseModel):
     name: str
     chords: list[ChordAnalysisResponse]
@@ -142,6 +151,7 @@ class SectionResponse(BaseModel):
     chromatic_runs: list[ChromaticRunResponse]
     patterns: list[PatternResponse]
     lines: list[ChordLyricsLineResponse] = []
+    bars: list[BarAnalysisResponse] = []
 
 
 class KeyResponse(BaseModel):
@@ -285,6 +295,17 @@ def _serialize_section(section: SectionAnalysis, key: Key) -> SectionResponse:
                   for p in section.patterns],
         lines=[ChordLyricsLineResponse(chords=cl.chords, lyrics=cl.lyrics)
                for cl in section.lines],
+        bars=[_serialize_bar(bar, key) for bar in section.bars],
+    )
+
+
+def _serialize_bar(bar: BarAnalysis, key: Key) -> BarAnalysisResponse:
+    return BarAnalysisResponse(
+        bar_index=bar.bar_index,
+        chord_analyses=[_serialize_chord(ca, key) for ca in bar.chord_analyses],
+        harmonic_rhythm=bar.harmonic_rhythm,
+        has_riff=bar.has_riff,
+        riff_analysis=bar.riff_analysis,
     )
 
 
