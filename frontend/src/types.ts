@@ -89,3 +89,12 @@ export interface LlmAnalysisResult {
   sections: LlmSectionNarrative[];
   overall_summary: string;
 }
+
+export interface SearchResult {
+  title: string;
+  artist: string;
+  source: 'ultimate_guitar' | 'tab4u';
+  url: string;
+  rating: number;
+  rating_count: number;
+}

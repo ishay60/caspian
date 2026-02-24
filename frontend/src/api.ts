@@ -1,4 +1,4 @@
-import type { AnalysisResult, LlmAnalysisResult, Section } from './types';
+import type { AnalysisResult, LlmAnalysisResult, Section, SearchResult } from './types';
 
 export async function analyzeChords(text: string): Promise<AnalysisResult> {
   const resp = await fetch('/api/analyze', {
@@ -78,5 +78,46 @@ export async function requestLlmAnalysis(
     const body = await resp.json().catch(() => ({ detail: 'LLM analysis failed' }));
     throw new Error(body.detail ?? 'LLM analysis failed');
   }
+  return resp.json();
+}
+
+export interface SearchSongsResponse {
+  query: string;
+  source: string;
+  results: SearchResult[];
+  total: number;
+}
+
+export async function searchSongs(
+  query: string,
+  source: 'all' | 'ug' | 'tab4u' = 'all',
+  limit: number = 10
+): Promise<SearchSongsResponse> {
+  const params = new URLSearchParams({
+    q: query,
+    source,
+    limit: limit.toString()
+  });
+
+  const resp = await fetch(`/api/search-songs?${params}`);
+
+  if (!resp.ok) {
+    const msg = await resp.text();
+    throw new Error(`Search failed: ${msg}`);
+  }
+
+  return resp.json();
+}
+
+export async function fetchSheet(url: string): Promise<AnalysisResult> {
+  const params = new URLSearchParams({ url });
+
+  const resp = await fetch(`/api/fetch-sheet?${params}`);
+
+  if (!resp.ok) {
+    const msg = await resp.text();
+    throw new Error(`Fetch failed: ${msg}`);
+  }
+
   return resp.json();
 }

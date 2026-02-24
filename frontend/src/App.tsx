@@ -8,6 +8,7 @@ import { SectionSplitter } from './components/SectionSplitter';
 import { SettingsBar } from './components/SettingsBar';
 import { SongLibrary } from './components/SongLibrary';
 import { ViewToolboxSidebar } from './components/ViewToolboxSidebar';
+import { SongSearch } from './components/SongSearch';
 
 const Tuner = lazy(() => import('./components/Tuner').then(m => ({ default: m.Tuner })));
 
@@ -159,6 +160,12 @@ function AppContent() {
     handleAnalyze(inputText);
   }
 
+  function handleSongSelected(analysis: AnalysisResult) {
+    setResult(analysis);
+    setShowSplitter(false);
+    setError(null);
+  }
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text)' }}>
       {/* Header — modern, approachable branding + chord legend */}
@@ -253,11 +260,46 @@ function AppContent() {
           </div>
         )}
 
-        <InputForm
-          onAnalyze={handleAnalyze}
-          loading={loading}
-          sampleInput={SAMPLE_INPUT}
-        />
+        {/* Song Search */}
+        <div className="mb-8">
+          <div
+            className="rounded-2xl border p-6"
+            style={{
+              borderColor: 'var(--color-border)',
+              backgroundColor: 'var(--color-surface)',
+              boxShadow: 'var(--shadow-sm)'
+            }}
+          >
+            <h2
+              className="text-xl font-bold mb-4"
+              style={{ color: 'var(--color-text)' }}
+            >
+              Search Online Chord Sheets
+            </h2>
+            <SongSearch onSongSelected={handleSongSelected} />
+          </div>
+        </div>
+
+        <div
+          className="rounded-2xl border p-6 mb-8"
+          style={{
+            borderColor: 'var(--color-border)',
+            backgroundColor: 'var(--color-surface)',
+            boxShadow: 'var(--shadow-sm)'
+          }}
+        >
+          <h2
+            className="text-xl font-bold mb-4"
+            style={{ color: 'var(--color-text)' }}
+          >
+            Or Enter Chord Sheet Manually
+          </h2>
+          <InputForm
+            onAnalyze={handleAnalyze}
+            loading={loading}
+            sampleInput={SAMPLE_INPUT}
+          />
+        </div>
 
         {error && (
           <div
