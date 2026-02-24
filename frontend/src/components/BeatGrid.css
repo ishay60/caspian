@@ -1,0 +1,346 @@
+/**
+ * BeatGrid Component Styles
+ *
+ * Visual beat grid for precise chord and note placement
+ */
+
+.beat-grid-container {
+  width: 100%;
+  margin: 1rem 0;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+/* Header */
+.beat-grid-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #f6f8fa;
+  border-bottom: 1px solid #d0d7de;
+}
+
+.beat-grid-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #24292f;
+}
+
+/* Harmonic Rhythm Indicator */
+.beat-grid-harmonic-rhythm {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.harmonic-rhythm-bar {
+  height: 4px;
+  border-radius: 2px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.beat-grid-harmonic-rhythm.low .harmonic-rhythm-bar {
+  background-color: #0969da; /* Blue - low intensity */
+}
+
+.beat-grid-harmonic-rhythm.medium .harmonic-rhythm-bar {
+  background-color: #bf8700; /* Yellow - medium intensity */
+}
+
+.beat-grid-harmonic-rhythm.high .harmonic-rhythm-bar {
+  background-color: #cf222e; /* Red - high intensity */
+}
+
+.harmonic-rhythm-label {
+  color: #57606a;
+  white-space: nowrap;
+}
+
+/* Grid */
+.beat-grid {
+  position: relative;
+  height: 120px;
+  padding: 1rem 0;
+  cursor: crosshair;
+  user-select: none;
+}
+
+.beat-grid.read-only {
+  cursor: default;
+}
+
+/* Beat Lines */
+.beat-grid-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.beat-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.beat-line.main-beat {
+  background: #d0d7de;
+  z-index: 2;
+}
+
+.beat-line.subdivision {
+  background: #eaeef2;
+  z-index: 1;
+}
+
+.beat-number {
+  position: absolute;
+  top: 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #57606a;
+  padding: 0 0.25rem;
+  background: #ffffff;
+  border-radius: 2px;
+}
+
+/* Grid Elements */
+.beat-grid-elements {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 60px;
+  transform: translateY(-50%);
+}
+
+.grid-element {
+  position: absolute;
+  transform: translateX(-50%);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.grid-element:hover {
+  z-index: 20;
+  transform: translateX(-50%) scale(1.1);
+}
+
+.grid-element.dragging {
+  opacity: 0.7;
+  z-index: 30;
+  cursor: grabbing;
+}
+
+/* Chord Marker */
+.chord-marker {
+  padding: 0.5rem 0.75rem;
+  background: #0969da;
+  color: #ffffff;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  white-space: nowrap;
+}
+
+.grid-element.chord:hover .chord-marker {
+  background: #0550ae;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Note Marker */
+.note-marker {
+  width: 24px;
+  height: 24px;
+  background: #1f883d;
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.grid-element.note:hover .note-marker {
+  background: #1a7f37;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Tab Marker */
+.tab-marker {
+  width: 28px;
+  height: 28px;
+  background: #8250df;
+  color: #ffffff;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.grid-element.tab:hover .tab-marker {
+  background: #6e32cf;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Hover Indicator */
+.hover-indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #0969da;
+  opacity: 0.5;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Legend */
+.beat-grid-legend {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: #f6f8fa;
+  border-top: 1px solid #d0d7de;
+  font-size: 0.75rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #57606a;
+}
+
+.legend-marker {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+}
+
+.legend-marker.chord {
+  background: #0969da;
+}
+
+.legend-marker.note {
+  background: #1f883d;
+  border-radius: 50%;
+}
+
+.legend-marker.tab {
+  background: #8250df;
+}
+
+/* Instructions */
+.beat-grid-instructions {
+  padding: 0.75rem 1rem;
+  background: #ddf4ff;
+  border-top: 1px solid #d0d7de;
+  font-size: 0.75rem;
+  color: #0969da;
+  text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .beat-grid {
+    height: 100px;
+  }
+
+  .chord-marker {
+    padding: 0.375rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .note-marker,
+  .tab-marker {
+    width: 20px;
+    height: 20px;
+    font-size: 0.5rem;
+  }
+
+  .beat-grid-legend {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .beat-grid-container {
+    background: #0d1117;
+    border-color: #30363d;
+  }
+
+  .beat-grid-header,
+  .beat-grid-legend {
+    background: #161b22;
+    border-color: #30363d;
+  }
+
+  .beat-grid-title {
+    color: #c9d1d9;
+  }
+
+  .beat-line.main-beat {
+    background: #30363d;
+  }
+
+  .beat-line.subdivision {
+    background: #21262d;
+  }
+
+  .beat-number {
+    background: #0d1117;
+    color: #8b949e;
+  }
+
+  .harmonic-rhythm-label,
+  .legend-item {
+    color: #8b949e;
+  }
+
+  .beat-grid-instructions {
+    background: #1c2128;
+    border-color: #30363d;
+    color: #58a6ff;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .beat-grid-container {
+    page-break-inside: avoid;
+    border: 1px solid #000;
+  }
+
+  .beat-grid-harmonic-rhythm,
+  .beat-grid-instructions {
+    display: none;
+  }
+
+  .beat-grid {
+    cursor: default;
+  }
+
+  .grid-element {
+    cursor: default;
+  }
+}

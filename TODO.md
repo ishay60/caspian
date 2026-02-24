@@ -1,8 +1,8 @@
 # Caspian Grand Plan - Implementation TODO (SSOT)
 
 **Last Updated:** 2026-02-24
-**Current Branch:** develop
-**Current Story Point:** Phase 4 Story Point 4.4 COMPLETE ✅ - Ready for 4.5
+**Current Branch:** story/4.5-beat-grid
+**Current Story Point:** Phase 4 Story Point 4.5 COMPLETE ✅ - Ready for 4.6
 
 ---
 
@@ -346,17 +346,21 @@ This is the **Single Source of Truth (SSOT)** for all implementation tasks for t
 - [x] Task 4.4.10: Update collapsed view to show riff indicator
 - [x] Task 4.4.11: Write component tests
 
-### Story Point 4.5: Beat Grid Editor
-**Branch:** `story/4.5-beat-grid`
+### Story Point 4.5: Beat Grid Editor ✅ COMPLETED
+**Branch:** `story/4.5-beat-grid` (ready to merge to develop)
+**Tests:** 40+ test cases written (commented until testing framework is set up)
+**Commits:** 8 commits (one per task)
+**Files:** 3 new files created (BeatGrid.tsx, BeatGrid.css, BeatGrid.test.tsx)
+**Lines Added:** 1,476 lines
 
-- [ ] Task 4.5.1: Create `BeatGrid.tsx` component
-- [ ] Task 4.5.2: Render beat grid per bar (4/4 default)
-- [ ] Task 4.5.3: Add click-to-place chords on grid
-- [ ] Task 4.5.4: Implement 8th and 16th subdivision support
-- [ ] Task 4.5.5: Add visual indication of harmonic rhythm
-- [ ] Task 4.5.6: Show notes/riffs as smaller dots
-- [ ] Task 4.5.7: Add drag-to-reposition functionality
-- [ ] Task 4.5.8: Write component tests
+- [x] Task 4.5.1: Create `BeatGrid.tsx` component
+- [x] Task 4.5.2: Render beat grid per bar (4/4 default)
+- [x] Task 4.5.3: Add click-to-place chords on grid
+- [x] Task 4.5.4: Implement 8th and 16th subdivision support
+- [x] Task 4.5.5: Add visual indication of harmonic rhythm
+- [x] Task 4.5.6: Show notes/riffs as smaller dots
+- [x] Task 4.5.7: Add drag-to-reposition functionality
+- [x] Task 4.5.8: Write component tests
 
 ### Story Point 4.6: Backend Lyrics-to-SongInput Converter
 **Branch:** `story/4.6-lyrics-converter`
