@@ -23,13 +23,13 @@ function transposeSection(section: Section, semitones: number): Section {
   return {
     ...section,
     chords: section.chords.map(c => transposeChord(c, semitones)),
-    bass_line: section.bass_line.map(bn => ({
+    bass_line: section.bass_line?.map(bn => ({
       ...bn,
       pitch: transposePitch(bn.pitch, semitones),
       name: pitchToName(transposePitch(bn.pitch, semitones)),
       chord_symbol: transposeChordSymbol(bn.chord_symbol, semitones),
     })),
-    chromatic_runs: section.chromatic_runs.map(cr => ({
+    chromatic_runs: section.chromatic_runs?.map(cr => ({
       ...cr,
       notes: cr.notes.map(n => {
         const idx = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'].indexOf(n);
@@ -180,9 +180,11 @@ export function AnalysisView({ result }: Props) {
         </div>
 
         {/* Transpose bar */}
-        <div className="mt-5">
-          <TransposeBar currentKey={currentKey} onTranspose={handleTranspose} />
-        </div>
+        {currentKey && (
+          <div className="mt-5">
+            <TransposeBar currentKey={currentKey} onTranspose={handleTranspose} />
+          </div>
+        )}
 
         {/* Action buttons row */}
         <div className="mt-5 flex items-center gap-3 flex-wrap">

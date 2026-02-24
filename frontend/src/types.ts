@@ -109,10 +109,10 @@ export interface ChordLyricsLine {
 export interface Section {
   name: string;
   chords: ChordAnalysis[];
-  bass_line: BassNote[];
-  chromatic_runs: ChromaticRun[];
-  patterns: Pattern[];
-  lines: ChordLyricsLine[];
+  bass_line?: BassNote[];
+  chromatic_runs?: ChromaticRun[];
+  patterns?: Pattern[];
+  lines?: ChordLyricsLine[];
   bars?: BarAnalysis[];  // Task 1.3.8: optional for backward compatibility
 }
 

@@ -37,7 +37,7 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
 
   const nonDiatonic = section.chords.filter(c => !c.is_diatonic);
   const deceptive = section.chords.filter(c => c.deceptive_resolution);
-  const hasAnalysisDetails = nonDiatonic.length > 0 || deceptive.length > 0 || section.chromatic_runs.length > 0;
+  const hasAnalysisDetails = nonDiatonic.length > 0 || deceptive.length > 0 || (section.chromatic_runs?.length ?? 0) > 0;
 
   const showStaff = notation.showStaff;
 
@@ -389,10 +389,10 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
             )}
 
             {/* Bass line */}
-            {section.bass_line.length > 0 && (
+            {section.bass_line && section.bass_line.length > 0 && (
               <BassLine
                 bassLine={section.bass_line}
-                chromaticRuns={section.chromatic_runs}
+                chromaticRuns={section.chromatic_runs || []}
               />
             )}
 
@@ -444,7 +444,7 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
                       </div>
                     )}
 
-                    {section.chromatic_runs.length > 0 && (
+                    {section.chromatic_runs && section.chromatic_runs.length > 0 && (
                       <div>
                         <h4 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-neutral)' }}>
                           {t.chromaticMotion}
