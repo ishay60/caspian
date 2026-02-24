@@ -5,13 +5,15 @@ from caspian.parsing.input_parser import parse_format_a
 
 class TestInlineSection:
     def test_intro_with_inline_chords(self):
-        """'intro: | Gm7b5 | Fm/Ab |' should create an intro section with chords."""
+        """'intro: | Gm7b5 | Fm/Ab |' should create an intro section with bars."""
         text = "intro: | Gm7b5 | Fm/Ab | Ebm | Bbm |"
         result = parse_format_a(text)
         assert len(result.sections) == 1
         assert result.sections[0].name == "intro"
         assert result.sections[0].section_type == "instrumental"
-        symbols = [c.symbol for c in result.sections[0].chords]
+        # Bar notation now creates bars instead of flat chords
+        assert len(result.sections[0].bars) == 4
+        symbols = [bar.content.chords[0].symbol for bar in result.sections[0].bars]
         assert "Gm7b5" in symbols
         assert "Bbm" in symbols
 
@@ -43,6 +45,9 @@ class TestInlineSection:
         result = parse_format_a(text)
         names = [s.name for s in result.sections]
         assert names == ["intro", "verse"]
+        # Intro should have bars (bar notation), verse should have chords (no bar notation)
+        assert len(result.sections[0].bars) == 2
+        assert len(result.sections[1].chords) == 2
 
     def test_unknown_field_no_chords_skipped(self):
         """Unknown metadata fields without chords are skipped."""

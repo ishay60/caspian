@@ -23,6 +23,7 @@ import re
 from caspian.models.input import ChordInput, ChordLyricsLine, SectionInput, SongInput
 from caspian.parsing.rtl_handler import has_hebrew, normalize_chord_order, detect_section_type
 from caspian.parsing.section_detector import detect_section
+from caspian.parsing.bar_notation_parser import BarNotationParser
 
 # Supports G6, Dm7/9, F7+, Bbdim, Am/G (suffix may include / and digits)
 _CHORD_PATTERN = re.compile(r"[A-G][#b]?[a-zA-Z0-9+/]*")
@@ -144,34 +145,58 @@ def parse_format_a(text: str) -> SongInput:
 
         # Check for pipe separator: "chords | lyrics" or "| chord | chord |" bar notation
         if "|" in line:
-            parts = line.split("|", 1)
-            chord_part = parts[0].strip()
-            lyrics_part = parts[1].strip()
+            # Create bar notation parser instance (lightweight, only used when needed)
+            bar_parser = BarNotationParser()
 
-            # Detect bar notation: if the part before first pipe has no chords,
-            # or if there's no Hebrew after the first pipe, treat entire line as chords
-            all_chords_in_line = _extract_chords(line)
-            if not chord_part or (not has_hebrew(lyrics_part) and all_chords_in_line):
-                # Bar notation: "| Gm7b5 | Fm/Ab |" — extract all chords from full line
-                if current_section.section_type == "instrumental":
-                    chords = all_chords_in_line  # LTR
-                elif has_hebrew(line):
-                    chords = list(reversed(all_chords_in_line))  # RTL
-                else:
-                    chords = all_chords_in_line  # LTR
-                for chord_sym in chords:
-                    current_section.chords.append(ChordInput(symbol=chord_sym))
+            # Check if this is true bar notation (starts and ends with |)
+            if bar_parser.is_bar_notation_line(line):
+                # Bar notation: "| Gm7b5 | Fm/Ab |" — parse into Bar objects
+                try:
+                    bars = bar_parser.parse_bar_line(line)
+                    # Add all bars to the section
+                    current_section.bars.extend(bars)
+                except ValueError as e:
+                    # If bar parsing fails, fall back to chord extraction for backward compatibility
+                    all_chords_in_line = _extract_chords(line)
+                    if current_section.section_type == "instrumental":
+                        chords = all_chords_in_line  # LTR
+                    elif has_hebrew(line):
+                        chords = list(reversed(all_chords_in_line))  # RTL
+                    else:
+                        chords = all_chords_in_line  # LTR
+                    for chord_sym in chords:
+                        current_section.chords.append(ChordInput(symbol=chord_sym))
             else:
-                visual_chords = _extract_chords(chord_part)
-                # Lines with pipe: chords are on left, lyrics on right
-                # If lyrics contain Hebrew, the performance order is RTL
-                chords = normalize_chord_order(visual_chords, lyrics_part)
+                # Not bar notation - check for "chords | lyrics" format
+                parts = line.split("|", 1)
+                chord_part = parts[0].strip()
+                lyrics_part = parts[1].strip()
 
-                # Associate lyrics with the section's chords
-                for chord_sym in chords:
-                    current_section.chords.append(
-                        ChordInput(symbol=chord_sym, lyrics=lyrics_part)
-                    )
+                # Could still be bar notation without proper delimiters
+                # If no chord part before first pipe and no Hebrew after, treat as chords
+                all_chords_in_line = _extract_chords(line)
+                if not chord_part or (not has_hebrew(lyrics_part) and all_chords_in_line):
+                    # Ambiguous case - extract chords for backward compatibility
+                    if current_section.section_type == "instrumental":
+                        chords = all_chords_in_line  # LTR
+                    elif has_hebrew(line):
+                        chords = list(reversed(all_chords_in_line))  # RTL
+                    else:
+                        chords = all_chords_in_line  # LTR
+                    for chord_sym in chords:
+                        current_section.chords.append(ChordInput(symbol=chord_sym))
+                else:
+                    # True "chords | lyrics" format
+                    visual_chords = _extract_chords(chord_part)
+                    # Lines with pipe: chords are on left, lyrics on right
+                    # If lyrics contain Hebrew, the performance order is RTL
+                    chords = normalize_chord_order(visual_chords, lyrics_part)
+
+                    # Associate lyrics with the section's chords
+                    for chord_sym in chords:
+                        current_section.chords.append(
+                            ChordInput(symbol=chord_sym, lyrics=lyrics_part)
+                        )
         else:
             # No pipe separator — pure chord line or chord+Hebrew line
             visual_chords = _extract_chords(line)
