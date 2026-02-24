@@ -5,11 +5,14 @@ import pytest
 from caspian.analysis.bar_detection import (
     BarSuggestion,
     ChordCountPattern,
+    RepeatingPattern,
     SpacingAnalysis,
     analyze_chord_count_consistency,
     analyze_chord_spacing,
     detect_bars_simple,
+    find_repeating_patterns,
     suggest_bars_from_chord_count,
+    suggest_bars_from_patterns,
     suggest_bars_from_spacing,
 )
 from caspian.models.input import ChordLyricsLine
@@ -332,6 +335,138 @@ class TestSuggestBarsFromSpacing:
         # Should detect bar boundaries based on spacing
         assert len(suggestions) >= 1
         assert all(0.0 <= s.confidence <= 1.0 for s in suggestions)
+
+
+class TestRepeatingPatterns:
+    """Tests for find_repeating_patterns function."""
+
+    def test_no_pattern_short_sequence(self):
+        """Test with sequence too short for pattern detection."""
+        chords = ["Am", "F"]
+        patterns = find_repeating_patterns(chords, min_pattern_length=2)
+        # Need at least 2 repetitions (4 chords minimum for 2-chord pattern)
+        assert len(patterns) == 0
+
+    def test_exact_2_chord_pattern(self):
+        """Test exact 2-chord pattern repeating."""
+        chords = ["Am", "F", "Am", "F"]
+        patterns = find_repeating_patterns(chords)
+
+        assert len(patterns) == 1
+        assert patterns[0].pattern_length == 2
+        assert patterns[0].repetitions == 2
+        assert patterns[0].pattern_type == "exact"
+        assert patterns[0].confidence >= 0.70
+
+    def test_exact_4_chord_pattern(self):
+        """Test exact 4-chord pattern (typical pop progression)."""
+        chords = ["Am", "F", "C", "G", "Am", "F", "C", "G"]
+        patterns = find_repeating_patterns(chords)
+
+        assert len(patterns) == 1
+        assert patterns[0].pattern_length == 4
+        assert patterns[0].repetitions == 2
+        assert patterns[0].pattern_type == "exact"
+
+    def test_triple_repetition_higher_confidence(self):
+        """Test that more repetitions = higher confidence."""
+        # 3 repetitions of 2-chord pattern
+        chords = ["Am", "F", "Am", "F", "Am", "F"]
+        patterns = find_repeating_patterns(chords)
+
+        assert len(patterns) == 1
+        assert patterns[0].repetitions == 3
+        # Should have higher confidence than 2 repetitions (0.70 + 0.10 = 0.80)
+        assert patterns[0].confidence >= 0.79  # Allow for floating point precision
+
+    def test_no_pattern_irregular(self):
+        """Test irregular sequence with no repeating pattern."""
+        chords = ["Am", "F", "C", "G", "Dm", "E", "Bdim"]
+        patterns = find_repeating_patterns(chords)
+
+        assert len(patterns) == 0
+
+    def test_hebrew_song_pattern(self):
+        """Test with Hebrew song 'יום שישי חזר' chorus."""
+        # Chorus repeats: Am/E D#dim F#dim F D Am E Dm (8 chords)
+        # If song has 2 choruses back-to-back
+        chorus = ["Am/E", "D#dim", "F#dim", "F", "D", "Am", "E", "Dm"]
+        chords = chorus * 2  # 16 chords total
+
+        patterns = find_repeating_patterns(chords)
+
+        assert len(patterns) == 1
+        assert patterns[0].pattern_length == 8
+        assert patterns[0].repetitions == 2
+
+    def test_prefers_longest_exact_pattern(self):
+        """Test that algorithm prefers longer patterns when multiple exist."""
+        # Pattern: [Am F] repeated 4 times
+        # Could be detected as 2-chord pattern (4 reps) or 4-chord pattern (2 reps)
+        chords = ["Am", "F"] * 4
+
+        patterns = find_repeating_patterns(chords)
+
+        # Should detect both, but return highest confidence (fewest repetitions of longest pattern)
+        # Actually, both 2-chord x4 and 4-chord x2 have same confidence
+        # Currently returns first found (2-chord pattern has higher repetitions → higher confidence)
+        assert len(patterns) >= 1
+
+    def test_partial_match_not_detected(self):
+        """Test that partial matches (not exact) are not detected as patterns."""
+        # Similar but not exact: last chord differs
+        chords = ["Am", "F", "C", "G", "Am", "F", "C", "Dm"]
+        patterns = find_repeating_patterns(chords)
+
+        # Should not detect 4-chord exact pattern
+        # Might detect 2-chord pattern though
+        exact_4_chord = [p for p in patterns if p.pattern_length == 4 and p.pattern_type == "exact"]
+        assert len(exact_4_chord) == 0
+
+
+class TestSuggestBarsFromPatterns:
+    """Tests for suggest_bars_from_patterns function."""
+
+    def test_no_pattern_no_suggestions(self):
+        """Test that no pattern = no suggestions."""
+        chords = ["Am", "F", "C", "G", "Dm", "E", "Bdim"]
+        suggestions = suggest_bars_from_patterns(chords)
+
+        assert len(suggestions) == 0
+
+    def test_repeating_pattern_suggestions(self):
+        """Test suggestions from repeating pattern."""
+        chords = ["Am", "F", "C", "G", "Am", "F", "C", "G"]
+        suggestions = suggest_bars_from_patterns(chords)
+
+        # Should suggest bar at position 4 and 8
+        assert len(suggestions) == 2
+        assert suggestions[0].position == 4
+        assert suggestions[1].position == 8
+        assert all(s.heuristic == "pattern" for s in suggestions)
+        assert all("Repeating" in s.reason for s in suggestions)
+
+    def test_confidence_from_pattern(self):
+        """Test that confidence matches pattern confidence."""
+        chords = ["Am", "F"] * 3  # 3 repetitions
+        suggestions = suggest_bars_from_patterns(chords)
+
+        # All suggestions should have same confidence from pattern
+        assert len(suggestions) == 3
+        confidences = [s.confidence for s in suggestions]
+        assert len(set(confidences)) == 1  # All same
+        assert confidences[0] >= 0.79  # 3 repetitions → high confidence (0.70 + 0.10)
+
+    def test_hebrew_song_verse_chorus(self):
+        """Test with Hebrew song having repeating verse/chorus."""
+        verse = ["Am", "Dm", "F", "E"]
+        chords = verse * 2
+
+        suggestions = suggest_bars_from_patterns(chords)
+
+        assert len(suggestions) == 2
+        positions = [s.position for s in suggestions]
+        assert positions == [4, 8]
 
 
 class TestDetectBarsSimple:

@@ -298,6 +298,130 @@ def suggest_bars_from_spacing(
     return suggestions
 
 
+@dataclass(frozen=True)
+class RepeatingPattern:
+    """A detected repeating chord pattern.
+
+    Attributes:
+        pattern_length: Number of chords in the repeating pattern
+        repetitions: Number of times pattern repeats
+        start_index: Starting index in chord sequence
+        confidence: Confidence that this is a meaningful pattern (0.0-1.0)
+        pattern_type: Type of repetition ('exact', 'transposed', 'similar')
+    """
+
+    pattern_length: int
+    repetitions: int
+    start_index: int
+    confidence: float
+    pattern_type: Literal["exact", "transposed", "similar"]
+
+
+def find_repeating_patterns(
+    chord_sequence: list[str], min_pattern_length: int = 2, max_pattern_length: int = 8
+) -> list[RepeatingPattern]:
+    """Find repeating chord patterns in a sequence.
+
+    Detects when a chord progression repeats, which often indicates bar boundaries.
+    For example: ["Am", "F", "C", "G", "Am", "F", "C", "G"] has a 4-chord pattern
+    that repeats twice, suggesting 4 chords per bar.
+
+    Args:
+        chord_sequence: List of chord symbols
+        min_pattern_length: Minimum pattern length to detect (default: 2)
+        max_pattern_length: Maximum pattern length to detect (default: 8)
+
+    Returns:
+        List of RepeatingPattern objects, sorted by confidence (highest first)
+
+    Examples:
+        >>> find_repeating_patterns(["Am", "F", "C", "G", "Am", "F", "C", "G"])
+        [RepeatingPattern(pattern_length=4, repetitions=2, ...)]
+    """
+    if len(chord_sequence) < min_pattern_length * 2:
+        return []
+
+    patterns = []
+
+    # Try different pattern lengths
+    for pattern_len in range(min_pattern_length, max_pattern_length + 1):
+        if pattern_len > len(chord_sequence) // 2:
+            break
+
+        # Check if sequence can be divided into this pattern length
+        if len(chord_sequence) % pattern_len != 0:
+            continue
+
+        num_repetitions = len(chord_sequence) // pattern_len
+        pattern_chords = chord_sequence[:pattern_len]
+
+        # Check if pattern repeats exactly
+        is_exact_repeat = True
+        for i in range(1, num_repetitions):
+            segment_start = i * pattern_len
+            segment_end = segment_start + pattern_len
+            segment = chord_sequence[segment_start:segment_end]
+
+            if segment != pattern_chords:
+                is_exact_repeat = False
+                break
+
+        if is_exact_repeat and num_repetitions >= 2:
+            # Calculate confidence based on number of repetitions
+            confidence = min(0.95, 0.70 + (num_repetitions - 2) * 0.10)
+
+            pattern = RepeatingPattern(
+                pattern_length=pattern_len,
+                repetitions=num_repetitions,
+                start_index=0,
+                confidence=confidence,
+                pattern_type="exact",
+            )
+            patterns.append(pattern)
+
+    # Sort by confidence descending
+    patterns.sort(key=lambda p: p.confidence, reverse=True)
+
+    # Return only the best pattern (avoid overlapping patterns)
+    return patterns[:1] if patterns else []
+
+
+def suggest_bars_from_patterns(chord_sequence: list[str]) -> list[BarSuggestion]:
+    """Generate bar suggestions based on repeating pattern detection.
+
+    Args:
+        chord_sequence: List of chord symbols
+
+    Returns:
+        List of BarSuggestion objects for suggested bar boundaries
+
+    Examples:
+        >>> suggest_bars_from_patterns(["Am", "F", "C", "G", "Am", "F", "C", "G"])
+        [BarSuggestion(position=4, ...), BarSuggestion(position=8, ...)]
+    """
+    patterns = find_repeating_patterns(chord_sequence)
+
+    if not patterns:
+        return []
+
+    suggestions = []
+    best_pattern = patterns[0]
+
+    # Generate bar boundaries at pattern boundaries
+    pattern_len = best_pattern.pattern_length
+    for i in range(pattern_len, len(chord_sequence) + 1, pattern_len):
+        suggestion = BarSuggestion(
+            position=i,
+            confidence=best_pattern.confidence,
+            reason=f"Repeating {pattern_len}-chord pattern ({best_pattern.pattern_type}, "
+            f"{best_pattern.repetitions} repetitions)",
+            heuristic="pattern",
+        )
+        suggestions.append(suggestion)
+
+    return suggestions
+
+
 def detect_bars_simple(chord_sequence: list[str]) -> list[BarSuggestion]:
     """Simple bar detection using only chord count heuristic.
 
