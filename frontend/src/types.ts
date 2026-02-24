@@ -1,3 +1,59 @@
+// Task 1.3.1: BeatPosition interface
+export interface BeatPosition {
+  beat: number;          // 1-based beat number
+  subdivision: number;   // 0 = on beat, 1 = "and", 2 = "e", 3 = "a"
+}
+
+// Task 1.3.2: BarChord interface
+export interface BarChord {
+  symbol: string;
+  beat_position: BeatPosition;
+  duration_beats: number | null;
+}
+
+// Task 1.3.3: BarNote interface
+export interface BarNote {
+  pitch: string;                    // e.g., "A", "C#"
+  octave: number;                   // default 4
+  beat_position: BeatPosition;
+  duration_beats: number;           // default 0.5
+  technique?: string;               // optional
+}
+
+// Task 1.3.4: TabNote interface
+export interface TabNote {
+  string: number;                   // 1-6 (1 = high E)
+  fret: number;                     // 0-24
+  beat_position: BeatPosition;
+  duration_beats: number;
+  technique?: string;
+}
+
+// Task 1.3.5: BarContent interface
+export interface BarContent {
+  chords: BarChord[];
+  notes: BarNote[];
+  tab: TabNote[];
+  label?: string;
+}
+
+// Task 1.3.6: Bar interface
+export interface Bar {
+  time_signature: [number, number];  // tuple as array
+  content: BarContent;
+  lyrics_fragment: string;
+  is_expandable: boolean;
+}
+
+// Task 1.3.7: BarAnalysis interface
+export interface BarAnalysis {
+  bar_index: number;
+  chord_analyses: ChordAnalysis[];  // references ChordAnalysis below
+  harmonic_rhythm: string;           // "static" | "half-bar" | "per-beat" | "syncopated"
+  has_riff: boolean;
+  riff_analysis?: string;
+}
+
 export interface Interpretation {
   type: string;
   detail: string;
@@ -57,6 +113,7 @@ export interface Section {
   chromatic_runs: ChromaticRun[];
   patterns: Pattern[];
   lines: ChordLyricsLine[];
+  bars?: BarAnalysis[];  // Task 1.3.8: optional for backward compatibility
 }
 
 export interface Key {
