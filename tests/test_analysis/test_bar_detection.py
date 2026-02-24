@@ -653,6 +653,83 @@ class TestDetectBars:
         assert has_high_confidence
 
 
+class TestEdgeCases:
+    """Tests for edge cases and boundary conditions."""
+
+    def test_single_chord_sequence(self):
+        """Test detection with single chord."""
+        suggestions = detect_bars(["Am"])
+        # Should not crash, may return empty or single suggestion
+        assert isinstance(suggestions, list)
+
+    def test_very_long_sequence(self):
+        """Test with very long chord sequence (performance check)."""
+        chords = ["Am", "F", "C", "G"] * 50  # 200 chords
+        suggestions = detect_bars(chords)
+
+        # Should complete in reasonable time and return results
+        assert len(suggestions) > 0
+        assert all(s.position <= 200 for s in suggestions)
+
+    def test_all_same_chord(self):
+        """Test with sequence of all same chords."""
+        chords = ["Am"] * 8
+        suggestions = detect_bars(chords)
+
+        # Chord count should still work (divisible by 2 and 4)
+        assert len(suggestions) >= 1
+
+    def test_unicode_chord_symbols(self):
+        """Test with unicode characters in chord symbols."""
+        chords = ["Am", "F♯", "C", "G♭"]
+        suggestions = detect_bars(chords)
+
+        # Should handle unicode without errors
+        assert isinstance(suggestions, list)
+
+    def test_mixed_notation_styles(self):
+        """Test with mixed chord notation (slash chords, extensions)."""
+        chords = ["Am/E", "Fmaj7", "Csus4", "G7", "Am/E", "Fmaj7", "Csus4", "G7"]
+        suggestions = detect_bars(chords)
+
+        # Should detect pattern despite notation differences
+        assert len(suggestions) >= 1
+        # Should detect 4-chord repeating pattern
+        pattern_suggestions = [s for s in suggestions if s.heuristic in ["pattern", "combined"]]
+        assert len(pattern_suggestions) > 0
+
+    def test_confidence_threshold_extremes(self):
+        """Test confidence threshold at extremes (0.0 and 1.0)."""
+        chords = ["Am", "F", "C", "G"]
+
+        # Threshold 0.0 should return all suggestions
+        all_suggestions = detect_bars(chords, confidence_threshold=0.0)
+
+        # Threshold 1.0 should return only perfect matches (likely none)
+        perfect_only = detect_bars(chords, confidence_threshold=1.0)
+
+        assert len(all_suggestions) >= len(perfect_only)
+
+    def test_empty_chord_lyrics_lines(self):
+        """Test with empty chord_lyrics_lines list."""
+        chords = ["Am", "F", "C", "G"]
+        suggestions = detect_bars(chords, chord_lyrics_lines=[])
+
+        # Should work (spacing heuristic skipped)
+        assert len(suggestions) >= 1
+
+    def test_mismatched_sequence_and_lines(self):
+        """Test when chord_sequence and lines don't match."""
+        chords = ["Am", "F", "C", "G"]
+        lines = [
+            ChordLyricsLine(chords=[(0, "Dm"), (10, "G")], lyrics="different chords")
+        ]
+
+        # Should not crash (lines are independent input)
+        suggestions = detect_bars(chords, chord_lyrics_lines=lines)
+        assert isinstance(suggestions, list)
+
+
 class TestDetectBarsSimple:
     """Tests for detect_bars_simple function (MVP implementation)."""
 
