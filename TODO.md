@@ -174,14 +174,14 @@ This is the **Single Source of Truth (SSOT)** for all implementation tasks for t
 - [ ] Task 2.5.11: Write component tests
 
 ### Story Point 2.6: Hebrew Song Strategy
-**Branch:** `story/2.6-hebrew-strategy`
+**Branch:** `story/2.6-hebrew-strategy` ✅ **COMPLETED**
 
-- [ ] Task 2.6.1: Analyze Tab4u quality distribution
-- [ ] Task 2.6.2: Design user correction flow
-- [ ] Task 2.6.3: Create correction UI mockups
-- [ ] Task 2.6.4: Implement local correction storage
-- [ ] Task 2.6.5: Document Hebrew source limitations
-- [ ] Task 2.6.6: Plan for future community corrections (Phase 7+)
+- [x] Task 2.6.1: Analyze Tab4u quality distribution
+- [x] Task 2.6.2: Design user correction flow
+- [x] Task 2.6.3: Create correction UI mockups
+- [x] Task 2.6.4: Implement local correction storage
+- [x] Task 2.6.5: Document Hebrew source limitations
+- [x] Task 2.6.6: Plan for future community corrections (Phase 7+)
 
 ### Story Point 2.7: Caching Layer
 **Branch:** `story/2.7-caching-layer`
