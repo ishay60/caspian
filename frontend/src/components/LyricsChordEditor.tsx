@@ -27,6 +27,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { ChordLyricsLine } from '../types';
+import { getChordCompletions } from '../api';
 import './LyricsChordEditor.css';
 
 interface PlacedChord {
@@ -42,10 +43,17 @@ interface SectionMarker {
 
 interface LyricsChordEditorProps {
   initialLyrics?: string;
+  keyRootName?: string;
+  keyMode?: string;
   onComplete?: (sections: { name: string; lines: ChordLyricsLine[] }[]) => void;
 }
 
-export function LyricsChordEditor({ initialLyrics = '', onComplete }: LyricsChordEditorProps) {
+export function LyricsChordEditor({
+  initialLyrics = '',
+  keyRootName = 'C',
+  keyMode = 'major',
+  onComplete
+}: LyricsChordEditorProps) {
   // State management
   const [mode, setMode] = useState<'input' | 'edit'>('input');
   const [lyrics, setLyrics] = useState(initialLyrics);
@@ -107,6 +115,8 @@ export function LyricsChordEditor({ initialLyrics = '', onComplete }: LyricsChor
           completions={completions}
           setCompletions={setCompletions}
           chordInputRef={chordInputRef}
+          keyRootName={keyRootName}
+          keyMode={keyMode}
           onBack={handleBackToInput}
           onComplete={onComplete}
         />
@@ -172,6 +182,8 @@ interface EditModeProps {
   completions: string[];
   setCompletions: (completions: string[]) => void;
   chordInputRef: React.RefObject<HTMLInputElement>;
+  keyRootName: string;
+  keyMode: string;
   onBack: () => void;
   onComplete?: (sections: { name: string; lines: ChordLyricsLine[] }[]) => void;
 }
@@ -189,6 +201,8 @@ function EditMode({
   completions,
   setCompletions,
   chordInputRef,
+  keyRootName,
+  keyMode,
   onBack,
   onComplete,
 }: EditModeProps) {
@@ -258,6 +272,10 @@ function EditMode({
           completions={completions}
           setCompletions={setCompletions}
           chordInputRef={chordInputRef}
+          keyRootName={keyRootName}
+          keyMode={keyMode}
+          placedChords={placedChords}
+          lyricsLines={lyricsLines}
           onPlaceChord={(symbol) => {
             const newChord: PlacedChord = {
               lineIndex: selectedPosition.lineIndex,
@@ -362,6 +380,10 @@ interface ChordInputPopupProps {
   completions: string[];
   setCompletions: (completions: string[]) => void;
   chordInputRef: React.RefObject<HTMLInputElement>;
+  keyRootName: string;
+  keyMode: string;
+  placedChords: PlacedChord[];
+  lyricsLines: string[];
   onPlaceChord: (symbol: string) => void;
   onCancel: () => void;
 }
@@ -373,11 +395,17 @@ function ChordInputPopup({
   completions,
   setCompletions,
   chordInputRef,
+  keyRootName,
+  keyMode,
+  placedChords,
+  lyricsLines,
   onPlaceChord,
   onCancel,
 }: ChordInputPopupProps) {
   const [selectedCompletionIndex, setSelectedCompletionIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
+  const debounceTimerRef = useRef<number | null>(null);
 
   // Position popup near selected character
   useEffect(() => {
@@ -390,6 +418,83 @@ function ChordInputPopup({
     popup.style.left = '50%';
     popup.style.transform = 'translate(-50%, -50%)';
   }, [selectedPosition]);
+
+  // Fetch chord completions from API
+  const fetchCompletions = useCallback(async (prefix: string) => {
+    if (prefix.length < 1) {
+      setCompletions([]);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Find previous and next chords for context
+      const currentLine = selectedPosition.lineIndex;
+      const currentCol = selectedPosition.columnPosition;
+
+      // Get previous chord (before current position)
+      const prevChords = placedChords
+        .filter(c => c.lineIndex < currentLine || (c.lineIndex === currentLine && c.columnPosition < currentCol))
+        .sort((a, b) => {
+          if (a.lineIndex !== b.lineIndex) return a.lineIndex - b.lineIndex;
+          return a.columnPosition - b.columnPosition;
+        });
+      const prevChord = prevChords.length > 0 ? prevChords[prevChords.length - 1].symbol : undefined;
+
+      // Get next chord (after current position)
+      const nextChords = placedChords
+        .filter(c => c.lineIndex > currentLine || (c.lineIndex === currentLine && c.columnPosition > currentCol))
+        .sort((a, b) => {
+          if (a.lineIndex !== b.lineIndex) return a.lineIndex - b.lineIndex;
+          return a.columnPosition - b.columnPosition;
+        });
+      const nextChord = nextChords.length > 0 ? nextChords[0].symbol : undefined;
+
+      const results = await getChordCompletions(
+        prefix,
+        keyRootName,
+        keyMode,
+        prevChord,
+        nextChord,
+        20
+      );
+      setCompletions(results);
+    } catch (error) {
+      console.error('Failed to fetch chord completions:', error);
+      setCompletions([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [keyRootName, keyMode, placedChords, selectedPosition, setCompletions]);
+
+  // Debounced input handler
+  const handleInputChange = useCallback((value: string) => {
+    setChordInput(value);
+    setSelectedCompletionIndex(0);
+
+    // Clear previous timer
+    if (debounceTimerRef.current) {
+      window.clearTimeout(debounceTimerRef.current);
+    }
+
+    // Set new timer for debounced API call
+    if (value.trim()) {
+      debounceTimerRef.current = window.setTimeout(() => {
+        fetchCompletions(value.trim());
+      }, 200); // 200ms debounce
+    } else {
+      setCompletions([]);
+    }
+  }, [setChordInput, fetchCompletions, setCompletions]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        window.clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -419,17 +524,19 @@ function ChordInputPopup({
         type="text"
         className="chord-input-field"
         value={chordInput}
-        onChange={(e) => {
-          setChordInput(e.target.value);
-          setSelectedCompletionIndex(0);
-          // TODO: Fetch completions from API
-        }}
+        onChange={(e) => handleInputChange(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Type chord (e.g. Am, C7)"
         autoComplete="off"
       />
 
-      {completions.length > 0 && (
+      {isLoading && (
+        <div className="chord-completions-loading">
+          Loading...
+        </div>
+      )}
+
+      {!isLoading && completions.length > 0 && (
         <div className="chord-completions">
           {completions.map((completion, index) => (
             <div

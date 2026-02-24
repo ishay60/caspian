@@ -216,6 +216,15 @@
   border-color: var(--color-primary, #3b82f6);
 }
 
+.chord-completions-loading {
+  padding: 0.5rem;
+  text-align: center;
+  color: var(--color-text-secondary, #666);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--color-border, #e0e0e0);
+}
+
 .chord-completions {
   max-height: 200px;
   overflow-y: auto;
