@@ -209,18 +209,24 @@ class BarNotationParser:
 
         return bars
 
-    def _map_chords_to_beats(self, chord_symbols: List[str]) -> List[BarChord]:
+    def _map_chords_to_beats(
+        self, chord_symbols: List[str], time_signature: tuple[int, int] = (4, 4)
+    ) -> List[BarChord]:
         """Map chord symbols to beat positions within a bar.
 
-        Beat position mapping rules:
-        - 1 chord: beat 1
-        - 2 chords: beats 1, 3
-        - 3 chords: beats 1, 2, 3
-        - 4 chords: beats 1, 2, 3, 4
-        - More than 4: evenly distributed
+        Beat position mapping rules for 4/4 time:
+        - 1 chord: beat 1 (whole bar)
+        - 2 chords: beats 1, 3 (half notes)
+        - 3 chords: beats 1, 2, 3 (uneven - common in practice)
+        - 4 chords: beats 1, 2, 3, 4 (quarter notes)
+        - 5-8 chords: use subdivisions (eighth notes, 16th notes)
+
+        For other time signatures:
+        - Distributes chords evenly across available beats
 
         Args:
             chord_symbols: List of chord symbols in order
+            time_signature: Time signature (numerator, denominator), default (4, 4)
 
         Returns:
             List of BarChord objects with beat positions
@@ -231,26 +237,61 @@ class BarNotationParser:
         if num_chords == 0:
             return bar_chords
 
-        # Define beat position mappings
-        if num_chords == 1:
-            beat_positions = [1]
-        elif num_chords == 2:
-            beat_positions = [1, 3]
-        elif num_chords == 3:
-            beat_positions = [1, 2, 3]
-        elif num_chords == 4:
-            beat_positions = [1, 2, 3, 4]
-        else:
-            # More than 4: distribute evenly (simplified for now)
-            # This is a placeholder - real implementation would handle subdivisions
-            beat_positions = list(range(1, num_chords + 1))
+        beats_per_bar = time_signature[0]
 
+        # Define beat/subdivision mappings for common cases in 4/4
+        if time_signature == (4, 4):
+            if num_chords == 1:
+                positions = [(1, 0)]
+            elif num_chords == 2:
+                positions = [(1, 0), (3, 0)]
+            elif num_chords == 3:
+                positions = [(1, 0), (2, 0), (3, 0)]
+            elif num_chords == 4:
+                positions = [(1, 0), (2, 0), (3, 0), (4, 0)]
+            elif num_chords == 5:
+                # 5 chords: 1, 1&, 2, 3, 4 (example distribution)
+                positions = [(1, 0), (1, 2), (2, 0), (3, 0), (4, 0)]
+            elif num_chords == 6:
+                # 6 chords: 1, 1&, 2, 2&, 3, 4 (example distribution)
+                positions = [(1, 0), (1, 2), (2, 0), (2, 2), (3, 0), (4, 0)]
+            elif num_chords == 7:
+                # 7 chords: 1, 1&, 2, 2&, 3, 3&, 4
+                positions = [(1, 0), (1, 2), (2, 0), (2, 2), (3, 0), (3, 2), (4, 0)]
+            elif num_chords == 8:
+                # 8 chords: eighth notes on all beats and subdivisions
+                positions = [(1, 0), (1, 2), (2, 0), (2, 2), (3, 0), (3, 2), (4, 0), (4, 2)]
+            else:
+                # More than 8: use 16th note grid
+                positions = []
+                for i in range(num_chords):
+                    beat = (i // 4) + 1
+                    subdivision = (i % 4)
+                    if beat <= beats_per_bar:
+                        positions.append((beat, subdivision))
+                    else:
+                        # Overflow - just append to end
+                        positions.append((beats_per_bar, subdivision))
+        else:
+            # For non-4/4 time signatures, distribute evenly across beats
+            positions = []
+            for i in range(num_chords):
+                beat = (i % beats_per_bar) + 1
+                subdivision = 0
+                positions.append((beat, subdivision))
+
+        # Create BarChord objects
         for i, symbol in enumerate(chord_symbols):
-            beat = beat_positions[i] if i < len(beat_positions) else i + 1
+            if i < len(positions):
+                beat, subdivision = positions[i]
+            else:
+                # Fallback for unexpected cases
+                beat = (i % beats_per_bar) + 1
+                subdivision = 0
 
             bar_chord = BarChord(
                 symbol=symbol,
-                beat_position=BeatPosition(beat=beat, subdivision=0),
+                beat_position=BeatPosition(beat=beat, subdivision=subdivision),
             )
             bar_chords.append(bar_chord)
 
