@@ -1,0 +1,473 @@
+/**
+ * RiffEditor Component Styles
+ *
+ * Visual styles for the inline riff/instrumental editor.
+ * Supports both standard notation and guitar tab views.
+ */
+
+.riff-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background: var(--color-surface);
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Header */
+.riff-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.header-controls {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* Riff Label Section */
+.riff-label-section {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.riff-label-text {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.riff-label-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  background: var(--color-bg);
+}
+
+.riff-label-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* View Switcher */
+.view-switcher {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--color-bg);
+  border-radius: 0.5rem;
+}
+
+.view-button {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  background: var(--color-surface);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-button:hover {
+  background: var(--color-border);
+}
+
+.view-button.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+/* Editing Mode Selector */
+.editing-mode-selector {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--color-bg);
+  border-radius: 0.5rem;
+}
+
+.mode-button {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  background: var(--color-surface);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-button:hover {
+  background: var(--color-border);
+}
+
+.mode-button.active {
+  background: var(--color-secondary);
+  color: white;
+  border-color: var(--color-secondary);
+}
+
+/* Beat Range Selector */
+.beat-range-selector {
+  padding: 1rem;
+  background: var(--color-bg);
+  border-radius: 0.5rem;
+  border: 2px dashed var(--color-border);
+}
+
+.selector-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.beat-grid-selector {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.beat-button {
+  flex: 1;
+  padding: 1rem;
+  border: 2px solid var(--color-border);
+  border-radius: 0.375rem;
+  background: var(--color-surface);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.beat-button:hover {
+  background: var(--color-border);
+  transform: translateY(-2px);
+}
+
+.beat-button.selected {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+.selector-instructions {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+  text-align: center;
+}
+
+/* Main Editing Area */
+.riff-editor-main {
+  min-height: 200px;
+  padding: 1.5rem;
+  background: var(--color-bg);
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+}
+
+/* Notation Grid Editor */
+.notation-grid-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pitch-selector {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--color-surface);
+  border-radius: 0.375rem;
+}
+
+.pitch-selector label {
+  font-weight: 500;
+}
+
+.pitch-selector select {
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  background: var(--color-bg);
+  font-size: 1rem;
+}
+
+.pitch-selector select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.beat-grid {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+}
+
+/* Tab Grid Editor */
+.tab-grid-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tab-selector {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--color-surface);
+  border-radius: 0.375rem;
+}
+
+.tab-selector label {
+  font-weight: 500;
+}
+
+.tab-selector select,
+.tab-selector input {
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  background: var(--color-bg);
+  font-size: 1rem;
+}
+
+.tab-selector select:focus,
+.tab-selector input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.tab-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem;
+}
+
+/* Quick Type Editor */
+.quick-type-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.editor-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.editor-instructions {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.quick-type-input-group {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.quick-type-input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--color-border);
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  font-family: monospace;
+  background: var(--color-bg);
+}
+
+.quick-type-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Riff Actions */
+.riff-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+/* Notes Preview */
+.notes-preview {
+  padding: 1rem;
+  background: var(--color-bg);
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+}
+
+.preview-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.note-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-surface);
+  border-radius: 0.375rem;
+  border: 1px solid var(--color-border);
+}
+
+.note-info {
+  font-family: monospace;
+  font-size: 0.875rem;
+}
+
+.btn-remove {
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  border-radius: 0.25rem;
+  background: var(--color-danger);
+  color: white;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-remove:hover {
+  background: #dc2626;
+  transform: scale(1.1);
+}
+
+/* Button Styles */
+.btn-primary {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.375rem;
+  background: var(--color-primary);
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  background: var(--color-surface);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: var(--color-border);
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.375rem;
+  background: var(--color-danger);
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .riff-editor {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .riff-editor-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .header-controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .view-switcher,
+  .editing-mode-selector {
+    flex-direction: column;
+  }
+
+  .beat-grid-selector {
+    flex-wrap: wrap;
+  }
+
+  .quick-type-input-group {
+    flex-direction: column;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .riff-editor-header,
+  .view-switcher,
+  .editing-mode-selector,
+  .beat-range-selector,
+  .riff-actions,
+  .btn-remove {
+    display: none;
+  }
+
+  .riff-editor {
+    border: none;
+    box-shadow: none;
+    padding: 0;
+  }
+}
