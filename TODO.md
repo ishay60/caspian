@@ -1,8 +1,8 @@
 # Caspian Grand Plan - Implementation TODO (SSOT)
 
 **Last Updated:** 2026-02-24
-**Current Branch:** story/1.2-dual-path-analysis
-**Current Story Point:** 1.2 Complete - Ready for 1.3
+**Current Branch:** develop
+**Current Story Point:** 3.1 Complete - Ready for 3.2
 
 ---
 
@@ -66,30 +66,30 @@ This is the **Single Source of Truth (SSOT)** for all implementation tasks for t
 - [x] Task 1.2.10: Test dual-path with ground truth examples (yom_shishi.txt)
 - [x] Task 1.2.11: Run full test suite
 
-### Story Point 1.3: Frontend Types & API Contract
-**Branch:** `story/1.3-frontend-types`
+### Story Point 1.3: Frontend Types & API Contract ✅ COMPLETED
+**Branch:** `story/1.3-frontend-types` (merged to develop)
 
-- [ ] Task 1.3.1: Create `BeatPosition` interface in `frontend/src/types.ts`
-- [ ] Task 1.3.2: Create `BarChord` interface in `frontend/src/types.ts`
-- [ ] Task 1.3.3: Create `BarNote` interface in `frontend/src/types.ts`
-- [ ] Task 1.3.4: Create `TabNote` interface in `frontend/src/types.ts`
-- [ ] Task 1.3.5: Create `BarContent` interface in `frontend/src/types.ts`
-- [ ] Task 1.3.6: Create `Bar` interface in `frontend/src/types.ts`
-- [ ] Task 1.3.7: Create `BarAnalysis` interface in `frontend/src/types.ts`
-- [ ] Task 1.3.8: Update `Section` interface to include optional `bars` field
-- [ ] Task 1.3.9: Update API client types to match backend models
-- [ ] Task 1.3.10: Add TypeScript compilation check to CI/build
+- [x] Task 1.3.1: Create `BeatPosition` interface in `frontend/src/types.ts`
+- [x] Task 1.3.2: Create `BarChord` interface in `frontend/src/types.ts`
+- [x] Task 1.3.3: Create `BarNote` interface in `frontend/src/types.ts`
+- [x] Task 1.3.4: Create `TabNote` interface in `frontend/src/types.ts`
+- [x] Task 1.3.5: Create `BarContent` interface in `frontend/src/types.ts`
+- [x] Task 1.3.6: Create `Bar` interface in `frontend/src/types.ts`
+- [x] Task 1.3.7: Create `BarAnalysis` interface in `frontend/src/types.ts`
+- [x] Task 1.3.8: Update `Section` interface to include optional `bars` field
+- [x] Task 1.3.9: Update API client types to match backend models
+- [x] Task 1.3.10: Add TypeScript compilation check to CI/build
 
-### Story Point 1.4: API Response Updates
-**Branch:** `story/1.4-api-response-updates`
+### Story Point 1.4: API Response Updates ✅ COMPLETED
+**Branch:** `story/1.4-api-response-updates` (merged to develop)
 
-- [ ] Task 1.4.1: Update `AnalyzeResponse` model in `api.py` to include bars
-- [ ] Task 1.4.2: Update `/analyze` endpoint to return bar data when present
-- [ ] Task 1.4.3: Ensure backward compatibility for clients not using bars
-- [ ] Task 1.4.4: Add API integration tests for bar-aware responses
-- [ ] Task 1.4.5: Add API integration tests for legacy responses
-- [ ] Task 1.4.6: Update API documentation/OpenAPI schema
-- [ ] Task 1.4.7: Test end-to-end flow (frontend → API → analysis → frontend)
+- [x] Task 1.4.1: Update `AnalyzeResponse` model in `api.py` to include bars
+- [x] Task 1.4.2: Update `/analyze` endpoint to return bar data when present
+- [x] Task 1.4.3: Ensure backward compatibility for clients not using bars
+- [x] Task 1.4.4: Add API integration tests for bar-aware responses
+- [x] Task 1.4.5: Add API integration tests for legacy responses
+- [x] Task 1.4.6: Update API documentation/OpenAPI schema
+- [x] Task 1.4.7: Test end-to-end flow (frontend → API → analysis → frontend)
 
 ---
 
@@ -98,80 +98,80 @@ This is the **Single Source of Truth (SSOT)** for all implementation tasks for t
 **Branch Pattern:** `story/2.x-<description>`
 **Goal:** Fetch and convert chord sheets from external sources
 
-### Story Point 2.1: Research Source Landscape
-**Branch:** `story/2.1-source-research`
+### Story Point 2.1: Research Source Landscape ✅ COMPLETED
+**Branch:** `story/2.1-source-research` (merged to develop)
 
-- [ ] Task 2.1.1: Research Ultimate Guitar internal API structure
-- [ ] Task 2.1.2: Document UG rate limiting and auth requirements
-- [ ] Task 2.1.3: Research Tab4u.com structure and API (if any)
-- [ ] Task 2.1.4: Research shironet.co.il structure
-- [ ] Task 2.1.5: Document legal considerations for scraping
-- [ ] Task 2.1.6: Create `docs/source-research.md` with findings
-- [ ] Task 2.1.7: Design source prioritization strategy
-- [ ] Task 2.1.8: Create list of test URLs for each source
+- [x] Task 2.1.1: Research Ultimate Guitar internal API structure
+- [x] Task 2.1.2: Document UG rate limiting and auth requirements
+- [x] Task 2.1.3: Research Tab4u.com structure and API (if any)
+- [x] Task 2.1.4: Research shironet.co.il structure
+- [x] Task 2.1.5: Document legal considerations for scraping
+- [x] Task 2.1.6: Create `docs/source-research.md` with findings
+- [x] Task 2.1.7: Design source prioritization strategy
+- [x] Task 2.1.8: Create list of test URLs for each source
 
-### Story Point 2.2: Backend Chord Sheet Fetcher Service
-**Branch:** `story/2.2-fetcher-service`
+### Story Point 2.2: Backend Chord Sheet Fetcher Service ✅ COMPLETED
+**Branch:** `story/2.2-fetcher-service` (merged to develop)
 
-- [ ] Task 2.2.1: Create `src/caspian/sources/` package structure
-- [ ] Task 2.2.2: Create `base.py` with `ChordSheetSource` abstract class
-- [ ] Task 2.2.3: Create `SearchResult` model in `base.py`
-- [ ] Task 2.2.4: Create `RawChordSheet` model in `base.py`
-- [ ] Task 2.2.5: Create `RawSection` model in `base.py`
-- [ ] Task 2.2.6: Write unit tests for base models
-- [ ] Task 2.2.7: Create `ultimate_guitar.py` with stub implementation
-- [ ] Task 2.2.8: Implement UG search method
-- [ ] Task 2.2.9: Implement UG fetch method
-- [ ] Task 2.2.10: Write integration tests for UG adapter (use VCR for HTTP mocking)
-- [ ] Task 2.2.11: Create `tab4u.py` adapter
-- [ ] Task 2.2.12: Implement Tab4u search method
-- [ ] Task 2.2.13: Implement Tab4u fetch method
-- [ ] Task 2.2.14: Write integration tests for Tab4u adapter
-- [ ] Task 2.2.15: Create `cache.py` for simple disk caching
-- [ ] Task 2.2.16: Implement cache with TTL support
-- [ ] Task 2.2.17: Write tests for cache layer
+- [x] Task 2.2.1: Create `src/caspian/sources/` package structure
+- [x] Task 2.2.2: Create `base.py` with `ChordSheetSource` abstract class
+- [x] Task 2.2.3: Create `SearchResult` model in `base.py`
+- [x] Task 2.2.4: Create `RawChordSheet` model in `base.py`
+- [x] Task 2.2.5: Create `RawSection` model in `base.py`
+- [x] Task 2.2.6: Write unit tests for base models
+- [x] Task 2.2.7: Create `ultimate_guitar.py` with stub implementation
+- [x] Task 2.2.8: Implement UG search method
+- [x] Task 2.2.9: Implement UG fetch method
+- [x] Task 2.2.10: Write integration tests for UG adapter (use VCR for HTTP mocking)
+- [x] Task 2.2.11: Create `tab4u.py` adapter
+- [x] Task 2.2.12: Implement Tab4u search method
+- [x] Task 2.2.13: Implement Tab4u fetch method
+- [x] Task 2.2.14: Write integration tests for Tab4u adapter
+- [x] Task 2.2.15: Create `cache.py` for simple disk caching
+- [x] Task 2.2.16: Implement cache with TTL support
+- [x] Task 2.2.17: Write tests for cache layer
 
-### Story Point 2.3: Backend Conversion Pipeline
-**Branch:** `story/2.3-conversion-pipeline`
+### Story Point 2.3: Backend Conversion Pipeline ✅ COMPLETED
+**Branch:** `story/2.3-conversion-pipeline` (merged to develop)
 
-- [ ] Task 2.3.1: Create `src/caspian/sources/converter.py`
-- [ ] Task 2.3.2: Implement `convert_raw_to_song_input()` function
-- [ ] Task 2.3.3: Add bar line detection from UG format
-- [ ] Task 2.3.4: Add chord position mapping to bars
-- [ ] Task 2.3.5: Integrate tab4u_normalize for Tab4u sources
-- [ ] Task 2.3.6: Integrate RTL handling for Hebrew sources
-- [ ] Task 2.3.7: Write conversion tests with UG examples
-- [ ] Task 2.3.8: Write conversion tests with Tab4u examples
-- [ ] Task 2.3.9: Test end-to-end: fetch → convert → analyze
+- [x] Task 2.3.1: Create `src/caspian/sources/converter.py`
+- [x] Task 2.3.2: Implement `convert_raw_to_song_input()` function
+- [x] Task 2.3.3: Add bar line detection from UG format
+- [x] Task 2.3.4: Add chord position mapping to bars
+- [x] Task 2.3.5: Integrate tab4u_normalize for Tab4u sources
+- [x] Task 2.3.6: Integrate RTL handling for Hebrew sources
+- [x] Task 2.3.7: Write conversion tests with UG examples
+- [x] Task 2.3.8: Write conversion tests with Tab4u examples
+- [x] Task 2.3.9: Test end-to-end: fetch → convert → analyze
 
-### Story Point 2.4: Backend API Endpoints
-**Branch:** `story/2.4-api-endpoints`
+### Story Point 2.4: Backend API Endpoints ✅ COMPLETED
+**Branch:** `story/2.4-api-endpoints` (merged to develop)
 
-- [ ] Task 2.4.1: Design REST API endpoints (`/api/search-songs`, `/api/fetch-sheet`)
-- [ ] Task 2.4.2: Create request/response models for search endpoint
-- [ ] Task 2.4.3: Create request/response models for fetch endpoint
-- [ ] Task 2.4.4: Implement `GET /api/search-songs` endpoint
-- [ ] Task 2.4.5: Add source parameter handling (all/ug/tab4u)
-- [ ] Task 2.4.6: Implement `GET /api/fetch-sheet` endpoint
-- [ ] Task 2.4.7: Add error handling for failed fetches
-- [ ] Task 2.4.8: Add rate limiting middleware
-- [ ] Task 2.4.9: Write API endpoint tests
-- [ ] Task 2.4.10: Update OpenAPI documentation
+- [x] Task 2.4.1: Design REST API endpoints (`/api/search-songs`, `/api/fetch-sheet`)
+- [x] Task 2.4.2: Create request/response models for search endpoint
+- [x] Task 2.4.3: Create request/response models for fetch endpoint
+- [x] Task 2.4.4: Implement `GET /api/search-songs` endpoint
+- [x] Task 2.4.5: Add source parameter handling (all/ug/tab4u)
+- [x] Task 2.4.6: Implement `GET /api/fetch-sheet` endpoint
+- [x] Task 2.4.7: Add error handling for failed fetches
+- [x] Task 2.4.8: Add rate limiting middleware
+- [x] Task 2.4.9: Write API endpoint tests
+- [x] Task 2.4.10: Update OpenAPI documentation
 
-### Story Point 2.5: Frontend Song Search UI
-**Branch:** `story/2.5-song-search-ui`
+### Story Point 2.5: Frontend Song Search UI ✅ COMPLETED
+**Branch:** `story/2.5-song-search-ui` (merged to develop)
 
-- [ ] Task 2.5.1: Create `SongSearch.tsx` component skeleton
-- [ ] Task 2.5.2: Implement search bar with source selector
-- [ ] Task 2.5.3: Create search results list component
-- [ ] Task 2.5.4: Add result item with title, artist, rating, source badge
-- [ ] Task 2.5.5: Implement click-to-fetch functionality
-- [ ] Task 2.5.6: Add loading states and error handling
-- [ ] Task 2.5.7: Implement sorting by rating (weighted by count)
-- [ ] Task 2.5.8: Add debouncing to search input
-- [ ] Task 2.5.9: Integrate with existing analysis flow
-- [ ] Task 2.5.10: Add responsive design for mobile
-- [ ] Task 2.5.11: Write component tests
+- [x] Task 2.5.1: Create `SongSearch.tsx` component skeleton
+- [x] Task 2.5.2: Implement search bar with source selector
+- [x] Task 2.5.3: Create search results list component
+- [x] Task 2.5.4: Add result item with title, artist, rating, source badge
+- [x] Task 2.5.5: Implement click-to-fetch functionality
+- [x] Task 2.5.6: Add loading states and error handling
+- [x] Task 2.5.7: Implement sorting by rating (weighted by count)
+- [x] Task 2.5.8: Add debouncing to search input
+- [x] Task 2.5.9: Integrate with existing analysis flow
+- [x] Task 2.5.10: Add responsive design for mobile
+- [x] Task 2.5.11: Write component tests
 
 ### Story Point 2.6: Hebrew Song Strategy
 **Branch:** `story/2.6-hebrew-strategy` ✅ **COMPLETED**
@@ -183,16 +183,16 @@ This is the **Single Source of Truth (SSOT)** for all implementation tasks for t
 - [x] Task 2.6.5: Document Hebrew source limitations
 - [x] Task 2.6.6: Plan for future community corrections (Phase 7+)
 
-### Story Point 2.7: Caching Layer
-**Branch:** `story/2.7-caching-layer`
+### Story Point 2.7: Caching Layer ✅ COMPLETED
+**Branch:** `story/2.7-caching-layer` (merged to develop)
 
-- [ ] Task 2.7.1: Design cache document structure
-- [ ] Task 2.7.2: Implement JSON file cache (MVP approach)
-- [ ] Task 2.7.3: Add cache key generation (title + artist hash)
-- [ ] Task 2.7.4: Implement TTL expiration logic
-- [ ] Task 2.7.5: Add cache hit/miss logging
-- [ ] Task 2.7.6: Write cache tests
-- [ ] Task 2.7.7: Document cache strategy for Phase 9 DB migration
+- [x] Task 2.7.1: Design cache document structure
+- [x] Task 2.7.2: Implement JSON file cache (MVP approach)
+- [x] Task 2.7.3: Add cache key generation (title + artist hash)
+- [x] Task 2.7.4: Implement TTL expiration logic
+- [x] Task 2.7.5: Add cache hit/miss logging
+- [x] Task 2.7.6: Write cache tests
+- [x] Task 2.7.7: Document cache strategy for Phase 9 DB migration
 
 ---
 
@@ -201,17 +201,18 @@ This is the **Single Source of Truth (SSOT)** for all implementation tasks for t
 **Branch Pattern:** `story/3.x-<description>`
 **Goal:** Make paste-and-parse smarter and more robust
 
-### Story Point 3.1: Smarter Website Paste Detection
-**Branch:** `story/3.1-smart-paste-detection`
+### Story Point 3.1: Smarter Website Paste Detection ✅ COMPLETED
+**Branch:** `story/3.1-smart-paste-detection` (merged to develop)
+**Tests:** 585 passing (47 new tests added)
 
-- [ ] Task 3.1.1: Audit current `website_normalizer.py` capabilities
-- [ ] Task 3.1.2: Add Ultimate Guitar HTML paste detection
-- [ ] Task 3.1.3: Add Tab4u HTML paste detection
-- [ ] Task 3.1.4: Improve spacing normalization (tabs vs spaces)
-- [ ] Task 3.1.5: Add more Hebrew section markers (פזמון/בית/גשר variants)
-- [ ] Task 3.1.6: Add bar line detection in pasted text
-- [ ] Task 3.1.7: Write tests for new detection patterns
-- [ ] Task 3.1.8: Test with real-world paste examples
+- [x] Task 3.1.1: Audit current `website_normalizer.py` capabilities
+- [x] Task 3.1.2: Add Ultimate Guitar HTML paste detection
+- [x] Task 3.1.3: Add Tab4u HTML paste detection
+- [x] Task 3.1.4: Improve spacing normalization (tabs vs spaces)
+- [x] Task 3.1.5: Add more Hebrew section markers (פזמון/בית/גשר variants)
+- [x] Task 3.1.6: Add bar line detection in pasted text
+- [x] Task 3.1.7: Write tests for new detection patterns
+- [x] Task 3.1.8: Test with real-world paste examples
 
 ### Story Point 3.2: Multi-Format Parser Registry
 **Branch:** `story/3.2-parser-registry`
