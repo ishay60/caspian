@@ -293,9 +293,7 @@ export function AnalysisView({ result }: Props) {
 
       {/* Sections */}
       {displaySections.map((section, i) => {
-        // Check if section has bar data for chord sheet view
-        const hasBarData = section.bars && section.bars.length > 0;
-        const useChordSheetView = viewMode === 'chord-sheet' && hasBarData;
+        const useChordSheetView = viewMode === 'chord-sheet';
 
         return useChordSheetView ? (
           <ChordSheetView
@@ -303,6 +301,7 @@ export function AnalysisView({ result }: Props) {
             section={section}
             onChordSelect={handleChordSelect}
             selectedChord={selectedChordForFretboard}
+            onSectionUpdate={(updated) => handleSectionUpdate(i, updated)}
           />
         ) : (
           <SectionView
