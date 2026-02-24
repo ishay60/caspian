@@ -165,6 +165,31 @@ class LlmAnalyzeResponse(BaseModel):
     overall_summary: str
 
 
+class DetectFormatRequest(BaseModel):
+    text: str
+    format_hint: str | None = None
+
+
+class PreviewSection(BaseModel):
+    name: str
+    chord_count: int
+    first_chords: list[str]
+
+
+class FormatPreview(BaseModel):
+    key: str | None = None
+    title: str | None = None
+    artist: str | None = None
+    sections: list[PreviewSection]
+
+
+class DetectFormatResponse(BaseModel):
+    format: str
+    confidence: str  # 'high', 'medium', or 'low'
+    preview: FormatPreview | None = None
+    error: str | None = None
+
+
 # --- Serialization ---
 
 
@@ -290,6 +315,95 @@ def _needs_segmentation(song_input) -> bool:
         return False
     # Only suggest if the single section has enough chords
     return len(non_outro[0].chords) > 8
+
+
+@app.post("/api/detect-format", response_model=DetectFormatResponse)
+def detect_format(req: DetectFormatRequest):
+    """Detect input format and return preview without full analysis.
+
+    This is lighter weight than full analysis - just detection + basic parsing.
+    """
+    from caspian.parsing.registry import FormatDetector, InputFormat
+
+    try:
+        # Detect format (or use hint)
+        if req.format_hint:
+            try:
+                format_type = InputFormat(req.format_hint)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid format hint: {req.format_hint}",
+                )
+        else:
+            format_type = FormatDetector.detect(req.text)
+
+        # Determine confidence based on format detection
+        # High confidence for explicit formats, lower for fallbacks
+        if format_type == InputFormat.UNKNOWN:
+            confidence = "low"
+        elif format_type in (InputFormat.FORMAT_A, InputFormat.UG_HTML, InputFormat.TAB4U_HTML):
+            confidence = "high"
+        elif format_type in (InputFormat.CHORDPRO, InputFormat.BAR_NOTATION):
+            confidence = "high"
+        else:  # WEBSITE_PASTE
+            confidence = "medium"
+
+        # Try to parse and extract preview
+        registry = get_global_registry()
+        try:
+            song_input = registry.parse(req.text, format_hint=format_type)
+
+            # Build preview
+            sections = []
+            for section in song_input.sections:
+                first_chords = []
+                if section.chords:
+                    first_chords = section.chords[:5]  # First 5 chords
+                elif section.bars:
+                    # Extract chords from bars
+                    for bar in section.bars[:3]:  # First 3 bars
+                        if bar.content.chords:
+                            for bc in bar.content.chords[:2]:  # First 2 chords per bar
+                                first_chords.append(bc.symbol)
+                                if len(first_chords) >= 5:
+                                    break
+                        if len(first_chords) >= 5:
+                            break
+
+                chord_count = len(section.chords) if section.chords else sum(
+                    len(bar.content.chords) for bar in section.bars if bar.content.chords
+                )
+
+                sections.append(PreviewSection(
+                    name=section.name,
+                    chord_count=chord_count,
+                    first_chords=first_chords,
+                ))
+
+            preview = FormatPreview(
+                key=f"{song_input.key.root_name}{song_input.key.mode}" if song_input.key else None,
+                title=song_input.title or None,
+                artist=song_input.artist or None,
+                sections=sections,
+            )
+
+            return DetectFormatResponse(
+                format=format_type.value,
+                confidence=confidence,
+                preview=preview,
+            )
+
+        except Exception as e:
+            # Parse failed, return format detection with error
+            return DetectFormatResponse(
+                format=format_type.value,
+                confidence="low",
+                error=str(e),
+            )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)

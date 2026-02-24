@@ -1,4 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { detectFormat } from '../api';
+import type { DetectFormatResponse } from '../types';
+import { FormatBadge } from './FormatBadge';
+import { FormatSelector } from './FormatSelector';
+import { ParsePreview } from './ParsePreview';
 
 interface Props {
   onAnalyze: (text: string) => void;
@@ -9,6 +14,44 @@ interface Props {
 export function InputForm({ onAnalyze, loading, sampleInput }: Props) {
   const [text, setText] = useState('');
   const [collapsed, setCollapsed] = useState(false);
+  const [detectedFormat, setDetectedFormat] = useState<DetectFormatResponse | null>(null);
+  const [selectedFormat, setSelectedFormat] = useState<string>('auto');
+  const [showFormatSelector, setShowFormatSelector] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const debounceTimerRef = useRef<number | null>(null);
+
+  // Debounced format detection
+  useEffect(() => {
+    if (debounceTimerRef.current !== null) {
+      window.clearTimeout(debounceTimerRef.current);
+    }
+
+    if (!text.trim()) {
+      setDetectedFormat(null);
+      return;
+    }
+
+    debounceTimerRef.current = window.setTimeout(() => {
+      setIsDetecting(true);
+      const formatHint = selectedFormat === 'auto' ? undefined : selectedFormat;
+      detectFormat(text, formatHint)
+        .then((result) => {
+          setDetectedFormat(result);
+          setIsDetecting(false);
+        })
+        .catch((err) => {
+          console.error('Format detection failed:', err);
+          setIsDetecting(false);
+        });
+    }, 500);
+
+    return () => {
+      if (debounceTimerRef.current !== null) {
+        window.clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [text, selectedFormat]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -20,6 +63,10 @@ export function InputForm({ onAnalyze, loading, sampleInput }: Props) {
 
   function handleLoadSample() {
     setText(sampleInput);
+  }
+
+  function handleFormatSelect(format: string) {
+    setSelectedFormat(format);
   }
 
   return (
@@ -56,19 +103,62 @@ export function InputForm({ onAnalyze, loading, sampleInput }: Props) {
       </div>
 
       {!collapsed && (
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={`key: Am\ntitle: שם השיר\nartist: שם האמן\n\n[intro]\nAm Am D D\n\n[verse]\nD Am | מילות השיר\n\n[chorus]\nD#dim Am/E | מילות הפזמון`}
-          className="w-full h-56 rounded-xl border px-4 py-3 font-mono text-sm focus:outline-none resize-y transition-colors"
-          style={{
-            borderColor: 'var(--color-border)',
-            backgroundColor: 'var(--color-bg)',
-            color: 'var(--color-text)',
-          }}
-          dir="ltr"
-          spellCheck={false}
-        />
+        <>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={`key: Am\ntitle: שם השיר\nartist: שם האמן\n\n[intro]\nAm Am D D\n\n[verse]\nD Am | מילות השיר\n\n[chorus]\nD#dim Am/E | מילות הפזמון`}
+            className="w-full h-56 rounded-xl border px-4 py-3 font-mono text-sm focus:outline-none resize-y transition-colors"
+            style={{
+              borderColor: 'var(--color-border)',
+              backgroundColor: 'var(--color-bg)',
+              color: 'var(--color-text)',
+            }}
+            dir="ltr"
+            spellCheck={false}
+          />
+
+          {/* Format Badge and Selector */}
+          {(detectedFormat || isDetecting) && (
+            <div className="mt-3 flex items-center gap-2 relative">
+              {detectedFormat && !isDetecting && (
+                <FormatBadge
+                  format={detectedFormat.format}
+                  confidence={detectedFormat.confidence}
+                  isManual={selectedFormat !== 'auto'}
+                  onClick={() => setShowFormatSelector(!showFormatSelector)}
+                />
+              )}
+              {isDetecting && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Detecting...
+                </div>
+              )}
+              {showFormatSelector && (
+                <FormatSelector
+                  selectedFormat={selectedFormat}
+                  onSelect={handleFormatSelect}
+                  onClose={() => setShowFormatSelector(false)}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Parse Preview */}
+          {detectedFormat && (
+            <ParsePreview
+              preview={detectedFormat.preview || null}
+              isLoading={isDetecting}
+              error={detectedFormat.error}
+              isExpanded={showPreview}
+              onToggle={() => setShowPreview(!showPreview)}
+            />
+          )}
+        </>
       )}
 
       <div className="mt-4 flex justify-end">

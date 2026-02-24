@@ -1,4 +1,4 @@
-import type { AnalysisResult, LlmAnalysisResult, Section, SearchResult } from './types';
+import type { AnalysisResult, DetectFormatResponse, LlmAnalysisResult, Section, SearchResult } from './types';
 
 export async function analyzeChords(text: string): Promise<AnalysisResult> {
   const resp = await fetch('/api/analyze', {
@@ -117,6 +117,24 @@ export async function fetchSheet(url: string): Promise<AnalysisResult> {
   if (!resp.ok) {
     const msg = await resp.text();
     throw new Error(`Fetch failed: ${msg}`);
+  }
+
+  return resp.json();
+}
+
+export async function detectFormat(
+  text: string,
+  formatHint?: string
+): Promise<DetectFormatResponse> {
+  const resp = await fetch('/api/detect-format', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, format_hint: formatHint }),
+  });
+
+  if (!resp.ok) {
+    const msg = await resp.text();
+    throw new Error(`Format detection failed: ${msg}`);
   }
 
   return resp.json();

@@ -98,3 +98,23 @@ export interface SearchResult {
   rating: number;
   rating_count: number;
 }
+
+export interface PreviewSection {
+  name: string;
+  chord_count: number;
+  first_chords: string[];
+}
+
+export interface FormatPreview {
+  key?: string;
+  title?: string;
+  artist?: string;
+  sections: PreviewSection[];
+}
+
+export interface DetectFormatResponse {
+  format: string;
+  confidence: 'high' | 'medium' | 'low';
+  preview?: FormatPreview;
+  error?: string;
+}
