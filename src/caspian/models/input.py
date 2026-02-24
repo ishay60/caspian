@@ -156,6 +156,37 @@ class BarContent(BaseModel):
     label: str | None = None
 
 
+class Bar(BaseModel):
+    """The universal content container - a single bar/measure.
+
+    Bars are the fundamental unit of musical time in Caspian.
+    Everything happens within bars: chords, notes, lyrics fragments.
+
+    Attributes:
+        time_signature: Tuple of (numerator, denominator), default (4, 4)
+        content: All musical content in this bar
+        lyrics_fragment: Hebrew lyrics syllables aligned to this bar
+        is_expandable: Whether this bar can be expanded/collapsed in UI
+
+    Example:
+        >>> Bar(
+        ...     time_signature=(4, 4),
+        ...     content=BarContent(chords=[
+        ...         BarChord(symbol="Am", beat_position=BeatPosition(beat=1, subdivision=0))
+        ...     ]),
+        ...     lyrics_fragment="יום"
+        ... )
+        >>> Bar(
+        ...     time_signature=(3, 4),
+        ...     content=BarContent(label="waltz pattern")
+        ... )
+    """
+    time_signature: tuple[int, int] = (4, 4)
+    content: BarContent = Field(default_factory=BarContent)
+    lyrics_fragment: str = ""
+    is_expandable: bool = False
+
+
 class ChordInput(BaseModel):
     """A single chord with optional aligned lyrics."""
     symbol: str
