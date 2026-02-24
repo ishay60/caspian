@@ -9,7 +9,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from fastapi import FastAPI, Header
+from fastapi import FastAPI, Header, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -17,6 +17,14 @@ from pydantic import BaseModel
 
 from fastapi import HTTPException
 
+from caspian.sources.base import SearchResult
+from caspian.sources.ultimate_guitar import UltimateGuitarSource
+from caspian.sources.tab4u import Tab4uSource
+from caspian.sources.converter import convert_raw_to_song_input
+
+from datetime import datetime, timedelta
+
+import httpx
 import logging
 
 from caspian.analysis.llm_analysis import (
@@ -190,6 +198,63 @@ class DetectFormatResponse(BaseModel):
     confidence: str  # 'high', 'medium', or 'low'
     preview: FormatPreview | None = None
     error: str | None = None
+
+
+class SearchSongsResponse(BaseModel):
+    query: str
+    source: str
+    results: list[SearchResult]
+    total: int
+
+
+class FetchSheetResponse(BaseModel):
+    source_url: str
+    fetched_at: str
+    analysis: AnalyzeResponse
+
+
+# --- Rate Limiting ---
+
+
+class RateLimiter:
+    """Simple in-memory rate limiter for API endpoints."""
+
+    def __init__(self, requests_per_minute: int = 20):
+        self.requests_per_minute = requests_per_minute
+        self.requests: dict[str, list[datetime]] = {}
+
+    async def check_rate_limit(self, request: Request):
+        client_ip = request.client.host if request.client else "unknown"
+        now = datetime.now()
+
+        if client_ip not in self.requests:
+            self.requests[client_ip] = []
+
+        self.requests[client_ip] = [
+            ts for ts in self.requests[client_ip]
+            if now - ts < timedelta(minutes=1)
+        ]
+
+        if len(self.requests[client_ip]) >= self.requests_per_minute:
+            raise HTTPException(
+                status_code=429,
+                detail="Rate limit exceeded. Please try again later.",
+                headers={"Retry-After": "60"}
+            )
+
+        self.requests[client_ip].append(now)
+
+
+_rate_limiter = RateLimiter(requests_per_minute=20)
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    """Apply rate limiting to search/fetch API endpoints."""
+    if request.url.path.startswith("/api/search") or request.url.path.startswith("/api/fetch"):
+        await _rate_limiter.check_rate_limit(request)
+    response = await call_next(request)
+    return response
 
 
 # --- Serialization ---
@@ -680,6 +745,104 @@ def convert_lyrics(req: LyricsInputRequest):
         import traceback
         error_detail = f"{str(e)}\n{traceback.format_exc()}"
         raise HTTPException(status_code=500, detail=error_detail)
+
+
+# --- Search & Fetch endpoints ---
+
+
+@app.get("/api/search-songs", response_model=SearchSongsResponse)
+async def search_songs(
+    q: str = Query(..., description="Search query", min_length=1),
+    source: str = Query("all", description="Source: all, ug, or tab4u", pattern="^(all|ug|tab4u)$"),
+    limit: int = Query(10, description="Max results", ge=1, le=50),
+) -> SearchSongsResponse:
+    """Search for chord sheets across sources."""
+    results: list[SearchResult] = []
+
+    try:
+        if source in ["all", "ug"]:
+            ug_source = UltimateGuitarSource()
+            try:
+                ug_results = await ug_source.search(q, limit=limit)
+                results.extend(ug_results)
+            except Exception as e:
+                logger.warning(f"Ultimate Guitar search failed: {e}")
+
+        if source in ["all", "tab4u"]:
+            tab4u_source = Tab4uSource()
+            try:
+                tab4u_results = await tab4u_source.search(q, limit=limit)
+                results.extend(tab4u_results)
+            except Exception as e:
+                logger.warning(f"Tab4u search failed: {e}")
+
+        results.sort(key=lambda r: r.quality_score(), reverse=True)
+        results = results[:limit]
+
+        return SearchSongsResponse(
+            query=q,
+            source=source,
+            results=results,
+            total=len(results),
+        )
+    except Exception as e:
+        logger.error(f"Search failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+@app.get("/api/fetch-sheet", response_model=FetchSheetResponse)
+async def fetch_sheet(
+    url: str = Query(..., description="URL to the chord sheet"),
+) -> FetchSheetResponse:
+    """Fetch a chord sheet from external source and analyze it."""
+    try:
+        url_lower = url.lower()
+        if "ultimate-guitar" in url_lower or "tabs.ultimate-guitar" in url_lower:
+            source = UltimateGuitarSource()
+        elif "tab4u" in url_lower:
+            source = Tab4uSource()
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Unsupported source. Only Ultimate Guitar and Tab4u are supported.",
+            )
+
+        try:
+            raw = await source.fetch(url)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise HTTPException(status_code=404, detail="Chord sheet not found")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to fetch: HTTP {e.response.status_code}"
+            )
+        except Exception as e:
+            logger.error(f"Fetch failed for URL {url}: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to fetch: {str(e)}")
+
+        try:
+            song_input = convert_raw_to_song_input(raw)
+        except Exception as e:
+            logger.error(f"Conversion failed for URL {url}: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to convert: {str(e)}")
+
+        try:
+            analysis = analyze_song(song_input)
+            analysis_response = _serialize_analysis(analysis)
+        except Exception as e:
+            logger.error(f"Analysis failed for URL {url}: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to analyze: {str(e)}")
+
+        return FetchSheetResponse(
+            source_url=url,
+            fetched_at=datetime.now().isoformat(),
+            analysis=analysis_response,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error fetching sheet from {url}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # Serve React static files in production
