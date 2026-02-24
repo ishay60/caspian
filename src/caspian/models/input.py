@@ -89,6 +89,45 @@ class BarNote(BaseModel):
     technique: str | None = None
 
 
+class TabNote(BaseModel):
+    """A guitar tablature note (string and fret position).
+
+    Represents a note in guitar tablature format, specifying
+    physical position on the fretboard.
+
+    Attributes:
+        string: String number (1-6, where 1 = high E, 6 = low E)
+        fret: Fret number (0 = open string, 1-24)
+        beat_position: When the note is played
+        duration_beats: How long the note sustains (default: 0.5 = eighth note)
+        technique: Optional playing technique (e.g., "bend", "slide", "hammer-on", "pull-off")
+
+    Example:
+        >>> TabNote(string=1, fret=0, beat_position=BeatPosition(beat=1, subdivision=0))  # high E open
+        >>> TabNote(string=3, fret=5, beat_position=BeatPosition(beat=2, subdivision=0),
+        ...         technique="bend")
+    """
+    string: int
+    fret: int
+    beat_position: BeatPosition
+    duration_beats: float = 0.5
+    technique: str | None = None
+
+    @field_validator('string')
+    @classmethod
+    def validate_string(cls, v: int) -> int:
+        if v < 1 or v > 6:
+            raise ValueError(f"string must be 1-6 (1=high E, 6=low E), got {v}")
+        return v
+
+    @field_validator('fret')
+    @classmethod
+    def validate_fret(cls, v: int) -> int:
+        if v < 0 or v > 24:
+            raise ValueError(f"fret must be 0-24, got {v}")
+        return v
+
+
 class ChordInput(BaseModel):
     """A single chord with optional aligned lyrics."""
     symbol: str
