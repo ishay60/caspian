@@ -192,7 +192,27 @@ function EditMode({
   onBack,
   onComplete,
 }: EditModeProps) {
-  // TODO: Implement edit mode UI
+  // Handler: Click on character position to place chord
+  const handleCharClick = useCallback((lineIndex: number, columnPosition: number) => {
+    setSelectedPosition({ lineIndex, columnPosition });
+    setChordInput('');
+    setCompletions([]);
+  }, [setSelectedPosition, setChordInput, setCompletions]);
+
+  // Handler: Remove chord
+  const handleRemoveChord = useCallback((lineIndex: number, columnPosition: number) => {
+    setPlacedChords(placedChords.filter(
+      chord => !(chord.lineIndex === lineIndex && chord.columnPosition === columnPosition)
+    ));
+  }, [placedChords, setPlacedChords]);
+
+  // Get chord at position
+  const getChordAt = useCallback((lineIndex: number, columnPosition: number) => {
+    return placedChords.find(
+      chord => chord.lineIndex === lineIndex && chord.columnPosition === columnPosition
+    );
+  }, [placedChords]);
+
   return (
     <div className="edit-mode">
       <div className="edit-header">
@@ -214,17 +234,215 @@ function EditMode({
         Click on any position in the lyrics to place a chord above it.
       </div>
 
-      {/* TODO: Render lyrics lines with chord placement UI */}
+      {/* Render lyrics lines with clickable characters */}
       <div className="lyrics-display">
-        {lyricsLines.map((line, index) => (
-          <div key={index} className="lyrics-line-container">
-            <div className="line-number">{index + 1}</div>
-            <div className="lyrics-line">
-              {line || '\u00A0'}
-            </div>
-          </div>
+        {lyricsLines.map((lineText, lineIndex) => (
+          <LyricsLineEditable
+            key={lineIndex}
+            lineIndex={lineIndex}
+            lineText={lineText}
+            placedChords={placedChords}
+            onCharClick={handleCharClick}
+            onRemoveChord={handleRemoveChord}
+            getChordAt={getChordAt}
+          />
         ))}
       </div>
+
+      {/* Chord input popup */}
+      {selectedPosition && (
+        <ChordInputPopup
+          selectedPosition={selectedPosition}
+          chordInput={chordInput}
+          setChordInput={setChordInput}
+          completions={completions}
+          setCompletions={setCompletions}
+          chordInputRef={chordInputRef}
+          onPlaceChord={(symbol) => {
+            const newChord: PlacedChord = {
+              lineIndex: selectedPosition.lineIndex,
+              columnPosition: selectedPosition.columnPosition,
+              symbol,
+            };
+            // Remove existing chord at this position if any
+            const filtered = placedChords.filter(
+              c => !(c.lineIndex === selectedPosition.lineIndex && c.columnPosition === selectedPosition.columnPosition)
+            );
+            setPlacedChords([...filtered, newChord]);
+            setSelectedPosition(null);
+            setChordInput('');
+            setCompletions([]);
+          }}
+          onCancel={() => {
+            setSelectedPosition(null);
+            setChordInput('');
+            setCompletions([]);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * LyricsLineEditable: Render a line with clickable character positions
+ */
+interface LyricsLineEditableProps {
+  lineIndex: number;
+  lineText: string;
+  placedChords: PlacedChord[];
+  onCharClick: (lineIndex: number, columnPosition: number) => void;
+  onRemoveChord: (lineIndex: number, columnPosition: number) => void;
+  getChordAt: (lineIndex: number, columnPosition: number) => PlacedChord | undefined;
+}
+
+function LyricsLineEditable({
+  lineIndex,
+  lineText,
+  placedChords,
+  onCharClick,
+  onRemoveChord,
+  getChordAt,
+}: LyricsLineEditableProps) {
+  const lineRef = useRef<HTMLDivElement>(null);
+
+  // Detect RTL text (Hebrew)
+  const isRTL = /[\u0590-\u05FF]/.test(lineText);
+  const displayText = lineText || '\u00A0'; // non-breaking space for empty lines
+
+  return (
+    <div className="lyrics-line-container">
+      <div className="line-number">{lineIndex + 1}</div>
+      <div
+        ref={lineRef}
+        className="lyrics-line lyrics-line-editable"
+        dir={isRTL ? 'rtl' : 'ltr'}
+      >
+        {/* Render each character as a clickable cell */}
+        {Array.from(displayText).map((char, charIndex) => {
+          const chord = getChordAt(lineIndex, charIndex);
+          return (
+            <span
+              key={charIndex}
+              className={`char-cell ${chord ? 'has-chord' : ''}`}
+              onClick={() => onCharClick(lineIndex, charIndex)}
+            >
+              {/* Chord badge above character */}
+              {chord && (
+                <span className="chord-badge">
+                  {chord.symbol}
+                  <button
+                    className="chord-remove-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveChord(lineIndex, charIndex);
+                    }}
+                    title="Remove chord"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {char}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * ChordInputPopup: Popup for entering chord symbol with autocomplete
+ */
+interface ChordInputPopupProps {
+  selectedPosition: { lineIndex: number; columnPosition: number };
+  chordInput: string;
+  setChordInput: (input: string) => void;
+  completions: string[];
+  setCompletions: (completions: string[]) => void;
+  chordInputRef: React.RefObject<HTMLInputElement>;
+  onPlaceChord: (symbol: string) => void;
+  onCancel: () => void;
+}
+
+function ChordInputPopup({
+  selectedPosition,
+  chordInput,
+  setChordInput,
+  completions,
+  setCompletions,
+  chordInputRef,
+  onPlaceChord,
+  onCancel,
+}: ChordInputPopupProps) {
+  const [selectedCompletionIndex, setSelectedCompletionIndex] = useState(0);
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  // Position popup near selected character
+  useEffect(() => {
+    if (!popupRef.current) return;
+
+    // For now, position at center of screen
+    // TODO: Calculate actual position based on selected character
+    const popup = popupRef.current;
+    popup.style.top = '50%';
+    popup.style.left = '50%';
+    popup.style.transform = 'translate(-50%, -50%)';
+  }, [selectedPosition]);
+
+  // Handle keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (completions.length > 0 && selectedCompletionIndex < completions.length) {
+        onPlaceChord(completions[selectedCompletionIndex]);
+      } else if (chordInput.trim()) {
+        onPlaceChord(chordInput.trim());
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      onCancel();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedCompletionIndex(Math.min(selectedCompletionIndex + 1, completions.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedCompletionIndex(Math.max(selectedCompletionIndex - 1, 0));
+    }
+  }, [chordInput, completions, selectedCompletionIndex, onPlaceChord, onCancel]);
+
+  return (
+    <div ref={popupRef} className="chord-input-popup">
+      <input
+        ref={chordInputRef}
+        type="text"
+        className="chord-input-field"
+        value={chordInput}
+        onChange={(e) => {
+          setChordInput(e.target.value);
+          setSelectedCompletionIndex(0);
+          // TODO: Fetch completions from API
+        }}
+        onKeyDown={handleKeyDown}
+        placeholder="Type chord (e.g. Am, C7)"
+        autoComplete="off"
+      />
+
+      {completions.length > 0 && (
+        <div className="chord-completions">
+          {completions.map((completion, index) => (
+            <div
+              key={index}
+              className={`chord-completion-item ${index === selectedCompletionIndex ? 'selected' : ''}`}
+              onClick={() => onPlaceChord(completion)}
+              onMouseEnter={() => setSelectedCompletionIndex(index)}
+            >
+              {completion}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
