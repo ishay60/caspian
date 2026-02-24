@@ -97,13 +97,18 @@ export function AnalysisView({ result }: Props) {
 
   // Reset when a new analysis result comes in
   useEffect(() => {
-    setSections(result.sections || []);
+    const newSections = result.sections || [];
+    setSections(newSections);
     setEditedSections(new Set());
     setLlmResult(null);
     setLlmLoading(false);
     setLlmError(null);
     setTransposeSemitones(0);
     setSelectedChordForFretboard(null);
+
+    // Auto-switch to chord-sheet view if any section has bars
+    const hasAnyBars = newSections.some(s => s.bars && s.bars.length > 0);
+    setViewMode(hasAnyBars ? 'chord-sheet' : 'standard');
   }, [result]);
 
   function handleSectionUpdate(index: number, updated: Section) {
@@ -229,7 +234,12 @@ export function AnalysisView({ result }: Props) {
               color: viewMode === 'chord-sheet' ? 'var(--color-accent)' : 'var(--color-text)',
             }}
           >
-            {viewMode === 'standard' ? 'Chord Sheet View' : 'Standard View'}
+            {viewMode === 'standard' ? '📊 Chord Sheet View' : '📝 Standard View'}
+            {viewMode === 'chord-sheet' && displaySections.some(s => s.bars && s.bars.length > 0) && (
+              <span style={{ marginLeft: '6px', opacity: 0.7, fontSize: '0.85em' }}>
+                ({displaySections.reduce((sum, s) => sum + (s.bars?.length || 0), 0)} bars)
+              </span>
+            )}
           </button>
 
           {llmError && (
