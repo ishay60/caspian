@@ -122,19 +122,80 @@ export function ChordSheetView({ section, onChordSelect, selectedChordIndex }: C
     );
   }
 
+  // Extract time signature from first bar (assuming consistent within section)
+  const timeSignature = section.bars?.[0] ? getTimeSignature(section.bars[0]) : [4, 4];
+
   return (
     <div className="chord-sheet-view">
-      {/* Placeholder for implementation */}
-      <div className="section-header">
-        <h3>{section.name}</h3>
-      </div>
+      {/* Section header with name and time signature */}
+      <SectionHeader
+        name={section.name}
+        timeSignature={timeSignature}
+      />
+
+      {/* Bar grid container */}
       <div className="bars-container">
         {section.bars.map((bar, index) => (
-          <div key={index} className="bar-wrapper">
-            Bar {index + 1}
-          </div>
+          <BarDisplay
+            key={index}
+            bar={bar}
+            barIndex={index}
+            onChordSelect={onChordSelect}
+            selectedChordIndex={selectedChordIndex}
+          />
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Section Header Component
+ * Displays section name and time signature
+ */
+interface SectionHeaderProps {
+  name: string;
+  timeSignature: [number, number];
+}
+
+function SectionHeader({ name, timeSignature }: SectionHeaderProps) {
+  return (
+    <div className="section-header">
+      <h3 className="section-name">{name}</h3>
+      <div className="time-signature">
+        <span className="numerator">{timeSignature[0]}</span>
+        <span className="separator">/</span>
+        <span className="denominator">{timeSignature[1]}</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Extract time signature from bar analysis
+ * Falls back to 4/4 if not available
+ */
+function getTimeSignature(bar: BarAnalysis): [number, number] {
+  // For now, return default 4/4
+  // TODO: Extract from bar data when available
+  return [4, 4];
+}
+
+/**
+ * BarDisplay Component Placeholder
+ * Will be implemented in Task 4.1.3
+ */
+interface BarDisplayProps {
+  bar: BarAnalysis;
+  barIndex: number;
+  onChordSelect?: (chordIndex: number) => void;
+  selectedChordIndex?: number | null;
+}
+
+function BarDisplay({ bar, barIndex, onChordSelect, selectedChordIndex }: BarDisplayProps) {
+  return (
+    <div className="bar-display">
+      Bar {barIndex + 1} - {bar.chord_analyses.length} chord(s)
     </div>
   );
 }
