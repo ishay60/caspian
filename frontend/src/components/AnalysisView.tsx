@@ -63,7 +63,8 @@ function transposeChord(c: ChordAnalysis, semitones: number): ChordAnalysis {
   };
 }
 
-function transposeKey(key: Key, semitones: number): Key {
+function transposeKey(key: Key | null | undefined, semitones: number): Key | null {
+  if (!key) return null;
   return {
     ...key,
     root_name: pitchToName(transposePitch(key.root, semitones)),
@@ -86,9 +87,9 @@ export function AnalysisView({ result }: Props) {
 
   // Compute transposed key and sections (at 0 preserve API key spelling e.g. Bb not A#)
   const currentKey = transposeKey(result.key, transposeSemitones);
-  const modeLabel = (MODE_KEYS as readonly string[]).includes(currentKey.mode)
+  const modeLabel = currentKey && (MODE_KEYS as readonly string[]).includes(currentKey.mode)
     ? t[currentKey.mode as typeof MODE_KEYS[number]]
-    : currentKey.mode;
+    : currentKey?.mode || '';
   const displaySections =
     transposeSemitones === 0
       ? sections
@@ -173,7 +174,7 @@ export function AnalysisView({ result }: Props) {
           >
             <div className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: 'var(--color-neutral)' }}>{t.key}</div>
             <div className="text-xl font-bold font-mono mt-0.5" style={{ color: 'var(--color-accent)' }}>
-              {currentKey.root_name} {modeLabel}
+              {currentKey ? `${currentKey.root_name} ${modeLabel}` : 'Unknown'}
             </div>
           </div>
         </div>
@@ -267,9 +268,9 @@ export function AnalysisView({ result }: Props) {
             )}
           </div>
           <Fretboard
-            scalePitches={currentKey.scale_pitches}
+            scalePitches={currentKey?.scale_pitches || []}
             chordPitches={selectedChordForFretboard?.pitches}
-            root={currentKey.root}
+            root={currentKey?.root || 0}
             chordRoot={selectedChordForFretboard?.root}
           />
         </div>

@@ -14,7 +14,7 @@ import { PracticeMode } from './PracticeMode';
 
 interface Props {
   section: Section;
-  keyInfo: Key;
+  keyInfo: Key | null;
   isEdited?: boolean;
   onSectionUpdate?: (updated: Section) => void;
   onChordSelect?: (chord: ChordAnalysis | null) => void;
@@ -92,8 +92,8 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
       const updated = await analyzeSectionChords(
         section.name,
         editableSymbols,
-        keyInfo.root_name,
-        keyInfo.mode,
+        keyInfo?.root_name || 'C',
+        keyInfo?.mode || 'major',
       );
       // Preserve original lyrics data (the re-analysis endpoint doesn't return it)
       updated.lines = section.lines || [];
@@ -205,8 +205,8 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
                     onChange={(newSym) => updateSymbol(i, newSym)}
                     onDelete={() => deleteSymbol(i)}
                     completionContext={{
-                      keyRootName: keyInfo.root_name,
-                      keyMode: keyInfo.mode,
+                      keyRootName: keyInfo?.root_name || 'C',
+                      keyMode: keyInfo?.mode || 'major',
                       prevChord: editableSymbols[i - 1],
                       nextChord: editableSymbols[i + 1],
                     }}
@@ -286,7 +286,7 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
             )}
 
             {/* Staff notation (conditional) */}
-            {showStaff && (
+            {showStaff && keyInfo && (
               <StaffNotation
                 chords={section.chords}
                 keyInfo={keyInfo}
@@ -381,7 +381,7 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
             </div>
 
             {/* Selected chord detail panel */}
-            {selectedChord !== null && section.chords[selectedChord] && (
+            {selectedChord !== null && section.chords[selectedChord] && keyInfo && (
               <ChordDetailPanel
                 chord={section.chords[selectedChord]}
                 keyInfo={keyInfo}

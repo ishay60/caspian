@@ -131,7 +131,7 @@ export interface ChordLyricPair {
 export interface AnalysisResult {
   title: string;
   artist: string;
-  key: Key;
+  key: Key | null;
   sections: Section[];
   segmentation_suggested?: boolean;
   pairs?: ChordLyricPair[];
