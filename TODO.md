@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-02-24
 **Current Branch:** develop
-**Current Story Point:** Phase 4 Story Point 4.1 COMPLETE ✅ - Ready for 4.2
+**Current Story Point:** Phase 4 Story Point 4.2 COMPLETE ✅ - Ready for 4.3
 
 ---
 
@@ -293,19 +293,23 @@ This is the **Single Source of Truth (SSOT)** for all implementation tasks for t
 - [x] Task 4.1.12: Write component tests
 - [x] Task 4.1.13: Test with ground truth examples
 
-### Story Point 4.2: Lyrics-First Input Mode
-**Branch:** `story/4.2-lyrics-input`
+### Story Point 4.2: Lyrics-First Input Mode ✅ COMPLETED
+**Branch:** `story/4.2-lyrics-input` (merged to develop)
+**Tests:** 27 test cases written
+**Commits:** 7 commits
+**Files:** 3 new files created (LyricsChordEditor.tsx, CSS, tests)
+**Lines Added:** 1,722 lines
 
-- [ ] Task 4.2.1: Create `LyricsChordEditor.tsx` component
-- [ ] Task 4.2.2: Implement plain lyrics input step
-- [ ] Task 4.2.3: Display lyrics line by line
-- [ ] Task 4.2.4: Add click-to-place-chord functionality
-- [ ] Task 4.2.5: Integrate chord autocomplete API
-- [ ] Task 4.2.6: Implement chord position snapping to characters
-- [ ] Task 4.2.7: Render chords above lyrics using Chord Sheet View
-- [ ] Task 4.2.8: Add chord removal functionality
-- [ ] Task 4.2.9: Add section marker insertion
-- [ ] Task 4.2.10: Write component tests
+- [x] Task 4.2.1: Create `LyricsChordEditor.tsx` component
+- [x] Task 4.2.2: Implement plain lyrics input step
+- [x] Task 4.2.3: Display lyrics line by line
+- [x] Task 4.2.4: Add click-to-place-chord functionality
+- [x] Task 4.2.5: Integrate chord autocomplete API
+- [x] Task 4.2.6: Implement chord position snapping to characters
+- [x] Task 4.2.7: Render chords above lyrics using Chord Sheet View
+- [x] Task 4.2.8: Add chord removal functionality
+- [x] Task 4.2.9: Add section marker insertion
+- [x] Task 4.2.10: Write component tests
 
 ### Story Point 4.3: Bar Overlay Mode
 **Branch:** `story/4.3-bar-overlay`
