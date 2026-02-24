@@ -463,31 +463,96 @@
 /* Validation panel */
 .validation-panel {
   padding: 1rem;
-  background: rgba(239, 68, 68, 0.05);
-  border: 2px solid var(--color-error, #ef4444);
   border-radius: 8px;
+  border: 2px solid;
+}
+
+.validation-panel.has-errors {
+  background: rgba(239, 68, 68, 0.05);
+  border-color: var(--color-error, #ef4444);
+}
+
+.validation-panel.has-warnings {
+  background: rgba(245, 158, 11, 0.05);
+  border-color: var(--color-warning, #f59e0b);
+}
+
+.validation-panel.has-info {
+  background: rgba(59, 130, 246, 0.05);
+  border-color: var(--color-info, #3b82f6);
+}
+
+.validation-panel.validation-success {
+  background: rgba(16, 185, 129, 0.05);
+  border-color: var(--color-success, #10b981);
+}
+
+.validation-section {
+  margin-bottom: 1rem;
+}
+
+.validation-section:last-child {
+  margin-bottom: 0;
 }
 
 .validation-title {
   margin: 0 0 0.75rem 0;
   font-size: 1rem;
   font-weight: 600;
+}
+
+.validation-title.validation-errors {
   color: var(--color-error, #ef4444);
 }
 
-.validation-warnings {
+.validation-title.validation-warnings {
+  color: var(--color-warning, #f59e0b);
+}
+
+.validation-title.validation-info {
+  color: var(--color-info, #3b82f6);
+}
+
+.validation-success .validation-title {
+  color: var(--color-success, #10b981);
+}
+
+.validation-list {
   margin: 0;
   padding-left: 1.5rem;
+  list-style: disc;
+}
+
+.validation-error,
+.validation-warning,
+.validation-info {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.validation-error {
+  color: var(--color-error, #ef4444);
 }
 
 .validation-warning {
-  margin-bottom: 0.5rem;
-  color: var(--color-text-primary, #333333);
-  font-size: 0.9rem;
+  color: var(--color-warning, #f59e0b);
 }
 
-.validation-warning:last-child {
+.validation-info {
+  color: var(--color-info, #3b82f6);
+}
+
+.validation-error:last-child,
+.validation-warning:last-child,
+.validation-info:last-child {
   margin-bottom: 0;
+}
+
+.validation-success-message {
+  margin: 0;
+  color: var(--color-text-secondary, #666666);
+  font-size: 0.9rem;
 }
 
 /* Buttons */

@@ -819,31 +819,151 @@ interface ValidationPanelProps {
 }
 
 function ValidationPanel({ barGroups }: ValidationPanelProps) {
+  const errors: string[] = [];
   const warnings: string[] = [];
+  const info: string[] = [];
 
-  barGroups.forEach((group, index) => {
-    if (group.hasConflict) {
-      warnings.push(`Bar ${index + 1}: Too many chords for time signature (${group.chords.length} chords in ${group.timeSignature[0]}/${group.timeSignature[1]})`);
+  barGroups.forEach((group, barIndex) => {
+    const [beatsPerBar] = group.timeSignature;
+
+    // Check for empty bars
+    if (group.chords.length === 0) {
+      warnings.push(`Bar ${barIndex + 1}: Empty bar`);
+      return;
     }
-    if (!group.isComplete && group.chords.length === 0) {
-      warnings.push(`Bar ${index + 1}: Empty bar`);
+
+    // Check for too many chords (beyond subdivisions)
+    if (group.hasConflict) {
+      errors.push(
+        `Bar ${barIndex + 1}: Too many chords (${group.chords.length} chords in ${group.timeSignature[0]}/${group.timeSignature[1]}). ` +
+        `Maximum is ${beatsPerBar * 4} (with subdivisions).`
+      );
+    }
+
+    // Check for beat position conflicts (multiple chords on same beat+subdivision)
+    const positionMap = new Map<string, number[]>();
+    group.chords.forEach((chord, chordIdx) => {
+      const key = `${chord.beatPosition.beat}-${chord.beatPosition.subdivision}`;
+      const existing = positionMap.get(key) || [];
+      existing.push(chordIdx);
+      positionMap.set(key, existing);
+    });
+
+    positionMap.forEach((chordIndices, key) => {
+      if (chordIndices.length > 1) {
+        const [beat, subdivision] = key.split('-');
+        const subdivisionName = ['on beat', '&', 'e', 'a'][Number(subdivision)];
+        warnings.push(
+          `Bar ${barIndex + 1}: Multiple chords on beat ${beat} (${subdivisionName}): ` +
+          chordIndices.map(i => group.chords[i].symbol).join(', ')
+        );
+      }
+    });
+
+    // Check for invalid beat positions (beat > beatsPerBar)
+    group.chords.forEach((chord, chordIdx) => {
+      if (chord.beatPosition.beat > beatsPerBar) {
+        errors.push(
+          `Bar ${barIndex + 1}, Chord "${chord.symbol}": Beat ${chord.beatPosition.beat} exceeds time signature (${beatsPerBar} beats per bar)`
+        );
+      }
+      if (chord.beatPosition.beat < 1) {
+        errors.push(
+          `Bar ${barIndex + 1}, Chord "${chord.symbol}": Invalid beat position ${chord.beatPosition.beat} (must be ≥ 1)`
+        );
+      }
+      if (chord.beatPosition.subdivision < 0 || chord.beatPosition.subdivision > 3) {
+        errors.push(
+          `Bar ${barIndex + 1}, Chord "${chord.symbol}": Invalid subdivision ${chord.beatPosition.subdivision} (must be 0-3)`
+        );
+      }
+    });
+
+    // Check for sparse bars (too few chords for time signature)
+    if (group.chords.length === 1 && beatsPerBar > 2) {
+      info.push(
+        `Bar ${barIndex + 1}: Only 1 chord in ${group.timeSignature[0]}/${group.timeSignature[1]} time. ` +
+        `Consider adding more chords or adjusting bar lines.`
+      );
+    }
+
+    // Check for uneven distribution (all chords on beat 1)
+    const allOnBeatOne = group.chords.every(c => c.beatPosition.beat === 1);
+    if (allOnBeatOne && group.chords.length > 1) {
+      warnings.push(
+        `Bar ${barIndex + 1}: All ${group.chords.length} chords are on beat 1. ` +
+        `Consider spreading them across the bar.`
+      );
+    }
+
+    // Check for missing beats (gaps in beat coverage)
+    const beatsUsed = new Set(group.chords.map(c => c.beatPosition.beat));
+    if (beatsUsed.size < beatsPerBar && beatsUsed.size > 1) {
+      const missingBeats = Array.from({ length: beatsPerBar }, (_, i) => i + 1)
+        .filter(beat => !beatsUsed.has(beat));
+      if (missingBeats.length > 0) {
+        info.push(
+          `Bar ${barIndex + 1}: No chords on beat${missingBeats.length > 1 ? 's' : ''} ${missingBeats.join(', ')}`
+        );
+      }
     }
   });
 
-  if (warnings.length === 0) {
-    return null;
+  const hasErrors = errors.length > 0;
+  const hasWarnings = warnings.length > 0;
+  const hasInfo = info.length > 0;
+
+  if (!hasErrors && !hasWarnings && !hasInfo) {
+    return (
+      <div className="validation-panel validation-success">
+        <h4 className="validation-title">✓ Bar structure is valid</h4>
+        <p className="validation-success-message">
+          All bars have consistent beat positions and proper time signatures.
+        </p>
+      </div>
+    );
   }
 
   return (
-    <div className="validation-panel">
-      <h4 className="validation-title">Warnings:</h4>
-      <ul className="validation-warnings">
-        {warnings.map((warning, index) => (
-          <li key={index} className="validation-warning">
-            {warning}
-          </li>
-        ))}
-      </ul>
+    <div className={`validation-panel ${hasErrors ? 'has-errors' : hasWarnings ? 'has-warnings' : 'has-info'}`}>
+      {hasErrors && (
+        <div className="validation-section">
+          <h4 className="validation-title validation-errors">Errors:</h4>
+          <ul className="validation-list">
+            {errors.map((error, index) => (
+              <li key={index} className="validation-error">
+                {error}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {hasWarnings && (
+        <div className="validation-section">
+          <h4 className="validation-title validation-warnings">Warnings:</h4>
+          <ul className="validation-list">
+            {warnings.map((warning, index) => (
+              <li key={index} className="validation-warning">
+                {warning}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {hasInfo && (
+        <div className="validation-section">
+          <h4 className="validation-title validation-info">Info:</h4>
+          <ul className="validation-list">
+            {info.map((item, index) => (
+              <li key={index} className="validation-info">
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
