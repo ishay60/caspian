@@ -100,6 +100,7 @@
  */
 
 import type { Section, BarAnalysis, BarChord, BeatPosition } from '../types';
+import { BarDisplay } from './BarDisplay';
 
 interface ChordSheetViewProps {
   section: Section;
@@ -140,6 +141,7 @@ export function ChordSheetView({ section, onChordSelect, selectedChordIndex }: C
             key={index}
             bar={bar}
             barIndex={index}
+            timeSignature={timeSignature}
             onChordSelect={onChordSelect}
             selectedChordIndex={selectedChordIndex}
           />
@@ -181,21 +183,4 @@ function getTimeSignature(bar: BarAnalysis): [number, number] {
   return [4, 4];
 }
 
-/**
- * BarDisplay Component Placeholder
- * Will be implemented in Task 4.1.3
- */
-interface BarDisplayProps {
-  bar: BarAnalysis;
-  barIndex: number;
-  onChordSelect?: (chordIndex: number) => void;
-  selectedChordIndex?: number | null;
-}
-
-function BarDisplay({ bar, barIndex, onChordSelect, selectedChordIndex }: BarDisplayProps) {
-  return (
-    <div className="bar-display">
-      Bar {barIndex + 1} - {bar.chord_analyses.length} chord(s)
-    </div>
-  );
-}
+// BarDisplay component is now imported from ./BarDisplay.tsx
