@@ -19,6 +19,11 @@ from caspian.parsing.section_detector import detect_section
 
 # Supports G6, Dm7/9, F7+, Bbdim, Am/G (suffix may include / and digits)
 _CHORD_PATTERN = re.compile(r"[A-G][#b]?[a-zA-Z0-9+/]*")
+
+# Invisible Unicode characters that break chord parsing (bidi marks, zero-width chars)
+_BIDI_MARKS = re.compile(
+    "[\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]"
+)
 _SECTION_HEADER = re.compile(r"^\[(.+?)\]\s*$")
 _METADATA_PATTERN = re.compile(r"^(\w+)\s*:\s*(.+)$")
 # Match chords with their positions in a line
@@ -50,6 +55,8 @@ def _is_pure_chord_line(line: str) -> bool:
 
 def parse_format_a(text: str) -> SongInput:
     """Parse Format A text into a SongInput model."""
+    # Strip invisible bidi marks that break chord parsing (e.g. G#\u200em → G#m)
+    text = _BIDI_MARKS.sub("", text)
     lines = text.strip().split("\n")
 
     title = ""
@@ -171,8 +178,11 @@ def parse_format_a(text: str) -> SongInput:
                         ChordLyricsLine(chords=chords_with_pos, lyrics=lyrics_line)
                     )
 
-                    # Hebrew lyrics → RTL → reverse for chronological order
-                    chords = list(reversed(visual_chords))
+                    # Determine chord order: instrumental sections stay LTR
+                    if current_section.section_type == "instrumental":
+                        chords = visual_chords
+                    else:
+                        chords = list(reversed(visual_chords))
 
                     for chord_sym in chords:
                         current_section.chords.append(
