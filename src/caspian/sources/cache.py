@@ -263,6 +263,9 @@ class DiskCache:
         json_str = json.dumps(entry.to_dict(), indent=2, ensure_ascii=False)
         entry.size_bytes = len(json_str.encode("utf-8"))
 
+        # Re-serialize with the correct size
+        json_str = json.dumps(entry.to_dict(), indent=2, ensure_ascii=False)
+
         try:
             # Atomic write: write to temp file, then rename
             temp_file = cache_file.with_suffix(".tmp")
