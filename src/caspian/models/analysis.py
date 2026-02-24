@@ -86,13 +86,26 @@ class BarAnalysis:
 
 @dataclass
 class SectionAnalysis:
-    """Analysis of a song section."""
+    """Analysis of a song section.
+
+    Contains both legacy chord-based analysis and new bar-based analysis.
+
+    Attributes:
+        name: Section name (e.g., "verse", "chorus")
+        chords: Legacy flat list of chord analyses (for backward compatibility)
+        bass_line: Bass line analysis
+        chromatic_runs: Detected chromatic motion
+        patterns: Detected harmonic patterns
+        lines: Legacy chord-lyrics line analysis (for backward compatibility)
+        bars: New bar-based analysis list
+    """
     name: str
     chords: list[ChordAnalysis] = field(default_factory=list)
     bass_line: list[BassNote] = field(default_factory=list)
     chromatic_runs: list[ChromaticRun] = field(default_factory=list)
     patterns: list[Pattern] = field(default_factory=list)
     lines: list[ChordLyricsLine] = field(default_factory=list)
+    bars: list[BarAnalysis] = field(default_factory=list)
 
 
 @dataclass
