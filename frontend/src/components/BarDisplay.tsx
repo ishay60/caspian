@@ -7,8 +7,11 @@
  * - Chord symbols positioned at beat positions
  * - Lyrics fragment (if available)
  * - Visual bar lines
+ * - Add Riff button (on hover)
+ * - Riff indicator badge
  */
 
+import React from 'react';
 import type { BarAnalysis, ChordAnalysis } from '../types';
 import { getChordColor } from '../lib/chordColor';
 
@@ -18,6 +21,8 @@ interface BarDisplayProps {
   timeSignature: [number, number];
   onChordSelect?: (chord: ChordAnalysis) => void;
   selectedChord?: ChordAnalysis | null;
+  onAddRiff?: (barIndex: number) => void;
+  hasRiff?: boolean;
 }
 
 export function BarDisplay({
@@ -26,9 +31,12 @@ export function BarDisplay({
   timeSignature,
   onChordSelect,
   selectedChord,
+  onAddRiff,
+  hasRiff = false,
 }: BarDisplayProps) {
   const [beatsPerBar] = timeSignature;
   const chords = bar.chord_analyses;
+  const [isHovered, setIsHovered] = React.useState(false);
 
   // Dynamic grid columns based on time signature
   const gridStyle = {
@@ -36,7 +44,11 @@ export function BarDisplay({
   };
 
   return (
-    <div className="bar-display">
+    <div
+      className="bar-display"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       {/* Bar container with beat grid */}
       <div className="bar-content">
         {/* Chord symbols layer */}
@@ -62,6 +74,24 @@ export function BarDisplay({
 
         {/* Lyrics fragment (if available) */}
         {/* TODO: Extract lyrics from bar data when available */}
+
+        {/* Riff indicator badge */}
+        {hasRiff && (
+          <div className="riff-indicator" title="This bar contains a riff">
+            🎸 Riff
+          </div>
+        )}
+
+        {/* Add Riff button (shown on hover) */}
+        {onAddRiff && isHovered && (
+          <button
+            className="add-riff-button"
+            onClick={() => onAddRiff(barIndex)}
+            title="Add riff or instrumental section"
+          >
+            + Add Riff
+          </button>
+        )}
       </div>
 
       {/* Bar number indicator (optional) */}
