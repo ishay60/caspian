@@ -17,6 +17,7 @@ from caspian.parsing.registry import (
     WebsitePasteParser,
     UGHTMLParser,
     Tab4uHTMLParser,
+    BarNotationParser,
     get_global_registry,
 )
 
@@ -438,3 +439,82 @@ class TestEdgeCases:
         # Should fall back to website paste or Format A
         result = FormatDetector.detect(single_bar)
         assert result != InputFormat.BAR_NOTATION
+
+
+class TestBarNotationParserIntegration:
+    """Tests for bar notation parser integration with registry."""
+
+    def test_bar_notation_parser_registered(self):
+        """Test that bar notation parser is registered in global registry."""
+        registry = get_global_registry()
+        parser = registry.get_parser(InputFormat.BAR_NOTATION)
+        assert parser is not None
+        assert isinstance(parser, BarNotationParser)
+
+    def test_parse_bar_notation_via_registry(self):
+        """Test parsing bar notation via registry."""
+        text = """
+| Am | F | C | G |
+| Dm | Em | F | G |
+"""
+        registry = get_global_registry()
+        song = registry.parse(text)
+
+        assert len(song.sections) == 1
+        assert len(song.sections[0].bars) == 8
+        assert song.sections[0].bars[0].content.chords[0].symbol == "Am"
+
+    def test_auto_detect_bar_notation(self):
+        """Test auto-detection of bar notation format."""
+        text = """
+[intro]
+| Am | F | C | G |
+
+[verse]
+| Dm | Em | F | G |
+"""
+        registry = get_global_registry()
+        song = registry.parse(text)  # Should auto-detect
+
+        assert len(song.sections) == 2
+        assert song.sections[0].name == "intro"
+        assert song.sections[1].name == "verse"
+
+    def test_explicit_bar_notation_format_hint(self):
+        """Test explicit format hint for bar notation (bypasses auto-detection)."""
+        text = "| Am | F |"
+
+        registry = get_global_registry()
+        # Even with single line, explicit hint forces bar notation parser
+        song = registry.parse(text, format_hint=InputFormat.BAR_NOTATION)
+
+        assert len(song.sections) == 1
+        assert len(song.sections[0].bars) == 2
+
+    def test_bar_notation_with_sections(self):
+        """Test bar notation with multiple sections (using explicit hint)."""
+        text = """
+[intro]
+| Gm7b5 | C7 |
+
+[verse]
+| Am | F | C | G |
+| Dm | Em | Am | Am |
+
+[chorus]
+| F | G | C | Am |
+"""
+        registry = get_global_registry()
+        # Use explicit format hint since mixed notation may be ambiguous
+        song = registry.parse(text, format_hint=InputFormat.BAR_NOTATION)
+
+        assert len(song.sections) == 3
+        assert song.sections[0].name == "intro"
+        assert song.sections[0].section_type == "instrumental"
+        assert len(song.sections[0].bars) == 2
+
+        assert song.sections[1].name == "verse"
+        assert len(song.sections[1].bars) == 8
+
+        assert song.sections[2].name == "chorus"
+        assert len(song.sections[2].bars) == 4

@@ -334,6 +334,17 @@ class Tab4uHTMLParser:
         return parse_format_a(normalized)
 
 
+class BarNotationParser:
+    """Adapter for bar notation parser."""
+
+    def parse(self, text: str) -> SongInput:
+        """Parse bar notation format."""
+        from caspian.parsing.bar_notation_parser import BarNotationParser as Parser
+
+        parser = Parser()
+        return parser.parse(text)
+
+
 # ---------------------------------------------------------------------------
 # Global Registry Initialization
 # ---------------------------------------------------------------------------
@@ -374,4 +385,7 @@ def _register_default_parsers(registry: ParserRegistry) -> None:
     # Tab4u HTML
     registry.register(InputFormat.TAB4U_HTML, Tab4uHTMLParser())
 
-    # Note: ChordPro and bar_notation parsers to be added in future story points
+    # Bar notation
+    registry.register(InputFormat.BAR_NOTATION, BarNotationParser())
+
+    # Note: ChordPro parser to be added in future story points
