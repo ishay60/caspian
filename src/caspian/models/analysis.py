@@ -60,14 +60,52 @@ class Pattern:
 
 
 @dataclass
+class BarAnalysis:
+    """Analysis of a single bar.
+
+    Contains harmonic analysis and rhythmic information for one bar.
+    Links to the individual chord analyses within the bar.
+
+    Attributes:
+        bar_index: 0-based index of this bar in the section
+        chord_analyses: List of chord analyses for chords in this bar
+        harmonic_rhythm: Description of chord change frequency
+            - "static": One chord for entire bar
+            - "half-bar": Chord changes at half-bar (beat 3 in 4/4)
+            - "per-beat": Chord changes on each beat
+            - "syncopated": Chord changes on off-beats or irregular timing
+        has_riff: Whether this bar contains a riff or melodic fill
+        riff_analysis: Optional description of the riff if present
+    """
+    bar_index: int
+    chord_analyses: list[ChordAnalysis] = field(default_factory=list)
+    harmonic_rhythm: str = "static"  # "static", "half-bar", "per-beat", "syncopated"
+    has_riff: bool = False
+    riff_analysis: str | None = None
+
+
+@dataclass
 class SectionAnalysis:
-    """Analysis of a song section."""
+    """Analysis of a song section.
+
+    Contains both legacy chord-based analysis and new bar-based analysis.
+
+    Attributes:
+        name: Section name (e.g., "verse", "chorus")
+        chords: Legacy flat list of chord analyses (for backward compatibility)
+        bass_line: Bass line analysis
+        chromatic_runs: Detected chromatic motion
+        patterns: Detected harmonic patterns
+        lines: Legacy chord-lyrics line analysis (for backward compatibility)
+        bars: New bar-based analysis list
+    """
     name: str
     chords: list[ChordAnalysis] = field(default_factory=list)
     bass_line: list[BassNote] = field(default_factory=list)
     chromatic_runs: list[ChromaticRun] = field(default_factory=list)
     patterns: list[Pattern] = field(default_factory=list)
     lines: list[ChordLyricsLine] = field(default_factory=list)
+    bars: list[BarAnalysis] = field(default_factory=list)
 
 
 @dataclass
