@@ -2,7 +2,19 @@
 
 ## Vision
 
-Transform Caspian from a chord-analysis tool into a **rhythm-aware harmonic workstation**. The core shift: sections don't just contain chords — they contain **bars**, and bars contain **chords with exact timing positions**. This enables playback that matches the actual song, supports syncopation, and makes the tool useful for high-level musicians and songwriters exploring harmony.
+Transform Caspian from a chord-analysis tool into a **rhythm-aware harmonic workstation**. The core shift: sections don't just contain chords — they contain **bars**, and bars are **universal content containers**.
+
+A bar is the universal language of music. It's an abstraction that can hold any rhythmic or melodic content:
+- **Chords** with exact beat positions (the baseline)
+- **Instrumental riffs** — fast note sequences (e.g., a guitar lick at the end of a vocal phrase)
+- **Tablature** — fret/string notation for guitarists
+- **Single notes / melodic lines** — for intros, solos, fills
+
+**The key metaphor: editing music like editing code.** Bars are displayed above the lyrics in a clean, readable format. Each bar is expandable — collapsed it shows just the chord symbol, expanded it reveals the riff, the tab, the beat grid. This makes the sheet readable at a glance yet arbitrarily detailed when you zoom in. Cross-platform, universal, printable.
+
+**Real-world example:** A song in Em where the singer holds the chord for a bar, but at the tail end of the vocal line the guitar plays a quick riff: A → B → C → B → A. The user needs to notate that riff *inline*, at the end of that bar, and mark it as fast (eighth or sixteenth notes). Today you can't do this in most chord sheet tools. In Caspian, the bar container holds both the sustained Em and the riff, and the display expands to show it.
+
+This enables playback that matches the actual song, supports syncopation, and makes the tool useful for high-level musicians and songwriters exploring harmony.
 
 ---
 
@@ -26,6 +38,8 @@ Transform Caspian from a chord-analysis tool into a **rhythm-aware harmonic work
 
 ### 1.1 — Backend: New data models
 
+The bar is a **universal content container**. It holds chords, but also instrumental riffs, single notes, and eventually tablature. Each element inside a bar has a beat position and duration.
+
 Add to `models/input.py`:
 ```python
 class BeatPosition(BaseModel):
@@ -39,11 +53,35 @@ class BarChord(BaseModel):
     beat_position: BeatPosition
     duration_beats: float | None = None  # how long it rings (None = until next chord)
 
+class BarNote(BaseModel):
+    """A single note within a bar — for riffs, fills, melodic lines."""
+    pitch: str                          # e.g., "A", "B", "C#" (note name)
+    octave: int = 4                     # octave number
+    beat_position: BeatPosition
+    duration_beats: float = 0.5         # default to eighth note
+    technique: str | None = None        # "bend", "slide", "hammer-on", "pull-off", etc.
+
+class TabNote(BaseModel):
+    """Guitar tablature note — fret + string."""
+    string: int                         # 1-6 (1 = high E)
+    fret: int                           # 0 = open, 1-24
+    beat_position: BeatPosition
+    duration_beats: float = 0.5
+    technique: str | None = None        # "h" (hammer-on), "p" (pull-off), "/" (slide), "b" (bend)
+
+class BarContent(BaseModel):
+    """All content within a bar — expandable layers."""
+    chords: list[BarChord] = Field(default_factory=list)    # Primary: chord symbols
+    notes: list[BarNote] = Field(default_factory=list)      # Riffs, fills, melodic lines
+    tab: list[TabNote] = Field(default_factory=list)        # Guitar tablature overlay
+    label: str | None = None                                # e.g., "guitar riff", "intro lick"
+
 class Bar(BaseModel):
-    """A single bar/measure in a song."""
-    time_signature: tuple[int, int] = (4, 4)  # numerator, denominator
-    chords: list[BarChord] = Field(default_factory=list)
-    lyrics_fragment: str = ""  # lyrics that fall within this bar
+    """A single bar/measure in a song — the universal content container."""
+    time_signature: tuple[int, int] = (4, 4)
+    content: BarContent = Field(default_factory=BarContent)
+    lyrics_fragment: str = ""           # lyrics that fall within this bar
+    is_expandable: bool = False         # UI hint: has detail beyond just chords
 
 class SectionInput(BaseModel):  # UPDATED
     name: str
@@ -54,6 +92,29 @@ class SectionInput(BaseModel):  # UPDATED
     tempo_bpm: float | None = None                          # NEW
 ```
 
+**Example: Vocal bar with trailing guitar riff**
+```python
+Bar(
+    content=BarContent(
+        chords=[BarChord(symbol="Em", beat_position=BeatPosition(beat=1, subdivision=0))],
+        notes=[
+            BarNote(pitch="A", beat_position=BeatPosition(beat=3, subdivision=2), duration_beats=0.25),
+            BarNote(pitch="B", beat_position=BeatPosition(beat=4, subdivision=0), duration_beats=0.25),
+            BarNote(pitch="C", beat_position=BeatPosition(beat=4, subdivision=1), duration_beats=0.25),
+            BarNote(pitch="B", beat_position=BeatPosition(beat=4, subdivision=2), duration_beats=0.25),
+            BarNote(pitch="A", beat_position=BeatPosition(beat=4, subdivision=3), duration_beats=0.25),
+        ],
+        label="guitar riff"
+    ),
+    lyrics_fragment="hold me tight",
+    is_expandable=True
+)
+# Collapsed view:  | Em ~~riff~~ |
+#                    hold me tight
+# Expanded view:   | Em          A B C B A |
+#                    hold me tight  ♪ ♪ ♪ ♪ ♪
+```
+
 Add to `models/analysis.py`:
 ```python
 class BarAnalysis:
@@ -61,6 +122,8 @@ class BarAnalysis:
     bar_index: int
     chord_analyses: list[ChordAnalysis]
     harmonic_rhythm: str  # "static", "half-bar", "per-beat", "syncopated"
+    has_riff: bool = False
+    riff_analysis: str | None = None   # e.g., "descending chromatic approach to root"
 ```
 
 Update `SectionAnalysis` to include `bars: list[BarAnalysis]`.
@@ -77,8 +140,11 @@ Update `types.ts` with matching TypeScript interfaces:
 ```typescript
 interface BeatPosition { beat: number; subdivision: number; }
 interface BarChord { symbol: string; beat_position: BeatPosition; duration_beats: number | null; }
-interface Bar { time_signature: [number, number]; chords: BarChord[]; lyrics_fragment: string; }
-interface BarAnalysis { bar_index: number; chord_analyses: ChordAnalysis[]; harmonic_rhythm: string; }
+interface BarNote { pitch: string; octave: number; beat_position: BeatPosition; duration_beats: number; technique?: string; }
+interface TabNote { string: number; fret: number; beat_position: BeatPosition; duration_beats: number; technique?: string; }
+interface BarContent { chords: BarChord[]; notes: BarNote[]; tab: TabNote[]; label?: string; }
+interface Bar { time_signature: [number, number]; content: BarContent; lyrics_fragment: string; is_expandable: boolean; }
+interface BarAnalysis { bar_index: number; chord_analyses: ChordAnalysis[]; harmonic_rhythm: string; has_riff: boolean; riff_analysis?: string; }
 ```
 
 Update `Section` to include optional `bars: BarAnalysis[]`.
@@ -179,12 +245,13 @@ For Hebrew songs, the rating/quality signal is weaker:
 - Consider allowing users to "correct" fetched sheets and save locally
 - Future: community-contributed corrections (Phase 7+)
 
-### 2.7 — Database for caching (optional but recommended)
+### 2.7 — Caching layer (optional but recommended)
 
-Introduce a lightweight DB (SQLite via `sqlite3` or `aiosqlite`):
-- Cache fetched chord sheets with TTL
+Introduce a document-based cache (see Phase 9 for full DB strategy):
+- Cache fetched chord sheets as documents with TTL
 - Index by title + artist for dedup
 - Store user corrections alongside originals
+- MVP: JSON files on disk or lightweight document store; upgrades to the main document DB in Phase 9
 
 ### Files touched:
 - New: `src/caspian/sources/` (entire module)
@@ -254,19 +321,59 @@ Show the user what format was detected and a preview of how it was parsed before
 
 ---
 
-## Phase 4: Input Method 3 — Split Lyrics & Insert Chords
+## Phase 4: Chord Sheet View & Bar Editor
 
-**Goal:** Allow users to paste plain lyrics, then overlay chords line by line, and then assign bar structure on top.
+**Goal:** Two complementary features: (1) a clean, cross-platform **Chord Sheet View** that renders bars above lyrics — the most natural display format for musicians, and (2) a lyrics-first editor for building chord sheets from scratch.
 
-### 4.1 — Frontend: Lyrics-first input mode
+### 4.1 — Chord Sheet View (read-only display mode)
+
+The primary output format. Bars drawn above lyrics, chord symbols positioned at the syllable they belong to. This is the "guitar teacher whiteboard" format — universal, readable, printable.
+
+**Collapsed view** (default — clean chord sheet):
+```
+  | Em                | Am       G     | F           C    |
+    hold me tight       and don't let    go tonight
+
+  | Em      ~~riff~~  |
+    one more time
+```
+
+**Expanded view** (click a bar or toggle "show detail"):
+```
+  | Em                              A  B  C  B  A  |
+    hold me tight                    ♪  ♪  ♪  ♪  ♪
+                                     [guitar riff]
+
+  — or with tablature layer —
+
+  | Em                              A  B  C  B  A  |
+    hold me tight
+    e|------------------------------|--0--2--3--2--0--|
+    B|--0---------------------------|-----------------|
+    G|--0---------------------------|-----------------|
+```
+
+**Key properties:**
+- **Cross-platform:** Renders as styled HTML/CSS (works in any browser, prints cleanly, exports to PDF)
+- **Expandable:** Each bar can be collapsed (chord-only) or expanded (riff, tab, beat grid). Like a code editor with collapsible blocks.
+- **RTL-aware:** Hebrew lyrics flow right-to-left; bar structure above remains universal LTR (music notation is always LTR)
+- **Interactive:** Click a bar to expand, click a chord to see analysis, long-press to edit
+- **Bar lines visible:** Vertical `|` separators between bars — the universal music delimiter
+
+New component: `ChordSheetView.tsx`
+- Toggle between collapsed/expanded per bar or globally
+- Print/export mode strips interactivity for clean output
+- Responsive: bars wrap at viewport width (like text wrapping)
+
+### 4.2 — Frontend: Lyrics-first input mode
 
 New component: `LyricsChordEditor.tsx`
 - **Step 1:** User pastes or types plain lyrics
 - **Step 2:** System displays lyrics line by line
 - **Step 3:** User clicks above a word/syllable to place a chord (autocomplete from `chord-completions` API)
-- **Step 4:** Chords snap to character positions, rendered above the lyrics
+- **Step 4:** Chords snap to character positions, rendered above the lyrics using the Chord Sheet View format
 
-### 4.2 — Frontend: Bar overlay mode
+### 4.3 — Frontend: Bar overlay mode
 
 Once chords are placed over lyrics:
 - **Step 5:** User draws bar lines between chords (click between chords to insert `|`)
@@ -274,7 +381,25 @@ Once chords are placed over lyrics:
 - **Step 7:** User can set time signature per section (default 4/4)
 - **Step 8:** Within each bar, chords are assigned to beat positions (drag to adjust)
 
-### 4.3 — Frontend: Beat grid editor
+### 4.4 — Frontend: Inline riff / instrumental editor
+
+The "code editing" experience for instrumental parts:
+- User selects a beat range within a bar → "Add riff" button appears
+- **Note entry:** Click beats on the grid to place notes (like a piano roll, but text-based)
+- **Quick entry:** Type note names directly: `A B C B A` → system auto-spaces them across the available beats
+- **Tab entry:** Switch to tab view → click string+fret positions
+- **Riff label:** Give it a name ("guitar riff", "bass fill", "intro lick") for the collapsed view
+- Riffs at the end of a vocal line (the most common case) are entered by expanding the last bar of the line
+
+**Example workflow — adding a trailing guitar riff:**
+1. User has a line: `| Em | hold me tight`
+2. Clicks the Em bar → expands
+3. Sees the beat grid: `beat 1 [Em] — beat 2 — beat 3 — beat 4`
+4. Clicks "Add riff" on beats 3-4
+5. Types `A B C B A` → system places them as sixteenth notes on beats 3-4
+6. Collapses → sees `| Em ~~riff~~ |`
+
+### 4.5 — Frontend: Beat grid editor
 
 For advanced users — visual beat grid per bar:
 ```
@@ -284,14 +409,15 @@ Bar 1 (4/4):  | Am        |    G     |          |    F     |
 - Click to place/remove chords on the grid
 - Supports 8th and 16th subdivisions for syncopation
 - Visual indication of harmonic rhythm
+- Notes/riffs shown as smaller dots between chord slots
 
-### 4.4 — Backend: Lyrics-to-SongInput converter
+### 4.6 — Backend: Lyrics-to-SongInput converter
 
 New endpoint or mode in the existing parse pipeline:
-- Accept `{ lyrics: string[], chords_per_line: ChordPlacement[][] }`
-- Convert to `SongInput` with proper `bars` data
+- Accept `{ lyrics: string[], chords_per_line: ChordPlacement[][], riffs: RiffPlacement[] }`
+- Convert to `SongInput` with proper `bars` data including `BarContent.notes`
 
-### 4.5 — Auto-bar detection heuristic
+### 4.7 — Auto-bar detection heuristic
 
 When chords are placed over lyrics without explicit bar lines:
 - Use common patterns (e.g., 2 chords per line → likely 2 bars or 1 bar with chord change)
@@ -299,10 +425,12 @@ When chords are placed over lyrics without explicit bar lines:
 - Allow user to confirm/adjust
 
 ### Files touched:
+- New: `frontend/src/components/ChordSheetView.tsx` (primary display component)
 - New: `frontend/src/components/LyricsChordEditor.tsx`
 - New: `frontend/src/components/BarOverlay.tsx`
 - New: `frontend/src/components/BeatGrid.tsx`
-- `frontend/src/App.tsx` (new input mode routing)
+- New: `frontend/src/components/RiffEditor.tsx`
+- `frontend/src/App.tsx` (new input mode routing, new display mode)
 - `src/caspian/api.py` (new endpoint)
 - `frontend/src/types.ts` (new types)
 
@@ -390,7 +518,7 @@ When a user clicks a chord in bar view:
 - Simple email + password or OAuth (Google)
 - JWT-based session management
 - User model: `id, email, name, tier (free/pro), created_at`
-- Database: PostgreSQL (or SQLite for MVP, upgrade later)
+- Database: Document DB (Firestore or MongoDB — see Phase 9)
 
 ### 7.2 — Pro tier features
 
@@ -520,38 +648,127 @@ New components:
 
 ---
 
-## Phase 9: Database & Cloud Storage
+## Phase 9: Document Database & Cloud Storage
 
 **Goal:** Move from localStorage to a real database for song persistence, cloud sync, and cached chord sheets.
 
-### 9.1 — Backend database
+### 9.1 — Why document DB (not relational)
 
-- SQLite for development, PostgreSQL for production
-- ORM: SQLAlchemy or raw SQL with migrations (Alembic)
-- Tables:
-  - `users` (id, email, tier, ...)
-  - `songs` (id, user_id, title, artist, key, input_text, analysis_json, created_at, updated_at)
-  - `chord_sheet_cache` (id, source, source_url, raw_data, normalized_data, fetched_at, ttl)
-  - `user_corrections` (id, user_id, song_id, field, original_value, corrected_value)
+A song in Caspian is a deeply nested document: song → sections → bars → content (chords + notes + tab) + lyrics + analysis. In SQL this would require 6+ normalized tables with complex joins for every read. But this data is:
+- **Read as a unit** — you always load the whole song
+- **Variable-structure** — bars can have chords only, or chords + riffs + tab
+- **Nested** — sections contain bars contain content layers
+- **Schema-evolving** — new content types (tab, riffs) get added without migrations
 
-### 9.2 — API: CRUD endpoints
+A document DB stores each song as a single document, matching the natural shape of the data.
+
+### 9.2 — Recommended: Firestore (or MongoDB)
+
+**Primary recommendation: Firestore**
+- Zero-ops (no server to manage), generous free tier
+- Real-time sync built-in (cloud ↔ browser, live collaboration later)
+- Offline support with automatic conflict resolution
+- Natural fit for the frontend (Firebase SDK)
+- Scales to zero cost for hobby use
+
+**Alternative: MongoDB Atlas**
+- More flexible querying (full-text search on lyrics, chord progressions)
+- Better for complex aggregations (e.g., "find all songs using dim7 in the key of Am")
+- Self-hostable if needed
+
+**Fallback for MVP: JSON files on disk + SQLite for flat data**
+- Songs stored as `.json` files in a data directory (one file per song)
+- SQLite only for flat relational data: `users`, `chord_sheet_cache` (title/artist/url index)
+- Upgrade to Firestore/MongoDB when cloud sync is needed
+
+### 9.3 — Document structure
+
+```json
+// songs/{song_id}
+{
+  "id": "uuid",
+  "user_id": "user_uuid",
+  "title": "יום שישי חזר",
+  "artist": "מתי כספי",
+  "key": { "root": "D", "mode": "major" },
+  "input_text": "...",
+  "sections": [
+    {
+      "name": "verse",
+      "bars": [
+        {
+          "time_signature": [4, 4],
+          "content": {
+            "chords": [{ "symbol": "D", "beat_position": { "beat": 1, "subdivision": 0 } }],
+            "notes": [],
+            "tab": [],
+            "label": null
+          },
+          "lyrics_fragment": "יום שישי חזר"
+        }
+      ]
+    }
+  ],
+  "analysis": { /* full analysis output cached */ },
+  "llm_narrative": { /* cached LLM response */ },
+  "metadata": {
+    "created_at": "2026-02-24T...",
+    "updated_at": "2026-02-24T...",
+    "source_url": "https://tab4u.com/...",
+    "tags": ["hebrew", "pop"]
+  }
+}
+```
+
+```json
+// chord_sheet_cache/{cache_id} — flat, suitable for any DB
+{
+  "source": "ultimate_guitar",
+  "source_url": "https://...",
+  "title": "...",
+  "artist": "...",
+  "raw_data": "...",
+  "normalized_data": { /* SongInput JSON */ },
+  "fetched_at": "2026-02-24T...",
+  "ttl_hours": 168
+}
+```
+
+### 9.4 — API: CRUD endpoints
 
 ```python
 GET    /api/songs              # list user's songs
 POST   /api/songs              # save a song
 GET    /api/songs/{id}         # get a song
-PUT    /api/songs/{id}         # update a song
+PUT    /api/songs/{id}         # update a song (full document replace)
+PATCH  /api/songs/{id}         # partial update (e.g., just analysis)
 DELETE /api/songs/{id}         # delete a song
 ```
 
-### 9.3 — Frontend: Cloud library
+### 9.5 — Frontend: Cloud library
 
 - Replace or augment localStorage-based `SongLibrary` with API-backed version
 - Sync indicator (cloud icon, last synced timestamp)
-- Offline support with localStorage fallback
+- Offline support with localStorage fallback (Firestore handles this natively)
+- Conflict resolution: last-write-wins for MVP, merge for later
+
+### 9.6 — Backend: Repository pattern
+
+Abstract the DB behind a repository interface so the backend doesn't care whether it's Firestore, MongoDB, or JSON files:
+
+```python
+class SongRepository(ABC):
+    async def get(self, song_id: str) -> SongDocument: ...
+    async def list(self, user_id: str, filters: dict) -> list[SongDocument]: ...
+    async def save(self, song: SongDocument) -> str: ...
+    async def delete(self, song_id: str) -> None: ...
+
+class FirestoreSongRepository(SongRepository): ...
+class JsonFileSongRepository(SongRepository): ...   # MVP fallback
+```
 
 ### Files touched:
-- New: `src/caspian/db/` (models, migrations, repository)
+- New: `src/caspian/db/` (repository interface, implementations)
 - `src/caspian/api.py` (CRUD endpoints)
 - `frontend/src/lib/songLibrary.ts` (cloud adapter)
 - `frontend/src/components/SongLibrary.tsx` (cloud UI)
@@ -597,7 +814,7 @@ Phase 1 (Bar Model) ────────────────────
 
 | Decision | Options | Recommendation |
 |----------|---------|----------------|
-| Database | SQLite / PostgreSQL / both | SQLite for now, migrate to PG later |
+| Database | Firestore / MongoDB / JSON files | Firestore (zero-ops, real-time sync) or MongoDB (flexible queries). JSON files for MVP. |
 | Auth | Self-hosted / Firebase / Auth0 | Auth0 or Supabase for speed |
 | Sheet scanning AI | Claude Vision / GPT-4V / dedicated OMR | Start with Claude Vision for MVP |
 | Playback synthesis | Web Audio API / Tone.js / pre-recorded samples | Tone.js (already a good fit) |
