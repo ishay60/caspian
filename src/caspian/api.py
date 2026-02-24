@@ -39,8 +39,12 @@ from caspian.models.analysis import (
     SongAnalysis,
 )
 from caspian.theory.pitch import note_name, note_name_in_key
+from caspian.sources.cache import DiskCache
 
 app = FastAPI(title="Caspian", description="Hebrew harmonic analysis API")
+
+# Initialize cache
+cache = DiskCache()
 
 _allowed_origins = [
     o.strip()
@@ -409,6 +413,72 @@ async def uberchord_proxy(chord_name: str):
     data = await asyncio.to_thread(_fetch)
     _uberchord_cache[chord_name] = data
     return data
+
+
+# --- Cache Management API ---
+
+
+class CacheStatsResponse(BaseModel):
+    """Cache statistics response."""
+
+    total_entries: int
+    by_source: dict[str, dict]
+    total_size_bytes: int
+    average_size_bytes: int
+    oldest_entry: str | None
+    newest_entry: str | None
+    runtime_stats: dict
+
+
+class CacheClearResponse(BaseModel):
+    """Cache clear response."""
+
+    cleared: int
+    source: str
+
+
+@app.get("/api/cache/stats", response_model=CacheStatsResponse)
+async def get_cache_stats():
+    """
+    Get comprehensive cache statistics.
+
+    Returns:
+        - Total entries and entries by source
+        - Total size and average size
+        - Oldest and newest entries
+        - Runtime hit/miss statistics
+    """
+    stats = cache.get_stats()
+    return CacheStatsResponse(**stats)
+
+
+@app.delete("/api/cache", response_model=CacheClearResponse)
+async def clear_cache(source: str | None = None):
+    """
+    Clear cache entries.
+
+    Args:
+        source: Optional source to clear (ultimate_guitar/tab4u).
+                If not provided, clears all sources.
+
+    Returns:
+        Number of entries cleared and source name
+    """
+    count = cache.clear(source)
+    return CacheClearResponse(cleared=count, source=source or "all")
+
+
+@app.get("/api/cache/hit-rate")
+async def get_cache_hit_rate():
+    """
+    Get cache hit rate statistics.
+
+    Returns:
+        - Overall hit rate
+        - Hit rate by source
+        - Total hits and misses
+    """
+    return cache.get_hit_rate()
 
 
 # Serve React static files in production
