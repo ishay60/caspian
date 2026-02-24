@@ -1078,6 +1078,34 @@ interface QuickTypeEditorProps {
 }
 
 function QuickTypeEditor({ input, onInputChange, onSubmit }: QuickTypeEditorProps) {
+  const [parsePreview, setParsePreview] = useState<string>('');
+
+  // Update preview as user types
+  const handleInputChange = (value: string) => {
+    onInputChange(value);
+
+    // Generate preview
+    const parts = value.trim().split(/\s+/);
+    const validNotes: string[] = [];
+
+    for (const part of parts) {
+      const match = part.match(/^([A-G]#?)(\d?)$/);
+      if (match) {
+        const pitch = match[1];
+        const octave = match[2] || '4';
+        validNotes.push(`${pitch}${octave}`);
+      }
+    }
+
+    if (validNotes.length > 0) {
+      setParsePreview(`Will add ${validNotes.length} note${validNotes.length > 1 ? 's' : ''}: ${validNotes.join(', ')}`);
+    } else if (value.trim()) {
+      setParsePreview('No valid notes found. Use format: C D E or C4 D4 E4');
+    } else {
+      setParsePreview('');
+    }
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       onSubmit();
@@ -1094,14 +1122,32 @@ function QuickTypeEditor({ input, onInputChange, onSubmit }: QuickTypeEditorProp
         <input
           type="text"
           className="quick-type-input"
-          placeholder="e.g., C D E F G"
+          placeholder="e.g., C D E F G or C4 D#4 E4 F#4 G4"
           value={input}
-          onChange={(e) => onInputChange(e.target.value)}
+          onChange={(e) => handleInputChange(e.target.value)}
           onKeyPress={handleKeyPress}
+          autoFocus
         />
-        <button className="btn-primary" onClick={onSubmit}>
+        <button className="btn-primary" onClick={onSubmit} disabled={!input.trim()}>
           Add Notes
         </button>
+      </div>
+      {parsePreview && (
+        <div className="parse-preview">
+          {parsePreview}
+        </div>
+      )}
+      <div className="quick-type-help">
+        <h4>Format Help:</h4>
+        <ul>
+          <li><strong>Simple:</strong> C D E F G (defaults to octave 4)</li>
+          <li><strong>With octaves:</strong> C4 D4 E4 F4 G4</li>
+          <li><strong>Sharps:</strong> C# D# F# G# A#</li>
+          <li><strong>Mixed:</strong> C4 D# E F#4 G</li>
+        </ul>
+        <p className="help-note">
+          Notes will be added sequentially and can be auto-spaced across the selected beat range.
+        </p>
       </div>
     </div>
   );

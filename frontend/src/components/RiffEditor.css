@@ -747,6 +747,53 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+.parse-preview {
+  padding: 0.75rem 1rem;
+  background: rgba(59, 130, 246, 0.1);
+  border-left: 3px solid var(--color-primary);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+}
+
+.quick-type-help {
+  padding: 1rem;
+  background: var(--color-surface);
+  border-radius: 0.375rem;
+  border: 1px solid var(--color-border);
+}
+
+.quick-type-help h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.quick-type-help ul {
+  margin: 0 0 0.75rem 0;
+  padding-left: 1.5rem;
+  font-size: 0.875rem;
+}
+
+.quick-type-help li {
+  margin-bottom: 0.25rem;
+}
+
+.quick-type-help strong {
+  color: var(--color-text);
+}
+
+.help-note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
 /* Riff Actions */
 .riff-actions {
   display: flex;
