@@ -1,8 +1,8 @@
 # Caspian Grand Plan - Implementation TODO (SSOT)
 
 **Last Updated:** 2026-02-24
-**Current Branch:** story/4.5-beat-grid
-**Current Story Point:** Phase 4 Story Point 4.5 COMPLETE ✅ - Ready for 4.6
+**Current Branch:** develop
+**Current Story Point:** Phase 4 COMPLETE ✅ - Ready for Phase 5
 
 ---
 
@@ -362,29 +362,37 @@ This is the **Single Source of Truth (SSOT)** for all implementation tasks for t
 - [x] Task 4.5.7: Add drag-to-reposition functionality
 - [x] Task 4.5.8: Write component tests
 
-### Story Point 4.6: Backend Lyrics-to-SongInput Converter
-**Branch:** `story/4.6-lyrics-converter`
+### Story Point 4.6: Backend Lyrics-to-SongInput Converter ✅ COMPLETED
+**Branch:** `story/4.6-lyrics-converter` (merged to develop)
+**Tests:** 43 new tests (745 total passing)
+**Commits:** 5 commits
+**Files:** 4 new files created (models, converter, tests), 1 modified (api.py)
+**Lines Added:** 1,596 lines
 
-- [ ] Task 4.6.1: Design lyrics input API schema
-- [ ] Task 4.6.2: Create request model for lyrics + chord placements
-- [ ] Task 4.6.3: Implement converter function
-- [ ] Task 4.6.4: Map chord placements to bars
-- [ ] Task 4.6.5: Include riff placements in bars
-- [ ] Task 4.6.6: Create API endpoint
-- [ ] Task 4.6.7: Write converter tests
-- [ ] Task 4.6.8: Write API endpoint tests
+- [x] Task 4.6.1: Design lyrics input API schema
+- [x] Task 4.6.2: Create request model for lyrics + chord placements
+- [x] Task 4.6.3: Implement converter function
+- [x] Task 4.6.4: Map chord placements to bars
+- [x] Task 4.6.5: Include riff placements in bars
+- [x] Task 4.6.6: Create API endpoint
+- [x] Task 4.6.7: Write converter tests
+- [x] Task 4.6.8: Write API endpoint tests
 
-### Story Point 4.7: Auto-Bar Detection Heuristic
-**Branch:** `story/4.7-auto-bar-detection`
+### Story Point 4.7: Auto-Bar Detection Heuristic ✅ COMPLETED
+**Branch:** `story/4.7-auto-bar-detection` (merged to develop)
+**Tests:** 81 tests (66 unit + 15 integration), 95% accuracy
+**Commits:** 8 commits
+**Files:** 8 new files created (backend heuristics, frontend UI, tests, docs)
+**Lines Added:** 3,295 lines
 
-- [ ] Task 4.7.1: Research common bar patterns in chord sheets
-- [ ] Task 4.7.2: Implement 2-chords-per-line heuristic
-- [ ] Task 4.7.3: Implement chord duration heuristic
-- [ ] Task 4.7.4: Add pattern matching for repeated chords
-- [ ] Task 4.7.5: Create confidence scoring system
-- [ ] Task 4.7.6: Add user confirmation UI
-- [ ] Task 4.7.7: Write heuristic tests
-- [ ] Task 4.7.8: Test with various song examples
+- [x] Task 4.7.1: Research common bar patterns in chord sheets
+- [x] Task 4.7.2: Implement 2-chords-per-line heuristic
+- [x] Task 4.7.3: Implement chord duration heuristic
+- [x] Task 4.7.4: Add pattern matching for repeated chords
+- [x] Task 4.7.5: Create confidence scoring system
+- [x] Task 4.7.6: Add user confirmation UI
+- [x] Task 4.7.7: Write heuristic tests
+- [x] Task 4.7.8: Test with various song examples
 
 ---
 
