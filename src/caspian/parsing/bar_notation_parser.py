@@ -169,6 +169,12 @@ class BarNotationParser:
     def parse_bar_line(self, line: str) -> List[Bar]:
         """Parse a single line of bar notation into Bar objects.
 
+        Handles multiple bars per line and multiple chords per bar:
+        - Single chord: | Am |
+        - Multiple bars: | Am | F | C | G |
+        - Multiple chords per bar: | Am F | C G |
+        - Mixed densities: | Am | F G C | D |
+
         Args:
             line: Bar notation line (e.g., "| Am | F | C | G |")
 
@@ -176,16 +182,22 @@ class BarNotationParser:
             List of Bar objects
 
         Raises:
-            ValueError: If line cannot be parsed
+            ValueError: If line cannot be parsed or contains invalid chords
         """
         # Remove leading/trailing whitespace
         line = line.strip()
+
+        if not line:
+            raise ValueError("Empty bar line")
 
         # Remove repeat markers for now (will handle in future)
         line = line.replace('|:', '|').replace(':|', '|')
 
         # Split by pipes and filter empty segments
         segments = [s.strip() for s in line.split('|') if s.strip()]
+
+        if not segments:
+            raise ValueError(f"No bar content found in line: {line}")
 
         bars: List[Bar] = []
 
@@ -196,6 +208,11 @@ class BarNotationParser:
 
             if not chord_symbols:
                 continue
+
+            # Validate chord symbols
+            for symbol in chord_symbols:
+                if not self._is_valid_chord_symbol(symbol):
+                    raise ValueError(f"Invalid chord symbol: {symbol}")
 
             # Create BarChord objects with beat positions
             bar_chords = self._map_chords_to_beats(chord_symbols)
@@ -208,6 +225,17 @@ class BarNotationParser:
             bars.append(bar)
 
         return bars
+
+    def _is_valid_chord_symbol(self, symbol: str) -> bool:
+        """Check if a string is a valid chord symbol.
+
+        Args:
+            symbol: String to validate
+
+        Returns:
+            True if symbol matches chord pattern
+        """
+        return bool(self.CHORD_PATTERN.match(symbol))
 
     def _map_chords_to_beats(
         self, chord_symbols: List[str], time_signature: tuple[int, int] = (4, 4)
