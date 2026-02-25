@@ -1,17 +1,13 @@
 /**
  * BarDisplay Component
  *
- * Renders a single musical bar with:
- * - Time signature
- * - Beat grid
- * - Chord symbols positioned at beat positions
- * - Lyrics fragment (if available)
- * - Visual bar lines
- * - Add Riff button (on hover)
- * - Riff indicator badge
+ * Renders a single musical bar with proportional chord segments.
+ * Chord width = duration. Drag dividers between chords to adjust timing.
+ * Supports dotted/syncopated durations via 0.5-beat snap granularity.
  */
 
-import React from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { Plus, X } from 'lucide-react';
 import type { BarAnalysis, ChordAnalysis } from '../types';
 import { getChordColor } from '../lib/chordColor';
 
@@ -19,174 +15,239 @@ interface BarDisplayProps {
   bar: BarAnalysis;
   barIndex: number;
   timeSignature: [number, number];
+  editable?: boolean;
+  durations?: number[];
+  onDurationsChange?: (barIndex: number, durations: number[]) => void;
   onChordSelect?: (chord: ChordAnalysis) => void;
   selectedChord?: ChordAnalysis | null;
-  onAddRiff?: (barIndex: number) => void;
-  hasRiff?: boolean;
+  onAddChord?: (barIndex: number, symbol: string) => void;
+  onRemoveChord?: (barIndex: number, chordIndex: number) => void;
+  onDeleteBar?: (barIndex: number) => void;
 }
 
 export function BarDisplay({
   bar,
   barIndex,
   timeSignature,
+  editable = false,
+  durations,
+  onDurationsChange,
   onChordSelect,
   selectedChord,
-  onAddRiff,
-  hasRiff = false,
+  onAddChord,
+  onRemoveChord,
+  onDeleteBar,
 }: BarDisplayProps) {
   const [beatsPerBar] = timeSignature;
   const chords = bar.chord_analyses;
-  const [isHovered, setIsHovered] = React.useState(false);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const [showInput, setShowInput] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [dragDurations, setDragDurations] = useState<number[] | null>(null);
+  const latestDrag = useRef<number[] | null>(null);
 
-  // Dynamic grid columns based on time signature
-  const gridStyle = {
-    gridTemplateColumns: `repeat(${beatsPerBar}, 1fr)`,
-  };
+  // Priority: drag state > prop > equal distribution
+  const effectiveDurations = (() => {
+    if (dragDurations) return dragDurations;
+    if (durations && durations.length === chords.length) return durations;
+    if (chords.length === 0) return [];
+    return chords.map(() => beatsPerBar / chords.length);
+  })();
+
+  function handleDragStart(dividerIdx: number, e: React.PointerEvent) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startDurations = [...effectiveDurations];
+    const el = timelineRef.current;
+    if (!el) return;
+    const barWidth = el.getBoundingClientRect().width;
+
+    const onMove = (ev: PointerEvent) => {
+      const deltaBeats = ((ev.clientX - startX) / barWidth) * beatsPerBar;
+      const sum = startDurations[dividerIdx] + startDurations[dividerIdx + 1];
+      // Snap to 0.5-beat grid (supports dotted/syncopated values)
+      let left = Math.round((startDurations[dividerIdx] + deltaBeats) * 2) / 2;
+      left = Math.max(0.5, Math.min(sum - 0.5, left));
+      const newDurations = [...startDurations];
+      newDurations[dividerIdx] = left;
+      newDurations[dividerIdx + 1] = sum - left;
+      latestDrag.current = newDurations;
+      setDragDurations(newDurations);
+    };
+
+    const onUp = () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      if (latestDrag.current) {
+        onDurationsChange?.(barIndex, latestDrag.current);
+      }
+      latestDrag.current = null;
+      setDragDurations(null);
+    };
+
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+  }
+
+  function formatDuration(beats: number): string {
+    if (beats === Math.floor(beats)) return `${beats}`;
+    return beats.toFixed(1);
+  }
 
   return (
     <div
-      className="bar-display"
+      className={`bar-display ${editable ? 'bar-display--editable' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Bar container with beat grid */}
-      <div className="bar-content">
-        {/* Chord symbols layer */}
-        <div className="chords-layer" style={gridStyle}>
-          {chords.map((chord, chordIdx) => (
-            <ChordSymbol
-              key={chordIdx}
-              chord={chord}
-              chordIndex={chordIdx}
-              beatPosition={getBeatPosition(chordIdx, chords.length, beatsPerBar)}
-              isSelected={selectedChord?.symbol === chord.symbol}
+      <div className="bar-number">{barIndex + 1}</div>
+
+      {/* Chord timeline: proportional segments */}
+      <div className="bar-timeline" ref={timelineRef}>
+        {chords.length > 0 ? (
+          chords.map((chord, idx) => (
+            <div
+              key={idx}
+              className={`chord-segment ${selectedChord?.symbol === chord.symbol ? 'chord-segment--selected' : ''}`}
+              style={{
+                flex: effectiveDurations[idx],
+                '--chord-color': getChordColor(chord),
+              } as Record<string, string | number>}
               onClick={() => onChordSelect?.(chord)}
-            />
-          ))}
-        </div>
-
-        {/* Beat grid */}
-        <div className="beat-grid" style={gridStyle}>
-          {Array.from({ length: beatsPerBar }, (_, beatIdx) => (
-            <BeatMarker key={beatIdx} beatNumber={beatIdx + 1} />
-          ))}
-        </div>
-
-        {/* Lyrics fragment (if available) */}
-        {/* TODO: Extract lyrics from bar data when available */}
-
-        {/* Riff indicator badge */}
-        {hasRiff && (
-          <div className="riff-indicator" title="This bar contains a riff">
-            🎸 Riff
+              title={chord.symbol}
+            >
+              {/* Drag handle at left edge (between this and previous chord) */}
+              {editable && idx > 0 && (
+                <div
+                  className="drag-handle"
+                  onPointerDown={(e) => handleDragStart(idx - 1, e)}
+                  onClick={(e) => e.stopPropagation()}
+                  title="Drag to adjust duration"
+                />
+              )}
+              <span className="chord-root">{chord.root_name}</span>
+              <span className="chord-quality">{getChordQuality(chord)}</span>
+              <span className="duration-label">{formatDuration(effectiveDurations[idx])}</span>
+              {editable && (
+                <button
+                  className="chord-remove-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveChord?.(barIndex, idx);
+                  }}
+                  title="Remove chord"
+                >
+                  <X size={10} />
+                </button>
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="chord-segment chord-segment--empty">
+            {editable ? null : 'Empty'}
           </div>
         )}
 
-        {/* Add Riff button (shown on hover) */}
-        {onAddRiff && isHovered && (
-          <button
-            className="add-riff-button"
-            onClick={() => onAddRiff(barIndex)}
-            title="Add riff or instrumental section"
-          >
-            + Add Riff
-          </button>
-        )}
+        {/* Add chord button / input at end of timeline */}
+        {editable &&
+          (showInput ? (
+            <div className="chord-add-area">
+              <InlineChordInput
+                onSubmit={(s) => {
+                  onAddChord?.(barIndex, s);
+                  setShowInput(false);
+                }}
+                onCancel={() => setShowInput(false)}
+              />
+            </div>
+          ) : (
+            <button
+              className="chord-add-segment"
+              onClick={() => setShowInput(true)}
+              title="Add chord"
+            >
+              <Plus size={14} />
+            </button>
+          ))}
       </div>
 
-      {/* Bar number indicator (optional) */}
-      <div className="bar-number">{barIndex + 1}</div>
+      {/* Beat tick marks along the bottom */}
+      <div className="beat-ticks">
+        {Array.from({ length: beatsPerBar }, (_, i) => (
+          <div
+            key={i}
+            className="beat-tick"
+            style={{ left: `${(i / beatsPerBar) * 100}%`, width: `${100 / beatsPerBar}%` }}
+          >
+            <span className="beat-number">{i + 1}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Delete bar button (hover, edit mode) */}
+      {editable && isHovered && onDeleteBar && (
+        <button
+          className="bar-delete"
+          onClick={() => onDeleteBar(barIndex)}
+          title="Remove bar"
+        >
+          <X size={12} />
+        </button>
+      )}
     </div>
   );
 }
 
-/**
- * Chord Symbol Component
- * Displays a chord symbol positioned at its beat location
- */
-interface ChordSymbolProps {
-  chord: ChordAnalysis;
-  chordIndex: number;
-  beatPosition: number; // 0-based beat position (0 = beat 1)
-  isSelected: boolean;
-  onClick: () => void;
-}
+/** Inline text input for entering a chord symbol */
+function InlineChordInput({
+  onSubmit,
+  onCancel,
+}: {
+  onSubmit: (symbol: string) => void;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState('');
+  const ref = useRef<HTMLInputElement>(null);
 
-function ChordSymbol({ chord, beatPosition, isSelected, onClick }: ChordSymbolProps) {
-  const color = getChordColor(chord);
+  useEffect(() => {
+    ref.current?.focus();
+  }, []);
 
   return (
-    <button
-      className={`chord-symbol ${isSelected ? 'selected' : ''}`}
-      style={{
-        '--chord-color': color,
-        gridColumn: beatPosition + 1, // CSS grid is 1-based
-      } as React.CSSProperties}
-      onClick={onClick}
-      aria-label={`Chord ${chord.symbol}`}
-    >
-      <span className="chord-root">{chord.root_name}</span>
-      <span className="chord-quality">{getChordQuality(chord)}</span>
-    </button>
+    <input
+      ref={ref}
+      className="inline-chord-input"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && value.trim()) onSubmit(value.trim());
+        if (e.key === 'Escape') onCancel();
+      }}
+      onBlur={onCancel}
+      placeholder="Am7..."
+    />
   );
 }
 
-/**
- * Beat Marker Component
- * Visual indicator for each beat in the bar
- */
-interface BeatMarkerProps {
-  beatNumber: number;
-}
-
-function BeatMarker({ beatNumber }: BeatMarkerProps) {
-  return (
-    <div className="beat-marker">
-      <div className="beat-dot" />
-      <div className="beat-number">{beatNumber}</div>
-    </div>
-  );
-}
-
-/**
- * Helper: Calculate beat position for a chord
- * For now, evenly distributes chords across beats
- * TODO: Use actual BeatPosition data when available
- */
-function getBeatPosition(chordIndex: number, totalChords: number, beatsPerBar: number): number {
-  // Simple even distribution
-  return Math.floor((chordIndex * beatsPerBar) / totalChords);
-}
-
-/**
- * Helper: Extract chord quality string (everything after root)
- * Handles complex chord symbols with extensions
- * e.g., "Am7" -> "m7", "Cmaj9" -> "maj9", "D7sus4" -> "7sus4"
- */
+/** Extract chord quality string (everything after root) */
 function getChordQuality(chord: ChordAnalysis): string {
   const rootName = chord.root_name;
   const symbol = chord.symbol;
-
-  // Handle slash chords (e.g., "C/E" or "Am7/G")
   const parts = symbol.split('/');
   const baseSymbol = parts[0];
   const bassNote = parts[1];
 
-  // Remove root from symbol to get quality
   let quality = '';
   if (baseSymbol.startsWith(rootName)) {
     quality = baseSymbol.slice(rootName.length);
   }
 
-  // Handle common quality patterns for better display
-  // Convert "major" abbreviations for clarity
   quality = quality
-    .replace(/^maj/, 'M')      // Cmaj7 -> CM7
-    .replace(/^min/, 'm')      // Dmin7 -> Dm7
-    .replace(/^dim/, '°')      // Gdim -> G°
-    .replace(/^aug/, '+');     // Caug -> C+
+    .replace(/^maj/, 'M')
+    .replace(/^min/, 'm')
+    .replace(/^dim/, '\u00B0')
+    .replace(/^aug/, '+');
 
-  // Add slash bass if present
   if (bassNote) {
     quality += `/${bassNote}`;
   }

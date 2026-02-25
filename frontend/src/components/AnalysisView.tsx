@@ -8,6 +8,7 @@ import { LlmNarrative } from './LlmNarrative';
 import { TransposeBar } from './TransposeBar';
 import { Fretboard } from './Fretboard';
 import { transposeChordSymbol, transposePitch, pitchToName } from '../lib/transpose';
+import { LayoutGrid, List, Plus } from 'lucide-react';
 
 const MODE_KEYS = [
   'natural_minor', 'harmonic_minor', 'melodic_minor',
@@ -119,6 +120,20 @@ export function AnalysisView({ result }: Props) {
       return next;
     });
     setEditedSections(prev => new Set(prev).add(index));
+  }
+
+  function handleAddSection() {
+    const name = prompt('Section name:', 'Verse');
+    if (!name) return;
+    setSections(prev => [...prev, {
+      name,
+      chords: [],
+      bars: [],
+      bass_line: [],
+      chromatic_runs: [],
+      patterns: [],
+      lines: [],
+    }]);
   }
 
   const handleTranspose = useCallback((semitones: number) => {
@@ -234,7 +249,15 @@ export function AnalysisView({ result }: Props) {
               color: viewMode === 'chord-sheet' ? 'var(--color-accent)' : 'var(--color-text)',
             }}
           >
-            {viewMode === 'standard' ? '📊 Chord Sheet View' : '📝 Standard View'}
+            {viewMode === 'standard' ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <LayoutGrid size={15} /> Chord Sheet
+              </span>
+            ) : (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <List size={15} /> Standard View
+              </span>
+            )}
             {viewMode === 'chord-sheet' && displaySections.some(s => s.bars && s.bars.length > 0) && (
               <span style={{ marginLeft: '6px', opacity: 0.7, fontSize: '0.85em' }}>
                 ({displaySections.reduce((sum, s) => sum + (s.bars?.length || 0), 0)} bars)
@@ -314,6 +337,14 @@ export function AnalysisView({ result }: Props) {
           />
         );
       })}
+
+      {/* Add Section button (chord-sheet mode only) */}
+      {viewMode === 'chord-sheet' && (
+        <button className="add-section-button" onClick={handleAddSection}>
+          <Plus size={18} />
+          Add Section
+        </button>
+      )}
     </div>
   );
 }

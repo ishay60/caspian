@@ -4,12 +4,10 @@
  * Comprehensive test suite for the BeatGrid component
  */
 
-// Uncomment when testing framework is set up:
-// import { describe, it, expect, vi, beforeEach } from 'vitest';
-// import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-// import userEvent from '@testing-library/user-event';
-// import { BeatGrid } from './BeatGrid';
-// import type { Bar, BarChord, BarNote, TabNote, BeatPosition } from '../types';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { BeatGrid } from './BeatGrid';
+import type { Bar, BarChord, BarNote, TabNote, BeatPosition } from '../types';
 
 describe('BeatGrid Component', () => {
   // Helper function to create test bar
