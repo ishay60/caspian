@@ -609,6 +609,59 @@
 }
 
 /* ============================================================
+   PLAYBACK STATE
+   ============================================================ */
+
+.bar-display--playing {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
+.beat-tick--active::before {
+  background: var(--color-accent);
+  opacity: 1;
+  height: 8px;
+}
+
+.beat-tick--active .beat-number {
+  color: var(--color-accent);
+  opacity: 1;
+  font-weight: 700;
+}
+
+/* Playback controls in section header */
+.playback-bpm {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.bpm-slider {
+  width: 60px;
+  height: 3px;
+  appearance: none;
+  border-radius: 2px;
+  background: var(--color-surface-2);
+  cursor: pointer;
+  accent-color: var(--color-accent);
+}
+
+.bpm-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--color-text-secondary);
+  min-width: 24px;
+  text-align: right;
+}
+
+.playback-cursor-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* ============================================================
    ANIMATIONS
    ============================================================ */
 

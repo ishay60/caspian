@@ -270,6 +270,7 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
             {showPlayer && section.chords.length > 0 && (
               <ChordPlayer
                 chords={section.chords}
+                bars={section.bars}
                 onChordHighlight={(idx) => {
                   setPlayingChordIndex(idx);
                   if (idx !== null) setSelectedChord(idx);
@@ -281,6 +282,7 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
             {showPractice && section.chords.length > 0 && (
               <PracticeMode
                 chords={section.chords}
+                bars={section.bars}
                 sectionName={section.name}
               />
             )}

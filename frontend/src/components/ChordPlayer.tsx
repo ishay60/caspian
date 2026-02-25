@@ -1,203 +1,130 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import type { ChordAnalysis } from '../types';
+import type { ChordAnalysis, BarAnalysis } from '../types';
+import { PlaybackEngine, type PlaybackCursor } from '../lib/playbackEngine';
 
 interface Props {
   chords: ChordAnalysis[];
+  bars?: BarAnalysis[];
   onChordHighlight?: (index: number | null) => void;
+  onCursorChange?: (cursor: PlaybackCursor | null) => void;
 }
 
 /**
- * Chord Progression Audio Playback Engine.
- * Synthesizes chord tones via Web Audio API OscillatorNode with ADSR envelopes.
- * Compact toolbar/control-bar layout.
+ * Chord Progression Audio Playback.
+ * Uses PlaybackEngine for bar-aware scheduling.
+ * Falls back to flat chord list when no bars available.
  */
-export function ChordPlayer({ chords, onChordHighlight }: Props) {
+export function ChordPlayer({ chords, bars, onChordHighlight, onCursorChange }: Props) {
   const [playing, setPlaying] = useState(false);
   const [bpm, setBpm] = useState(90);
   const [volume, setVolume] = useState(0.5);
-  const [currentIndex, setCurrentIndex] = useState<number | null>(null);
+  const [metronome, setMetronome] = useState(false);
+  const [cursor, setCursor] = useState<PlaybackCursor | null>(null);
 
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const masterGainRef = useRef<GainNode | null>(null);
-  const schedulerIdRef = useRef<number | null>(null);
-  const stopRequestedRef = useRef(false);
+  const engineRef = useRef<PlaybackEngine | null>(null);
 
-  // Keep refs in sync with state so the scheduler closure always reads fresh values
-  const bpmRef = useRef(bpm);
-  const volumeRef = useRef(volume);
-  const playingRef = useRef(playing);
+  const hasBars = bars && bars.length > 0;
+  const noChords = chords.length === 0 && !hasBars;
 
-  useEffect(() => { bpmRef.current = bpm; }, [bpm]);
-  useEffect(() => { volumeRef.current = volume; }, [volume]);
-  useEffect(() => { playingRef.current = playing; }, [playing]);
-
-  // Update master gain in real time when volume changes
+  // Sync BPM/volume/metronome to engine
   useEffect(() => {
-    if (masterGainRef.current) {
-      masterGainRef.current.gain.setValueAtTime(volume, audioCtxRef.current?.currentTime ?? 0);
-    }
+    engineRef.current?.updateConfig({ bpm });
+  }, [bpm]);
+
+  useEffect(() => {
+    engineRef.current?.updateConfig({ volume });
   }, [volume]);
 
-  /** Convert a pitch class (0-11) to a frequency. Octave determines the base. */
-  const pitchToFreq = useCallback((pitchClass: number, octave: number): number => {
-    // MIDI note number: octave * 12 + pitchClass (C4 = 60)
-    const midi = (octave + 1) * 12 + pitchClass;
-    return 440 * Math.pow(2, (midi - 69) / 12);
-  }, []);
+  useEffect(() => {
+    engineRef.current?.updateConfig({ metronome });
+  }, [metronome]);
 
-  /** Play a single chord at a scheduled time using the given AudioContext. */
-  const playChord = useCallback(
-    (ctx: AudioContext, master: GainNode, chord: ChordAnalysis, startTime: number, duration: number) => {
-      const attack = 0.02;
-      const decay = 0.1;
-      const sustainLevel = 0.7;
-      const release = 0.3;
-
-      const noteEnd = startTime + duration;
-      const releaseStart = noteEnd - release;
-      const perOscGain = 1 / Math.max(chord.pitches.length, 1);
-
-      chord.pitches.forEach((pc) => {
-        const isBass = pc === chord.bass;
-        const octave = isBass ? 3 : 4;
-        const freq = pitchToFreq(pc, octave);
-
-        const osc = ctx.createOscillator();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, startTime);
-
-        const env = ctx.createGain();
-        // ADSR envelope
-        env.gain.setValueAtTime(0, startTime);
-        env.gain.linearRampToValueAtTime(perOscGain, startTime + attack);
-        env.gain.linearRampToValueAtTime(perOscGain * sustainLevel, startTime + attack + decay);
-        env.gain.setValueAtTime(perOscGain * sustainLevel, releaseStart);
-        env.gain.linearRampToValueAtTime(0, noteEnd);
-
-        osc.connect(env);
-        env.connect(master);
-
-        osc.start(startTime);
-        osc.stop(noteEnd + 0.01);
-      });
-    },
-    [pitchToFreq],
-  );
-
-  /** Stop playback and clean up. */
   const stop = useCallback(() => {
-    stopRequestedRef.current = true;
-    if (schedulerIdRef.current !== null) {
-      clearTimeout(schedulerIdRef.current);
-      schedulerIdRef.current = null;
-    }
-    if (audioCtxRef.current) {
-      audioCtxRef.current.close().catch(() => {});
-      audioCtxRef.current = null;
-      masterGainRef.current = null;
-    }
+    engineRef.current?.stop();
+    engineRef.current = null;
     setPlaying(false);
-    setCurrentIndex(null);
+    setCursor(null);
     onChordHighlight?.(null);
-  }, [onChordHighlight]);
+    onCursorChange?.(null);
+  }, [onChordHighlight, onCursorChange]);
 
-  /** Start the looping chord scheduler. */
   const play = useCallback(() => {
-    if (chords.length === 0) return;
+    if (noChords) return;
 
-    // Create a fresh audio context
-    const ctx = new AudioContext();
-    audioCtxRef.current = ctx;
+    const engine = new PlaybackEngine(
+      {
+        onCursorChange: (c) => {
+          setCursor(c);
+          onCursorChange?.(c);
+          // Map barIndex to flat chord index for backward compat
+          if (c) {
+            if (hasBars) {
+              // Sum chords in bars before current bar + chordIndexInBar
+              let flatIdx = 0;
+              for (let i = 0; i < c.barIndex && i < (bars?.length ?? 0); i++) {
+                flatIdx += bars![i].chord_analyses.length;
+              }
+              flatIdx += c.chordIndexInBar;
+              onChordHighlight?.(flatIdx);
+            } else {
+              onChordHighlight?.(c.barIndex);
+            }
+          } else {
+            onChordHighlight?.(null);
+          }
+        },
+      },
+      { bpm, volume, metronome, countIn: false },
+    );
 
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(volumeRef.current, ctx.currentTime);
-    master.connect(ctx.destination);
-    masterGainRef.current = master;
-
-    stopRequestedRef.current = false;
-    setPlaying(true);
-
-    let index = 0;
-    let nextTime = ctx.currentTime + 0.05; // small initial delay
-
-    const scheduleNext = () => {
-      if (stopRequestedRef.current) return;
-
-      const currentBpm = bpmRef.current;
-      const beatDuration = 60 / currentBpm;
-      const gap = 0.05; // small articulation gap
-      const chordDuration = beatDuration - gap;
-
-      if (chordDuration <= 0.05) return; // safety: BPM too high
-
-      const chord = chords[index];
-
-      // Schedule the audio
-      playChord(ctx, master, chord, nextTime, chordDuration);
-
-      // Schedule the UI highlight update
-      const delayMs = (nextTime - ctx.currentTime) * 1000;
-      const highlightIndex = index;
-
-      setTimeout(() => {
-        if (!stopRequestedRef.current) {
-          setCurrentIndex(highlightIndex);
-          onChordHighlight?.(highlightIndex);
-        }
-      }, Math.max(0, delayMs));
-
-      // Advance to next chord (loop)
-      index = (index + 1) % chords.length;
-      nextTime += beatDuration;
-
-      // Schedule the next chord slightly before it needs to play
-      const scheduleAhead = (nextTime - ctx.currentTime) * 1000 - 100;
-      schedulerIdRef.current = window.setTimeout(scheduleNext, Math.max(0, scheduleAhead));
-    };
-
-    scheduleNext();
-  }, [chords, playChord, onChordHighlight]);
-
-  /** Toggle play/pause. */
-  const togglePlay = useCallback(() => {
-    if (playing) {
-      stop();
+    if (hasBars) {
+      engine.loadBars(bars!, 4);
     } else {
-      play();
+      engine.loadChords(chords, 1);
     }
+
+    engineRef.current = engine;
+    setPlaying(true);
+    engine.play();
+  }, [chords, bars, hasBars, noChords, bpm, volume, metronome, onChordHighlight, onCursorChange]);
+
+  const togglePlay = useCallback(() => {
+    if (playing) stop(); else play();
   }, [playing, stop, play]);
 
-  // Clean up on unmount or when chords change
+  // Stop on unmount
   useEffect(() => {
-    return () => {
-      stopRequestedRef.current = true;
-      if (schedulerIdRef.current !== null) {
-        clearTimeout(schedulerIdRef.current);
-      }
-      if (audioCtxRef.current) {
-        audioCtxRef.current.close().catch(() => {});
-      }
-    };
+    return () => { engineRef.current?.destroy(); };
   }, []);
 
-  // Stop playback when chords change
+  // Stop when data changes
   useEffect(() => {
-    if (playing) {
-      stop();
-    }
+    if (playing) stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chords]);
+  }, [chords, bars]);
 
-  const noChords = chords.length === 0;
+  // Derive display chords (flat list for the badge row)
+  const displayChords = hasBars
+    ? bars!.flatMap((b) => b.chord_analyses)
+    : chords;
+
+  // Current flat index for highlighting
+  const currentFlatIndex = (() => {
+    if (!cursor) return null;
+    if (!hasBars) return cursor.barIndex;
+    let idx = 0;
+    for (let i = 0; i < cursor.barIndex && i < bars!.length; i++) {
+      idx += bars![i].chord_analyses.length;
+    }
+    return idx + cursor.chordIndexInBar;
+  })();
 
   return (
     <div
       className="rounded-xl border px-4 py-3 flex flex-col gap-3"
       style={{
         backgroundColor: 'var(--color-surface)',
-        borderColor: playing
-          ? 'var(--color-diatonic)'
-          : 'var(--color-border)',
+        borderColor: playing ? 'var(--color-diatonic)' : 'var(--color-border)',
         boxShadow: 'var(--shadow-sm)',
         transition: 'border-color 0.2s, box-shadow 0.2s',
       }}
@@ -219,13 +146,11 @@ export function ChordPlayer({ chords, onChordHighlight }: Props) {
           title={playing ? 'Pause' : 'Play chord progression'}
         >
           {playing ? (
-            // Pause icon: two vertical bars
             <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
               <rect x="2" y="1" width="3.5" height="12" rx="0.75" />
               <rect x="8.5" y="1" width="3.5" height="12" rx="0.75" />
             </svg>
           ) : (
-            // Play icon: triangle
             <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
               <polygon points="3,1 13,7 3,13" />
             </svg>
@@ -241,17 +166,10 @@ export function ChordPlayer({ chords, onChordHighlight }: Props) {
             BPM
           </label>
           <input
-            type="range"
-            min={40}
-            max={200}
-            step={1}
-            value={bpm}
+            type="range" min={40} max={200} step={1} value={bpm}
             onChange={(e) => setBpm(Number(e.target.value))}
             className="w-24 h-1.5 appearance-none rounded-full cursor-pointer"
-            style={{
-              accentColor: 'var(--color-accent)',
-              backgroundColor: 'var(--color-surface-2)',
-            }}
+            style={{ accentColor: 'var(--color-accent)', backgroundColor: 'var(--color-surface-2)' }}
           />
           <span
             className="text-xs font-mono w-8 text-right tabular-nums font-medium"
@@ -270,36 +188,51 @@ export function ChordPlayer({ chords, onChordHighlight }: Props) {
             Vol
           </label>
           <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={volume}
+            type="range" min={0} max={1} step={0.01} value={volume}
             onChange={(e) => setVolume(Number(e.target.value))}
             className="w-16 h-1 appearance-none rounded-full cursor-pointer"
-            style={{
-              accentColor: 'var(--color-accent)',
-              backgroundColor: 'var(--color-surface-2)',
-            }}
+            style={{ accentColor: 'var(--color-accent)', backgroundColor: 'var(--color-surface-2)' }}
           />
         </div>
 
-        {/* Progress indicator */}
-        {currentIndex !== null && (
+        {/* Metronome toggle */}
+        <button
+          onClick={() => setMetronome((m) => !m)}
+          className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium cursor-pointer transition-colors"
+          style={{
+            backgroundColor: metronome
+              ? 'color-mix(in srgb, var(--color-accent) 15%, transparent)'
+              : 'var(--color-surface-2)',
+            color: metronome ? 'var(--color-accent)' : 'var(--color-neutral)',
+            border: `1px solid ${metronome ? 'var(--color-accent)' : 'var(--color-border)'}`,
+          }}
+          title={metronome ? 'Mute metronome' : 'Enable metronome'}
+        >
+          <svg width="12" height="14" viewBox="0 0 12 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="2,13 10,13 8,1 4,1" />
+            <line x1="6" y1="10" x2="9" y2="3" />
+          </svg>
+          {metronome ? 'On' : 'Off'}
+        </button>
+
+        {/* Progress / bar indicator */}
+        {cursor && (
           <span
             className="text-xs font-mono tabular-nums"
             style={{ color: 'var(--color-neutral)' }}
           >
-            {currentIndex + 1}/{chords.length}
+            {hasBars
+              ? `Bar ${cursor.barIndex + 1}/${bars!.length} · Beat ${cursor.beat}/${cursor.beatsPerBar}`
+              : `${cursor.barIndex + 1}/${chords.length}`}
           </span>
         )}
       </div>
 
-      {/* Chord symbols row — always LTR so playback order matches visual order (e.g. Hebrew RTL page) */}
-      {chords.length > 0 && (
+      {/* Chord symbols row — always LTR */}
+      {displayChords.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 -mx-0.5" dir="ltr">
-          {chords.map((chord, i) => {
-            const isActive = currentIndex === i;
+          {displayChords.map((chord, i) => {
+            const isActive = currentFlatIndex === i;
             return (
               <span
                 key={i}
@@ -308,12 +241,8 @@ export function ChordPlayer({ chords, onChordHighlight }: Props) {
                   backgroundColor: isActive
                     ? 'color-mix(in srgb, var(--color-diatonic) 18%, transparent)'
                     : 'transparent',
-                  color: isActive
-                    ? 'var(--color-diatonic)'
-                    : 'var(--color-neutral)',
-                  boxShadow: isActive
-                    ? '0 0 0 1px var(--color-diatonic)'
-                    : 'none',
+                  color: isActive ? 'var(--color-diatonic)' : 'var(--color-neutral)',
+                  boxShadow: isActive ? '0 0 0 1px var(--color-diatonic)' : 'none',
                 }}
               >
                 {chord.symbol}

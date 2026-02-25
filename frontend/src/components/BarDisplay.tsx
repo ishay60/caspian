@@ -24,6 +24,8 @@ interface BarDisplayProps {
   onAddChord?: (barIndex: number, symbol: string) => void;
   onRemoveChord?: (barIndex: number, chordIndex: number) => void;
   onDeleteBar?: (barIndex: number) => void;
+  isPlaying?: boolean;
+  playingBeat?: number;
 }
 
 export function BarDisplay({
@@ -38,6 +40,8 @@ export function BarDisplay({
   onAddChord,
   onRemoveChord,
   onDeleteBar,
+  isPlaying = false,
+  playingBeat,
 }: BarDisplayProps) {
   const [beatsPerBar] = timeSignature;
   const chords = bar.chord_analyses;
@@ -98,7 +102,7 @@ export function BarDisplay({
 
   return (
     <div
-      className={`bar-display ${editable ? 'bar-display--editable' : ''} ${bar.has_riff ? 'bar-display--has-riff' : ''} ${expanded ? 'bar-display--expanded' : ''}`}
+      className={`bar-display ${editable ? 'bar-display--editable' : ''} ${bar.has_riff ? 'bar-display--has-riff' : ''} ${expanded ? 'bar-display--expanded' : ''} ${isPlaying ? 'bar-display--playing' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -207,7 +211,7 @@ export function BarDisplay({
         {Array.from({ length: beatsPerBar }, (_, i) => (
           <div
             key={i}
-            className="beat-tick"
+            className={`beat-tick ${isPlaying && playingBeat === i + 1 ? 'beat-tick--active' : ''}`}
             style={{ left: `${(i / beatsPerBar) * 100}%`, width: `${100 / beatsPerBar}%` }}
           >
             <span className="beat-number">{i + 1}</span>

@@ -5,13 +5,15 @@
  * Chord width = duration. Sections are collapsible.
  * Supports inline editing: add/remove chords, add/delete bars, drag durations.
  * Supports bar structure editing via BarOverlay: merge/split bars, move chords between bars.
+ * Supports bar-aware playback with visual cursor via PlaybackEngine.
  */
 
-import { useState } from 'react';
-import { Plus, Pencil, LayoutGrid, ChevronRight, ChevronDown } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Plus, Pencil, LayoutGrid, ChevronRight, ChevronDown, Play, Square } from 'lucide-react';
 import type { Section, BarAnalysis, ChordAnalysis, Bar } from '../types';
 import { BarDisplay } from './BarDisplay';
 import { BarOverlay } from './BarOverlay';
+import { PlaybackEngine, type PlaybackCursor } from '../lib/playbackEngine';
 import './ChordSheetView.css';
 
 interface ChordSheetViewProps {
@@ -33,6 +35,61 @@ export function ChordSheetView({
   const [showBarOverlay, setShowBarOverlay] = useState(false);
   const hasBarData = section.bars && section.bars.length > 0;
   const timeSignature: [number, number] = [4, 4];
+
+  // Playback state
+  const [playing, setPlaying] = useState(false);
+  const [cursor, setCursor] = useState<PlaybackCursor | null>(null);
+  const [bpm, setBpm] = useState(90);
+  const engineRef = useRef<PlaybackEngine | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => { engineRef.current?.destroy(); };
+  }, []);
+
+  // Stop when section data changes
+  useEffect(() => {
+    if (playing) stopPlayback();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section]);
+
+  const stopPlayback = useCallback(() => {
+    engineRef.current?.stop();
+    engineRef.current = null;
+    setPlaying(false);
+    setCursor(null);
+  }, []);
+
+  const startPlayback = useCallback(() => {
+    if (!section.bars || section.bars.length === 0) return;
+
+    const engine = new PlaybackEngine(
+      {
+        onCursorChange: (c) => {
+          setCursor(c);
+          if (c && section.bars) {
+            const chord = section.bars[c.barIndex]?.chord_analyses[c.chordIndexInBar];
+            if (chord && onChordSelect) onChordSelect(chord);
+          }
+        },
+      },
+      { bpm, volume: 0.5, metronome: true, countIn: false },
+    );
+
+    engine.loadBars(section.bars, timeSignature[0]);
+    engineRef.current = engine;
+    setPlaying(true);
+    engine.play();
+  }, [section.bars, bpm, timeSignature, onChordSelect]);
+
+  const togglePlayback = useCallback(() => {
+    if (playing) stopPlayback(); else startPlayback();
+  }, [playing, stopPlayback, startPlayback]);
+
+  // Sync BPM to engine
+  useEffect(() => {
+    engineRef.current?.updateConfig({ bpm });
+  }, [bpm]);
 
   function handleDurationsChange(barIndex: number, durations: number[]) {
     setBarDurations((prev) => ({ ...prev, [barIndex]: durations }));
@@ -236,30 +293,62 @@ export function ChordSheetView({
           </div>
           <span className="bar-count">{barCount} bars</span>
         </div>
-        {onSectionUpdate && !collapsed && (
-          <div className="section-header-actions">
+        <div className="section-header-actions">
+          {/* Play/Stop button */}
+          {!collapsed && (
             <button
-              className={`btn-icon ${showBarOverlay ? 'btn-icon--active' : ''}`}
-              onClick={() => {
-                setShowBarOverlay(!showBarOverlay);
-                if (!showBarOverlay) setEditable(false);
-              }}
-              title="Restructure bar boundaries"
+              className={`btn-icon ${playing ? 'btn-icon--active' : ''}`}
+              onClick={togglePlayback}
+              title={playing ? 'Stop playback' : 'Play section'}
             >
-              <LayoutGrid size={16} />
+              {playing ? <Square size={16} /> : <Play size={16} />}
             </button>
-            <button
-              className={`btn-icon ${editable ? 'btn-icon--active' : ''}`}
-              onClick={() => {
-                setEditable(!editable);
-                if (!editable) setShowBarOverlay(false);
-              }}
-              title={editable ? 'Done editing' : 'Edit bars'}
-            >
-              <Pencil size={16} />
-            </button>
-          </div>
-        )}
+          )}
+
+          {/* BPM (visible during playback) */}
+          {playing && (
+            <div className="playback-bpm">
+              <input
+                type="range" min={40} max={200} step={1} value={bpm}
+                onChange={(e) => setBpm(Number(e.target.value))}
+                className="bpm-slider"
+              />
+              <span className="bpm-label">{bpm}</span>
+            </div>
+          )}
+
+          {/* Cursor indicator */}
+          {cursor && (
+            <span className="playback-cursor-label">
+              Bar {cursor.barIndex + 1} · Beat {cursor.beat}
+            </span>
+          )}
+
+          {onSectionUpdate && !collapsed && !playing && (
+            <>
+              <button
+                className={`btn-icon ${showBarOverlay ? 'btn-icon--active' : ''}`}
+                onClick={() => {
+                  setShowBarOverlay(!showBarOverlay);
+                  if (!showBarOverlay) setEditable(false);
+                }}
+                title="Restructure bar boundaries"
+              >
+                <LayoutGrid size={16} />
+              </button>
+              <button
+                className={`btn-icon ${editable ? 'btn-icon--active' : ''}`}
+                onClick={() => {
+                  setEditable(!editable);
+                  if (!editable) setShowBarOverlay(false);
+                }}
+                title={editable ? 'Done editing' : 'Edit bars'}
+              >
+                <Pencil size={16} />
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Collapsed: show chord summary */}
@@ -291,6 +380,8 @@ export function ChordSheetView({
               onAddChord={handleAddChord}
               onRemoveChord={handleRemoveChord}
               onDeleteBar={handleDeleteBar}
+              isPlaying={cursor?.barIndex === index}
+              playingBeat={cursor?.barIndex === index ? cursor.beat : undefined}
             />
           ))}
 

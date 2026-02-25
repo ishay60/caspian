@@ -1,158 +1,60 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import type { ChordAnalysis } from '../types';
+import type { ChordAnalysis, BarAnalysis } from '../types';
+import { PlaybackEngine, type PlaybackCursor } from '../lib/playbackEngine';
 
 interface Props {
   chords: ChordAnalysis[];
+  bars?: BarAnalysis[];
   sectionName: string;
+  onCursorChange?: (cursor: PlaybackCursor | null) => void;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Audio helpers                                                      */
-/* ------------------------------------------------------------------ */
-
-/** Play a single tone with ADSR envelope via a triangle oscillator. */
-function playTone(
-  ctx: AudioContext,
-  dest: AudioNode,
-  freq: number,
-  startTime: number,
-  duration: number,
-  volume: number,
-) {
-  const attack = 0.02;
-  const decay = 0.1;
-  const sustainLevel = 0.5;
-  const release = 0.2;
-
-  const noteEnd = startTime + duration;
-  const releaseStart = Math.max(startTime + attack + decay, noteEnd - release);
-
-  const osc = ctx.createOscillator();
-  osc.type = 'triangle';
-  osc.frequency.setValueAtTime(freq, startTime);
-
-  const env = ctx.createGain();
-  env.gain.setValueAtTime(0, startTime);
-  env.gain.linearRampToValueAtTime(volume, startTime + attack);
-  env.gain.linearRampToValueAtTime(volume * sustainLevel, startTime + attack + decay);
-  env.gain.setValueAtTime(volume * sustainLevel, releaseStart);
-  env.gain.linearRampToValueAtTime(0, noteEnd);
-
-  osc.connect(env);
-  env.connect(dest);
-
-  osc.start(startTime);
-  osc.stop(noteEnd + 0.02);
-}
-
-/** Play a metronome click (short oscillator burst). */
-function playClick(
-  ctx: AudioContext,
-  dest: AudioNode,
-  startTime: number,
-  isDownbeat: boolean,
-) {
-  const freq = isDownbeat ? 800 : 600;
-  const duration = 0.03;
-  const volume = 0.35;
-
-  const osc = ctx.createOscillator();
-  osc.type = 'square';
-  osc.frequency.setValueAtTime(freq, startTime);
-
-  const env = ctx.createGain();
-  env.gain.setValueAtTime(volume, startTime);
-  env.gain.linearRampToValueAtTime(0, startTime + duration);
-
-  osc.connect(env);
-  env.connect(dest);
-
-  osc.start(startTime);
-  osc.stop(startTime + duration + 0.01);
-}
-
-/** Synthesize a chord: bass in octave 2, other tones in octave 3-4. */
-function playChord(
-  ctx: AudioContext,
-  dest: AudioNode,
-  chord: ChordAnalysis,
-  startTime: number,
-  duration: number,
-  volume: number,
-) {
-  const bassPc = ((chord.bass % 12) + 12) % 12;
-  const bassFreq = 440 * Math.pow(2, (bassPc - 9) / 12 - 2); // octave 2
-  playTone(ctx, dest, bassFreq, startTime, duration * 0.9, volume);
-
-  for (const p of chord.pitches) {
-    const pc = ((p % 12) + 12) % 12;
-    if (pc === bassPc) continue;
-    const freq = 440 * Math.pow(2, (pc - 9) / 12 - 1); // octave 3
-    playTone(ctx, dest, freq, startTime, duration * 0.9, volume * 0.8);
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
-
-export function PracticeMode({ chords, sectionName }: Props) {
-  /* -- state -- */
+/**
+ * Practice Mode — bar-aware loop playback with count-in, metronome, BPM control.
+ * Uses PlaybackEngine for scheduling. Supports both bar-based and flat chord data.
+ */
+export function PracticeMode({ chords, bars, sectionName, onCursorChange }: Props) {
   const [bpm, setBpm] = useState(80);
   const [beatsPerChord, setBeatsPerChord] = useState(2);
-  const [loopStart, setLoopStart] = useState(0);
-  const [loopEnd, setLoopEnd] = useState(chords.length - 1);
   const [playing, setPlaying] = useState(false);
   const [muteMetronome, setMuteMetronome] = useState(false);
 
+  const hasBars = bars && bars.length > 0;
+
+  // Loop range: in bar mode, indexes refer to bars; in flat mode, to chords
+  const itemCount = hasBars ? bars!.length : chords.length;
+  const [loopStart, setLoopStart] = useState(0);
+  const [loopEnd, setLoopEnd] = useState(itemCount - 1);
+
   // Visual progress
-  const [currentChordIdx, setCurrentChordIdx] = useState<number | null>(null);
-  const [currentBeat, setCurrentBeat] = useState<number | null>(null);
-  const [countIn, setCountIn] = useState<number | null>(null); // 1-4 during count-in
+  const [cursor, setCursor] = useState<PlaybackCursor | null>(null);
+  const [countIn, setCountIn] = useState<number | null>(null);
 
-  /* -- refs for scheduler -- */
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const masterGainRef = useRef<GainNode | null>(null);
-  const intervalIdRef = useRef<number | null>(null);
-  const stopRequestedRef = useRef(false);
+  const engineRef = useRef<PlaybackEngine | null>(null);
 
-  // Mutable copies so the scheduler always reads fresh values
-  const bpmRef = useRef(bpm);
-  const beatsPerChordRef = useRef(beatsPerChord);
-  const loopStartRef = useRef(loopStart);
-  const loopEndRef = useRef(loopEnd);
-  const muteMetronomeRef = useRef(muteMetronome);
-  const chordsRef = useRef(chords);
-
-  useEffect(() => { bpmRef.current = bpm; }, [bpm]);
-  useEffect(() => { beatsPerChordRef.current = beatsPerChord; }, [beatsPerChord]);
-  useEffect(() => { loopStartRef.current = loopStart; }, [loopStart]);
-  useEffect(() => { loopEndRef.current = loopEnd; }, [loopEnd]);
-  useEffect(() => { muteMetronomeRef.current = muteMetronome; }, [muteMetronome]);
-  useEffect(() => { chordsRef.current = chords; }, [chords]);
-
-  // Reset loop range when chords change
+  // Keep loop end in sync when data changes
   useEffect(() => {
     setLoopStart(0);
-    setLoopEnd(chords.length - 1);
+    setLoopEnd(itemCount - 1);
     if (playing) stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chords]);
+  }, [chords, bars, itemCount]);
 
-  /* -- Loop selection helpers -- */
+  // Sync settings to engine
+  useEffect(() => { engineRef.current?.updateConfig({ bpm }); }, [bpm]);
+  useEffect(() => { engineRef.current?.updateConfig({ metronome: !muteMetronome }); }, [muteMetronome]);
+
+  /* -- Loop selection -- */
   const selectingRef = useRef<'none' | 'start' | 'end'>('none');
 
-  const handleChordClick = useCallback(
+  const handleItemClick = useCallback(
     (index: number) => {
-      if (playing) return; // don't change loop while playing
-
+      if (playing) return;
       if (selectingRef.current === 'none') {
-        // First click sets the start
         setLoopStart(index);
         setLoopEnd(index);
         selectingRef.current = 'end';
-      } else if (selectingRef.current === 'end') {
-        // Second click sets the end
+      } else {
         if (index >= loopStart) {
           setLoopEnd(index);
         } else {
@@ -167,171 +69,86 @@ export function PracticeMode({ chords, sectionName }: Props) {
 
   const resetLoop = useCallback(() => {
     setLoopStart(0);
-    setLoopEnd(chords.length - 1);
+    setLoopEnd(itemCount - 1);
     selectingRef.current = 'none';
-  }, [chords.length]);
+  }, [itemCount]);
 
   /* -- Stop -- */
   const stop = useCallback(() => {
-    stopRequestedRef.current = true;
-    if (intervalIdRef.current !== null) {
-      clearInterval(intervalIdRef.current);
-      intervalIdRef.current = null;
-    }
-    if (audioCtxRef.current) {
-      audioCtxRef.current.close().catch(() => {});
-      audioCtxRef.current = null;
-      masterGainRef.current = null;
-    }
+    engineRef.current?.stop();
+    engineRef.current = null;
     setPlaying(false);
-    setCurrentChordIdx(null);
-    setCurrentBeat(null);
+    setCursor(null);
     setCountIn(null);
-  }, []);
+    onCursorChange?.(null);
+  }, [onCursorChange]);
 
   /* -- Play -- */
   const play = useCallback(() => {
-    if (chords.length === 0) return;
+    if (itemCount === 0) return;
 
-    const ctx = new AudioContext();
-    audioCtxRef.current = ctx;
+    const engine = new PlaybackEngine(
+      {
+        onCursorChange: (c) => {
+          setCursor(c);
+          onCursorChange?.(c);
+        },
+        onCountIn: (beat) => {
+          setCountIn(beat);
+        },
+      },
+      {
+        bpm,
+        volume: 0.5,
+        metronome: !muteMetronome,
+        countIn: true,
+        loopRange: { start: loopStart, end: loopEnd },
+      },
+    );
 
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(1, ctx.currentTime);
-    master.connect(ctx.destination);
-    masterGainRef.current = master;
+    if (hasBars) {
+      engine.loadBars(bars!, 4);
+    } else {
+      engine.loadChords(chords, beatsPerChord);
+    }
 
-    stopRequestedRef.current = false;
+    engineRef.current = engine;
     setPlaying(true);
-
-    // Scheduler state (lives in closure, mutated by setInterval)
-    const state = {
-      // We schedule beats as discrete events.
-      // The "sequence" is: 4 count-in beats, then the loop forever.
-      nextBeatTime: ctx.currentTime + 0.05,
-      phase: 'countin' as 'countin' | 'loop',
-      countInBeat: 0, // 0-3
-      chordIndex: 0,  // index within the looped range
-      beatInChord: 0, // 0..(beatsPerChord-1)
-    };
-
-    const LOOKAHEAD = 0.1; // seconds to schedule ahead
-    const CHECK_INTERVAL = 25; // ms between checks
-
-    const scheduleBeat = () => {
-      if (stopRequestedRef.current) return;
-
-      const now = ctx.currentTime;
-      const currentBpm = bpmRef.current;
-      const beatDuration = 60 / currentBpm;
-
-      while (state.nextBeatTime < now + LOOKAHEAD) {
-        if (stopRequestedRef.current) return;
-
-        const t = state.nextBeatTime;
-
-        if (state.phase === 'countin') {
-          // Count-in: just click, no chord
-          if (!muteMetronomeRef.current) {
-            playClick(ctx, master, t, state.countInBeat === 0);
-          }
-
-          // Schedule UI update
-          const ciBeat = state.countInBeat + 1; // 1-4 for display
-          const delayMs = Math.max(0, (t - ctx.currentTime) * 1000);
-          setTimeout(() => {
-            if (!stopRequestedRef.current) {
-              setCountIn(ciBeat);
-              setCurrentBeat(null);
-              setCurrentChordIdx(null);
-            }
-          }, delayMs);
-
-          state.countInBeat++;
-          if (state.countInBeat >= 4) {
-            state.phase = 'loop';
-            state.chordIndex = 0;
-            state.beatInChord = 0;
-          }
-        } else {
-          // Loop phase
-          const ls = loopStartRef.current;
-          const le = loopEndRef.current;
-          const bpc = beatsPerChordRef.current;
-          const loopChords = chordsRef.current;
-
-          const actualIdx = ls + state.chordIndex;
-          const chord = loopChords[actualIdx];
-
-          if (chord) {
-            // Metronome click
-            if (!muteMetronomeRef.current) {
-              playClick(ctx, master, t, state.beatInChord === 0);
-            }
-
-            // Play chord sound on the first beat of each chord
-            if (state.beatInChord === 0) {
-              const chordDuration = beatDuration * bpc;
-              playChord(ctx, master, chord, t, chordDuration, 0.15);
-            }
-
-            // Schedule UI update
-            const uiChordIdx = actualIdx;
-            const uiBeat = state.beatInChord + 1;
-            const delayMs = Math.max(0, (t - ctx.currentTime) * 1000);
-            setTimeout(() => {
-              if (!stopRequestedRef.current) {
-                setCountIn(null);
-                setCurrentChordIdx(uiChordIdx);
-                setCurrentBeat(uiBeat);
-              }
-            }, delayMs);
-          }
-
-          // Advance
-          state.beatInChord++;
-          if (state.beatInChord >= bpc) {
-            state.beatInChord = 0;
-            state.chordIndex++;
-            const loopLen = le - ls + 1;
-            if (state.chordIndex >= loopLen) {
-              state.chordIndex = 0;
-            }
-          }
-        }
-
-        state.nextBeatTime += beatDuration;
-      }
-    };
-
-    // Run the scheduler on an interval
-    intervalIdRef.current = window.setInterval(scheduleBeat, CHECK_INTERVAL);
-    // Kick off immediately
-    scheduleBeat();
-  }, [chords]);
+    engine.play();
+  }, [chords, bars, hasBars, itemCount, bpm, beatsPerChord, muteMetronome, loopStart, loopEnd, onCursorChange]);
 
   const togglePlay = useCallback(() => {
-    if (playing) {
-      stop();
-    } else {
-      play();
-    }
+    if (playing) stop(); else play();
   }, [playing, stop, play]);
 
   // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      stopRequestedRef.current = true;
-      if (intervalIdRef.current !== null) clearInterval(intervalIdRef.current);
-      if (audioCtxRef.current) audioCtxRef.current.close().catch(() => {});
-    };
+    return () => { engineRef.current?.destroy(); };
   }, []);
 
-  /* -- derived -- */
+  /* -- Derived -- */
   const loopLength = loopEnd - loopStart + 1;
-  const noChords = chords.length === 0;
+  const noChords = itemCount === 0;
 
-  /* -- render -- */
+  // Flat chord list for display
+  const displayChords = hasBars
+    ? bars!.flatMap((b) => b.chord_analyses)
+    : chords;
+
+  // Map cursor to display item index
+  const activeItemIndex = cursor?.barIndex ?? null;
+
+  // For flat mode: map cursor to specific chord index
+  const activeFlatChordIndex = (() => {
+    if (!cursor) return null;
+    if (!hasBars) return cursor.barIndex;
+    let idx = 0;
+    for (let i = 0; i < cursor.barIndex && i < bars!.length; i++) {
+      idx += bars![i].chord_analyses.length;
+    }
+    return idx + cursor.chordIndexInBar;
+  })();
+
   return (
     <div
       className="rounded-2xl overflow-hidden"
@@ -345,10 +162,7 @@ export function PracticeMode({ chords, sectionName }: Props) {
       {/* Header */}
       <div
         className="px-5 py-3.5 border-b flex items-center justify-between"
-        style={{
-          backgroundColor: 'var(--color-surface-2)',
-          borderColor: 'var(--color-border)',
-        }}
+        style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)' }}
       >
         <div className="flex items-center gap-2.5">
           <h3
@@ -367,6 +181,17 @@ export function PracticeMode({ chords, sectionName }: Props) {
           >
             {sectionName}
           </span>
+          {hasBars && (
+            <span
+              className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+              style={{
+                backgroundColor: 'color-mix(in srgb, var(--color-accent) 12%, transparent)',
+                color: 'var(--color-accent)',
+              }}
+            >
+              Bar-aware
+            </span>
+          )}
         </div>
 
         {/* Count-in display */}
@@ -380,12 +205,11 @@ export function PracticeMode({ chords, sectionName }: Props) {
         )}
 
         {/* Current beat display */}
-        {currentBeat !== null && countIn === null && (
-          <span
-            className="text-sm font-mono tabular-nums"
-            style={{ color: 'var(--color-neutral)' }}
-          >
-            Beat {currentBeat}/{beatsPerChord}
+        {cursor && countIn === null && (
+          <span className="text-sm font-mono tabular-nums" style={{ color: 'var(--color-neutral)' }}>
+            {hasBars
+              ? `Bar ${cursor.barIndex + 1} · Beat ${cursor.beat}/${cursor.beatsPerBar}`
+              : `Beat ${cursor.beat}/${cursor.beatsPerBar}`}
           </span>
         )}
       </div>
@@ -393,7 +217,7 @@ export function PracticeMode({ chords, sectionName }: Props) {
       <div className="p-5 space-y-4">
         {/* Controls row */}
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Play/Stop button */}
+          {/* Play/Stop */}
           <button
             onClick={togglePlay}
             disabled={noChords}
@@ -408,12 +232,10 @@ export function PracticeMode({ chords, sectionName }: Props) {
             title={playing ? 'Stop' : 'Play practice loop'}
           >
             {playing ? (
-              /* Stop icon */
               <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
                 <rect x="1" y="1" width="10" height="10" rx="1" />
               </svg>
             ) : (
-              /* Play icon */
               <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
                 <polygon points="3,1 13,7 3,13" />
               </svg>
@@ -430,9 +252,8 @@ export function PracticeMode({ chords, sectionName }: Props) {
                 color: 'var(--color-text)',
                 border: '1px solid var(--color-border)',
               }}
-              title="Decrease tempo"
             >
-              −
+              -
             </button>
             <label
               className="text-[10px] uppercase tracking-widest font-semibold select-none"
@@ -441,17 +262,10 @@ export function PracticeMode({ chords, sectionName }: Props) {
               BPM
             </label>
             <input
-              type="range"
-              min={40}
-              max={200}
-              step={1}
-              value={bpm}
+              type="range" min={40} max={200} step={1} value={bpm}
               onChange={(e) => setBpm(Number(e.target.value))}
               className="w-24 h-1 appearance-none rounded-full cursor-pointer"
-              style={{
-                accentColor: 'var(--color-accent)',
-                backgroundColor: 'var(--color-surface-2)',
-              }}
+              style={{ accentColor: 'var(--color-accent)', backgroundColor: 'var(--color-surface-2)' }}
             />
             <span
               className="text-xs font-mono w-7 text-right tabular-nums"
@@ -467,40 +281,38 @@ export function PracticeMode({ chords, sectionName }: Props) {
                 color: 'var(--color-text)',
                 border: '1px solid var(--color-border)',
               }}
-              title="Increase tempo"
             >
               +
             </button>
           </div>
 
-          {/* Beats per chord selector */}
-          <div className="flex items-center gap-1.5">
-            <label
-              className="text-[10px] uppercase tracking-wider font-semibold select-none"
-              style={{ color: 'var(--color-neutral)' }}
-            >
-              Beats
-            </label>
-            {[1, 2, 4].map((b) => (
-              <button
-                key={b}
-                onClick={() => setBeatsPerChord(b)}
-                className="w-7 h-7 rounded text-xs font-mono font-semibold cursor-pointer transition-all"
-                style={{
-                  backgroundColor:
-                    beatsPerChord === b
-                      ? 'var(--color-accent)'
-                      : 'var(--color-surface-2)',
-                  color: beatsPerChord === b ? '#fff' : 'var(--color-text)',
-                  border: `1px solid ${beatsPerChord === b ? 'var(--color-accent)' : 'var(--color-border)'}`,
-                }}
+          {/* Beats per chord (flat mode only) */}
+          {!hasBars && (
+            <div className="flex items-center gap-1.5">
+              <label
+                className="text-[10px] uppercase tracking-wider font-semibold select-none"
+                style={{ color: 'var(--color-neutral)' }}
               >
-                {b}
-              </button>
-            ))}
-          </div>
+                Beats
+              </label>
+              {[1, 2, 4].map((b) => (
+                <button
+                  key={b}
+                  onClick={() => setBeatsPerChord(b)}
+                  className="w-7 h-7 rounded text-xs font-mono font-semibold cursor-pointer transition-all"
+                  style={{
+                    backgroundColor: beatsPerChord === b ? 'var(--color-accent)' : 'var(--color-surface-2)',
+                    color: beatsPerChord === b ? '#fff' : 'var(--color-text)',
+                    border: `1px solid ${beatsPerChord === b ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                  }}
+                >
+                  {b}
+                </button>
+              ))}
+            </div>
+          )}
 
-          {/* Mute metronome toggle */}
+          {/* Mute metronome */}
           <button
             onClick={() => setMuteMetronome((m) => !m)}
             className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium cursor-pointer transition-colors"
@@ -513,17 +325,7 @@ export function PracticeMode({ chords, sectionName }: Props) {
             }}
             title={muteMetronome ? 'Unmute metronome' : 'Mute metronome'}
           >
-            {/* Metronome icon */}
-            <svg
-              width="12"
-              height="14"
-              viewBox="0 0 12 14"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+            <svg width="12" height="14" viewBox="0 0 12 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="2,13 10,13 8,1 4,1" />
               <line x1="6" y1="10" x2="9" y2="3" />
             </svg>
@@ -531,15 +333,15 @@ export function PracticeMode({ chords, sectionName }: Props) {
           </button>
         </div>
 
-        {/* Loop selection info + reset */}
+        {/* Loop info + reset */}
         <div className="flex items-center gap-2">
           <span
             className="text-[10px] uppercase tracking-wider font-semibold select-none"
             style={{ color: 'var(--color-neutral)' }}
           >
-            Loop: {loopLength} chord{loopLength !== 1 ? 's' : ''}
+            Loop: {loopLength} {hasBars ? (loopLength === 1 ? 'bar' : 'bars') : (loopLength === 1 ? 'chord' : 'chords')}
           </span>
-          {(loopStart !== 0 || loopEnd !== chords.length - 1) && (
+          {(loopStart !== 0 || loopEnd !== itemCount - 1) && (
             <button
               onClick={resetLoop}
               disabled={playing}
@@ -554,73 +356,63 @@ export function PracticeMode({ chords, sectionName }: Props) {
             </button>
           )}
           {!playing && (
-            <span
-              className="text-[10px] italic"
-              style={{ color: 'var(--color-neutral)' }}
-            >
-              Click chords to set loop range
+            <span className="text-[10px] italic" style={{ color: 'var(--color-neutral)' }}>
+              Click {hasBars ? 'bars' : 'chords'} to set loop range
             </span>
           )}
         </div>
 
-        {/* Chord badges with beat indicators — LTR so order matches playback (e.g. Hebrew RTL page) */}
-        {chords.length > 0 && (
+        {/* Item badges — bars or chords */}
+        {hasBars ? (
+          // Bar-mode display: show bars with their chords
           <div className="flex flex-wrap items-start gap-2" dir="ltr">
-            {chords.map((chord, i) => {
-              const inLoop = i >= loopStart && i <= loopEnd;
-              const isActive = currentChordIdx === i;
+            {bars!.map((bar, barIdx) => {
+              const inLoop = barIdx >= loopStart && barIdx <= loopEnd;
+              const isActive = activeItemIndex === barIdx && countIn === null;
 
               return (
-                <div key={i} className="flex flex-col items-center gap-1">
-                  {/* Chord badge */}
+                <div key={barIdx} className="flex flex-col items-center gap-1">
                   <button
-                    onClick={() => handleChordClick(i)}
+                    onClick={() => handleItemClick(barIdx)}
                     disabled={playing}
                     className="relative rounded-xl px-3.5 py-2 transition-all cursor-pointer disabled:cursor-default border"
                     style={{
-                      borderColor: isActive
-                        ? 'var(--color-accent)'
-                        : inLoop
-                          ? 'var(--color-diatonic)'
-                          : 'var(--color-border)',
+                      borderColor: isActive ? 'var(--color-accent)' : inLoop ? 'var(--color-diatonic)' : 'var(--color-border)',
                       backgroundColor: isActive
                         ? 'color-mix(in srgb, var(--color-accent) 18%, transparent)'
-                        : inLoop
-                          ? 'var(--color-surface-2)'
-                          : 'var(--color-surface)',
+                        : inLoop ? 'var(--color-surface-2)' : 'var(--color-surface)',
                       opacity: inLoop || isActive ? 1 : 0.4,
-                      boxShadow: isActive
-                        ? '0 0 8px color-mix(in srgb, var(--color-accent) 40%, transparent)'
-                        : 'none',
+                      boxShadow: isActive ? '0 0 8px color-mix(in srgb, var(--color-accent) 40%, transparent)' : 'none',
                       animation: isActive ? 'practicemode-pulse 0.6s ease-in-out infinite alternate' : 'none',
                     }}
                   >
-                    <div
-                      className="font-mono font-semibold text-sm"
-                      style={{
-                        color: isActive
-                          ? 'var(--color-accent)'
-                          : chord.is_diatonic
-                            ? 'var(--color-diatonic)'
-                            : 'var(--color-text)',
-                      }}
-                    >
-                      {chord.symbol}
+                    <div className="text-[10px] font-semibold mb-0.5" style={{ color: 'var(--color-neutral)' }}>
+                      Bar {barIdx + 1}
                     </div>
-                    <div
-                      className="text-[10px] text-center"
-                      style={{ color: 'var(--color-neutral)' }}
-                    >
-                      {chord.roman_numeral}
+                    <div className="flex items-center gap-1">
+                      {bar.chord_analyses.map((chord, ci) => {
+                        const chordActive = isActive && cursor?.chordIndexInBar === ci;
+                        return (
+                          <span
+                            key={ci}
+                            className="font-mono font-semibold text-sm px-1 rounded"
+                            style={{
+                              color: chordActive ? 'var(--color-accent)' : chord.is_diatonic ? 'var(--color-diatonic)' : 'var(--color-text)',
+                              backgroundColor: chordActive ? 'color-mix(in srgb, var(--color-accent) 12%, transparent)' : 'transparent',
+                            }}
+                          >
+                            {chord.symbol}
+                          </span>
+                        );
+                      })}
                     </div>
                   </button>
 
                   {/* Beat indicator dots */}
                   {inLoop && (
                     <div className="flex items-center gap-0.5">
-                      {Array.from({ length: beatsPerChord }, (_, b) => {
-                        const beatActive =
-                          isActive && currentBeat !== null && currentBeat === b + 1;
+                      {Array.from({ length: 4 }, (_, b) => {
+                        const beatActive = isActive && cursor?.beat === b + 1;
                         return (
                           <div
                             key={b}
@@ -628,9 +420,66 @@ export function PracticeMode({ chords, sectionName }: Props) {
                             style={{
                               width: beatActive ? 7 : 5,
                               height: beatActive ? 7 : 5,
-                              backgroundColor: beatActive
-                                ? 'var(--color-accent)'
-                                : 'var(--color-border)',
+                              backgroundColor: beatActive ? 'var(--color-accent)' : 'var(--color-border)',
+                              transition: 'all 0.1s',
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          // Flat chord display (legacy)
+          <div className="flex flex-wrap items-start gap-2" dir="ltr">
+            {chords.map((chord, i) => {
+              const inLoop = i >= loopStart && i <= loopEnd;
+              const isActive = activeFlatChordIndex === i && countIn === null;
+
+              return (
+                <div key={i} className="flex flex-col items-center gap-1">
+                  <button
+                    onClick={() => handleItemClick(i)}
+                    disabled={playing}
+                    className="relative rounded-xl px-3.5 py-2 transition-all cursor-pointer disabled:cursor-default border"
+                    style={{
+                      borderColor: isActive ? 'var(--color-accent)' : inLoop ? 'var(--color-diatonic)' : 'var(--color-border)',
+                      backgroundColor: isActive
+                        ? 'color-mix(in srgb, var(--color-accent) 18%, transparent)'
+                        : inLoop ? 'var(--color-surface-2)' : 'var(--color-surface)',
+                      opacity: inLoop || isActive ? 1 : 0.4,
+                      boxShadow: isActive ? '0 0 8px color-mix(in srgb, var(--color-accent) 40%, transparent)' : 'none',
+                      animation: isActive ? 'practicemode-pulse 0.6s ease-in-out infinite alternate' : 'none',
+                    }}
+                  >
+                    <div
+                      className="font-mono font-semibold text-sm"
+                      style={{
+                        color: isActive ? 'var(--color-accent)' : chord.is_diatonic ? 'var(--color-diatonic)' : 'var(--color-text)',
+                      }}
+                    >
+                      {chord.symbol}
+                    </div>
+                    <div className="text-[10px] text-center" style={{ color: 'var(--color-neutral)' }}>
+                      {chord.roman_numeral}
+                    </div>
+                  </button>
+
+                  {inLoop && (
+                    <div className="flex items-center gap-0.5">
+                      {Array.from({ length: beatsPerChord }, (_, b) => {
+                        const beatActive = isActive && cursor?.beat === b + 1;
+                        return (
+                          <div
+                            key={b}
+                            className="rounded-full transition-all"
+                            style={{
+                              width: beatActive ? 7 : 5,
+                              height: beatActive ? 7 : 5,
+                              backgroundColor: beatActive ? 'var(--color-accent)' : 'var(--color-border)',
                               transition: 'all 0.1s',
                             }}
                           />
@@ -645,15 +494,10 @@ export function PracticeMode({ chords, sectionName }: Props) {
         )}
       </div>
 
-      {/* Pulse keyframes injected as inline style tag */}
       <style>{`
         @keyframes practicemode-pulse {
-          from {
-            box-shadow: 0 0 4px color-mix(in srgb, var(--color-accent) 30%, transparent);
-          }
-          to {
-            box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 60%, transparent);
-          }
+          from { box-shadow: 0 0 4px color-mix(in srgb, var(--color-accent) 30%, transparent); }
+          to { box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 60%, transparent); }
         }
       `}</style>
     </div>
