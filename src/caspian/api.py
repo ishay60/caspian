@@ -52,11 +52,15 @@ from caspian.models.analysis import (
 )
 from caspian.theory.pitch import note_name, note_name_in_key
 from caspian.sources.cache import DiskCache
+from caspian.db import JsonFileSongRepository, SongDocument
 
 app = FastAPI(title="Caspian", description="Hebrew harmonic analysis API")
 
 # Initialize cache
 cache = DiskCache()
+
+# Initialize song repository
+song_repo = JsonFileSongRepository()
 
 _allowed_origins = [
     o.strip()
@@ -864,6 +868,156 @@ async def fetch_sheet(
     except Exception as e:
         logger.error(f"Unexpected error fetching sheet from {url}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# --- Song CRUD endpoints ---
+
+
+class SaveSongRequest(BaseModel):
+    """Request body for creating/updating a song."""
+
+    title: str = ""
+    artist: str = ""
+    key_root: str = ""
+    key_mode: str = ""
+    input_text: str = ""
+    metadata: dict = {}
+    analysis_metadata: dict | None = None
+
+
+class SongDocumentResponse(BaseModel):
+    id: str
+    user_id: str
+    title: str
+    artist: str
+    key_root: str
+    key_mode: str
+    input_text: str
+    created_at: str
+    updated_at: str
+    last_opened_at: str
+    metadata: dict
+    analysis_metadata: dict | None
+
+
+def _song_to_response(song: SongDocument) -> SongDocumentResponse:
+    return SongDocumentResponse(
+        id=song.id,
+        user_id=song.user_id,
+        title=song.title,
+        artist=song.artist,
+        key_root=song.key_root,
+        key_mode=song.key_mode,
+        input_text=song.input_text,
+        created_at=song.created_at,
+        updated_at=song.updated_at,
+        last_opened_at=song.last_opened_at,
+        metadata=song.metadata.model_dump(),
+        analysis_metadata=song.analysis_metadata.model_dump() if song.analysis_metadata else None,
+    )
+
+
+@app.get("/api/songs", response_model=list[SongDocumentResponse])
+async def list_songs(
+    user_id: str = Header(default="local", alias="x-user-id"),
+    q: str | None = Query(default=None, description="Search query"),
+    limit: int = Query(default=100, ge=1, le=500),
+):
+    """List saved songs for a user."""
+    songs = await song_repo.list(user_id=user_id, query=q, limit=limit)
+    return [_song_to_response(s) for s in songs]
+
+
+@app.post("/api/songs", response_model=SongDocumentResponse, status_code=201)
+async def create_song(
+    req: SaveSongRequest,
+    user_id: str = Header(default="local", alias="x-user-id"),
+):
+    """Save a new song."""
+    from caspian.db.models import SongMetadata, AnalysisMetadata
+
+    song = SongDocument(
+        id=song_repo.generate_id(),
+        user_id=user_id,
+        title=req.title,
+        artist=req.artist,
+        key_root=req.key_root,
+        key_mode=req.key_mode,
+        input_text=req.input_text,
+        metadata=SongMetadata(**req.metadata) if req.metadata else SongMetadata(),
+        analysis_metadata=AnalysisMetadata(**req.analysis_metadata) if req.analysis_metadata else None,
+    )
+    saved = await song_repo.save(song)
+    return _song_to_response(saved)
+
+
+@app.get("/api/songs/{song_id}", response_model=SongDocumentResponse)
+async def get_song(
+    song_id: str,
+    user_id: str = Header(default="local", alias="x-user-id"),
+):
+    """Get a single song by ID."""
+    song = await song_repo.get(song_id, user_id=user_id)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    return _song_to_response(song)
+
+
+@app.put("/api/songs/{song_id}", response_model=SongDocumentResponse)
+async def update_song(
+    song_id: str,
+    req: SaveSongRequest,
+    user_id: str = Header(default="local", alias="x-user-id"),
+):
+    """Update an existing song (full replace)."""
+    from caspian.db.models import SongMetadata, AnalysisMetadata
+
+    existing = await song_repo.get(song_id, user_id=user_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    updated = existing.model_copy(update={
+        "title": req.title,
+        "artist": req.artist,
+        "key_root": req.key_root,
+        "key_mode": req.key_mode,
+        "input_text": req.input_text,
+        "metadata": SongMetadata(**req.metadata) if req.metadata else existing.metadata,
+        "analysis_metadata": AnalysisMetadata(**req.analysis_metadata) if req.analysis_metadata else existing.analysis_metadata,
+    })
+    saved = await song_repo.save(updated)
+    return _song_to_response(saved)
+
+
+@app.post("/api/songs/{song_id}/touch")
+async def touch_song(
+    song_id: str,
+    user_id: str = Header(default="local", alias="x-user-id"),
+):
+    """Update a song's last_opened_at timestamp."""
+    from datetime import datetime, timezone
+
+    song = await song_repo.get(song_id, user_id=user_id)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    updated = song.model_copy(update={
+        "last_opened_at": datetime.now(timezone.utc).isoformat(),
+    })
+    await song_repo.save(updated)
+    return {"ok": True}
+
+
+@app.delete("/api/songs/{song_id}")
+async def delete_song(
+    song_id: str,
+    user_id: str = Header(default="local", alias="x-user-id"),
+):
+    """Delete a song."""
+    deleted = await song_repo.delete(song_id, user_id=user_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Song not found")
+    return {"ok": True}
 
 
 # Serve React static files in production

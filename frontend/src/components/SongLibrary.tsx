@@ -9,8 +9,17 @@ import {
   findExisting,
   extractMetadata,
   type SavedSong,
+  type SongAnalysisMetadata,
 } from '../lib/songLibrary';
 import { searchSongs, emptyFilters, type FeatureFilters } from '../lib/songSearch';
+import {
+  listCloudSongs,
+  createCloudSong,
+  deleteCloudSong,
+  touchCloudSong,
+  type CloudSong,
+  type SaveSongPayload,
+} from '../api';
 
 interface Props {
   onLoadSong: (inputText: string) => void;
@@ -19,6 +28,35 @@ interface Props {
   currentInputText?: string;
   /** Current analysis result — used to save richer metadata. */
   currentAnalysis?: AnalysisResult | null;
+}
+
+/** Map a CloudSong (snake_case API response) to SavedSong (camelCase frontend type). */
+function cloudToSaved(cs: CloudSong): SavedSong {
+  const am = cs.analysis_metadata;
+  let analysisMetadata: SongAnalysisMetadata | undefined;
+  if (am) {
+    analysisMetadata = {
+      chordSymbols: (am.chord_symbols as string[]) ?? [],
+      romanNumerals: (am.roman_numerals as string[]) ?? [],
+      sectionNames: (am.section_names as string[]) ?? [],
+      progressions: (am.progressions as string[]) ?? [],
+      hasSecondaryDominants: (am.has_secondary_dominants as boolean) ?? false,
+      hasBorrowedChords: (am.has_borrowed_chords as boolean) ?? false,
+      hasDeceptiveResolution: (am.has_deceptive_resolution as boolean) ?? false,
+      hasDiminished: (am.has_diminished as boolean) ?? false,
+    };
+  }
+  return {
+    id: cs.id,
+    title: cs.title,
+    artist: cs.artist,
+    keyRoot: cs.key_root,
+    keyMode: cs.key_mode,
+    inputText: cs.input_text,
+    savedAt: new Date(cs.created_at).getTime(),
+    lastOpenedAt: new Date(cs.last_opened_at).getTime(),
+    analysisMetadata,
+  };
 }
 
 function timeAgo(timestamp: number): string {
@@ -44,8 +82,14 @@ export function SongLibrary({
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<FeatureFilters>(emptyFilters);
 
-  const refresh = useCallback(() => {
-    setSongs(getSongs());
+  const refresh = useCallback(async () => {
+    try {
+      const cloud = await listCloudSongs();
+      setSongs(cloud.map(cloudToSaved));
+    } catch {
+      // Cloud unavailable — fall back to localStorage
+      setSongs(getSongs());
+    }
   }, []);
 
   // Refresh the song list whenever the panel is opened
@@ -56,7 +100,7 @@ export function SongLibrary({
   const hasCurrentSong =
     currentTitle && currentArtist && currentInputText;
 
-  function handleSave() {
+  async function handleSave() {
     if (!currentTitle || !currentArtist || !currentInputText) return;
 
     // Parse key from the input text (look for "key: Xm" or "key: X" line)
@@ -68,14 +112,12 @@ export function SongLibrary({
     if (keyMatch) {
       keyRoot = keyMatch[1];
       const modeRaw = keyMatch[2].trim().toLowerCase();
-      // Infer mode: if the root ends with 'm' suffix in the original or mode text says minor
       if (
         modeRaw === 'm' ||
         modeRaw === 'minor' ||
         modeRaw === 'natural_minor' ||
         modeRaw === ''
       ) {
-        // Check if the key value itself ends with 'm' (e.g. "Am")
         const fullKeyMatch = currentInputText.match(
           /^key:\s*([A-Ga-g][#b]?m?)/m,
         );
@@ -91,38 +133,65 @@ export function SongLibrary({
       }
     }
 
-    const existing = findExisting(currentTitle, currentArtist);
-    if (existing) {
-      // Update the existing entry by deleting and re-saving
-      deleteSong(existing.id);
-    }
-
     // Extract analysis metadata if we have a current analysis result
-    const analysisMetadata = currentAnalysis
+    const meta = currentAnalysis
       ? extractMetadata(currentAnalysis)
       : undefined;
 
-    saveSong({
+    const payload: SaveSongPayload = {
       title: currentTitle,
       artist: currentArtist,
-      keyRoot,
-      keyMode,
-      inputText: currentInputText,
-      analysisMetadata,
-    });
+      key_root: keyRoot,
+      key_mode: keyMode,
+      input_text: currentInputText,
+      analysis_metadata: meta
+        ? {
+            chord_symbols: meta.chordSymbols,
+            roman_numerals: meta.romanNumerals,
+            section_names: meta.sectionNames,
+            progressions: meta.progressions,
+            has_secondary_dominants: meta.hasSecondaryDominants,
+            has_borrowed_chords: meta.hasBorrowedChords,
+            has_deceptive_resolution: meta.hasDeceptiveResolution,
+            has_diminished: meta.hasDiminished,
+          }
+        : undefined,
+    };
+
+    try {
+      await createCloudSong(payload);
+    } catch {
+      // Cloud unavailable — save to localStorage as fallback
+      const existing = findExisting(currentTitle, currentArtist);
+      if (existing) deleteSong(existing.id);
+      saveSong({
+        title: currentTitle,
+        artist: currentArtist,
+        keyRoot,
+        keyMode,
+        inputText: currentInputText,
+        analysisMetadata: meta,
+      });
+    }
 
     refresh();
   }
 
   function handleLoad(song: SavedSong) {
-    touchSong(song.id);
+    // Touch cloud (fire-and-forget), fall back to local
+    touchCloudSong(song.id).catch(() => touchSong(song.id));
     onLoadSong(song.inputText);
     setOpen(false);
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     if (confirmDeleteId === id) {
-      deleteSong(id);
+      try {
+        await deleteCloudSong(id);
+      } catch {
+        // Cloud unavailable — delete locally
+        deleteSong(id);
+      }
       setConfirmDeleteId(null);
       refresh();
     } else {

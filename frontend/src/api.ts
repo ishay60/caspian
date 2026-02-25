@@ -139,3 +139,123 @@ export async function detectFormat(
 
   return resp.json();
 }
+
+// ── Song CRUD (cloud persistence) ──────────────────────────────────
+
+export interface CloudSong {
+  id: string;
+  user_id: string;
+  title: string;
+  artist: string;
+  key_root: string;
+  key_mode: string;
+  input_text: string;
+  created_at: string;
+  updated_at: string;
+  last_opened_at: string;
+  metadata: Record<string, unknown>;
+  analysis_metadata: Record<string, unknown> | null;
+}
+
+export interface SaveSongPayload {
+  title: string;
+  artist: string;
+  key_root: string;
+  key_mode: string;
+  input_text: string;
+  metadata?: Record<string, unknown>;
+  analysis_metadata?: Record<string, unknown> | null;
+}
+
+export async function listCloudSongs(
+  query?: string,
+  limit?: number,
+): Promise<CloudSong[]> {
+  const params = new URLSearchParams();
+  if (query != null && query !== '') params.set('q', query);
+  if (limit != null) params.set('limit', String(limit));
+
+  const qs = params.toString();
+  const resp = await fetch(`/api/songs${qs ? `?${qs}` : ''}`, {
+    headers: { 'x-user-id': 'local' },
+  });
+
+  if (!resp.ok) {
+    const msg = await resp.text();
+    throw new Error(`Failed to list songs: ${msg}`);
+  }
+
+  return resp.json();
+}
+
+export async function createCloudSong(
+  payload: SaveSongPayload,
+): Promise<CloudSong> {
+  const resp = await fetch('/api/songs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-user-id': 'local' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!resp.ok) {
+    const msg = await resp.text();
+    throw new Error(`Failed to create song: ${msg}`);
+  }
+
+  return resp.json();
+}
+
+export async function getCloudSong(songId: string): Promise<CloudSong> {
+  const resp = await fetch(`/api/songs/${encodeURIComponent(songId)}`, {
+    headers: { 'x-user-id': 'local' },
+  });
+
+  if (!resp.ok) {
+    const msg = await resp.text();
+    throw new Error(`Failed to get song: ${msg}`);
+  }
+
+  return resp.json();
+}
+
+export async function updateCloudSong(
+  songId: string,
+  payload: SaveSongPayload,
+): Promise<CloudSong> {
+  const resp = await fetch(`/api/songs/${encodeURIComponent(songId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'x-user-id': 'local' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!resp.ok) {
+    const msg = await resp.text();
+    throw new Error(`Failed to update song: ${msg}`);
+  }
+
+  return resp.json();
+}
+
+export async function touchCloudSong(songId: string): Promise<void> {
+  const resp = await fetch(`/api/songs/${encodeURIComponent(songId)}/touch`, {
+    method: 'POST',
+    headers: { 'x-user-id': 'local' },
+  });
+
+  if (!resp.ok) {
+    const msg = await resp.text();
+    throw new Error(`Failed to touch song: ${msg}`);
+  }
+}
+
+export async function deleteCloudSong(songId: string): Promise<void> {
+  const resp = await fetch(`/api/songs/${encodeURIComponent(songId)}`, {
+    method: 'DELETE',
+    headers: { 'x-user-id': 'local' },
+  });
+
+  if (!resp.ok) {
+    const msg = await resp.text();
+    throw new Error(`Failed to delete song: ${msg}`);
+  }
+}
