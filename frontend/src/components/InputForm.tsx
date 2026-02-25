@@ -9,9 +9,10 @@ interface Props {
   onAnalyze: (text: string) => void;
   loading: boolean;
   sampleInput: string;
+  externalText?: string;
 }
 
-export function InputForm({ onAnalyze, loading, sampleInput }: Props) {
+export function InputForm({ onAnalyze, loading, sampleInput, externalText }: Props) {
   const [text, setText] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [detectedFormat, setDetectedFormat] = useState<DetectFormatResponse | null>(null);
@@ -20,6 +21,14 @@ export function InputForm({ onAnalyze, loading, sampleInput }: Props) {
   const [showPreview, setShowPreview] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
   const debounceTimerRef = useRef<number | null>(null);
+
+  // Sync external text (e.g. from sheet scan) into the textarea
+  useEffect(() => {
+    if (externalText !== undefined && externalText !== '') {
+      setText(externalText);
+      setCollapsed(false);
+    }
+  }, [externalText]);
 
   // Debounced format detection
   useEffect(() => {

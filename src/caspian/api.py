@@ -21,6 +21,7 @@ from caspian.sources.base import SearchResult
 from caspian.sources.ultimate_guitar import UltimateGuitarSource
 from caspian.sources.tab4u import Tab4uSource
 from caspian.sources.converter import convert_raw_to_song_input
+from caspian.sources.sheet_scanner import scan_sheet_image, scan_result_to_input_text, SheetScanError
 
 from datetime import datetime, timedelta
 
@@ -997,6 +998,62 @@ def _resolve_user_id(current_user: dict | None, header_user_id: str) -> str:
     if current_user is not None:
         return current_user["user_id"]
     return header_user_id
+
+
+# --- Sheet Scanning ---
+
+
+@app.post("/api/scan-sheet")
+async def scan_sheet(
+    request: Request,
+    current_user: dict | None = Depends(get_current_user),
+):
+    """Scan a music sheet image and extract chord information.
+
+    Accepts multipart/form-data with a 'file' field containing the image.
+    Pro users can use the server's API key; others must provide their own.
+    """
+    # Check for API key: pro users use server key, others need their own
+    api_key = None
+    if current_user and current_user.get("tier") == "pro":
+        api_key = None  # Will use server's ANTHROPIC_API_KEY env var
+    else:
+        api_key = request.headers.get("x-anthropic-api-key")
+        if not api_key:
+            if not os.getenv("ANTHROPIC_API_KEY"):
+                raise HTTPException(
+                    status_code=403,
+                    detail="Sheet scanning requires a Pro account or your own Anthropic API key.",
+                )
+
+    # Parse multipart form data
+    form = await request.form()
+    file = form.get("file")
+    if not file:
+        raise HTTPException(status_code=400, detail="No file uploaded")
+
+    # Read file content
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:  # 10MB limit
+        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+
+    # Determine media type
+    content_type = getattr(file, "content_type", "image/jpeg") or "image/jpeg"
+    if content_type not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
+        raise HTTPException(status_code=400, detail=f"Unsupported image type: {content_type}")
+
+    try:
+        scan_result = await scan_sheet_image(content, media_type=content_type, api_key=api_key)
+    except SheetScanError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    # Convert to input text
+    input_text = scan_result_to_input_text(scan_result)
+
+    return {
+        "scan_result": scan_result,
+        "input_text": input_text,
+    }
 
 
 # --- Song CRUD endpoints ---

@@ -356,3 +356,46 @@ export async function getChordSubstitutions(
   const data: SubstitutionResponse = await resp.json();
   return data.substitutions;
 }
+
+// ── Sheet Scanning (OCR) ────────────────────────────────────────────
+
+export interface ScanResult {
+  scan_result: {
+    title?: string;
+    artist?: string;
+    key?: string;
+    time_signature?: string;
+    sections?: Array<{
+      name: string;
+      bars: Array<{ chords: string[] }>;
+    }>;
+  };
+  input_text: string;
+}
+
+export async function scanSheet(file: File, apiKey?: string): Promise<ScanResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const headers: Record<string, string> = {};
+  const token = localStorage.getItem('caspian-auth-token');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  if (apiKey) {
+    headers['x-anthropic-api-key'] = apiKey;
+  }
+
+  const resp = await fetch('/api/scan-sheet', {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({ detail: 'Scan failed' }));
+    throw new Error(body.detail ?? 'Scan failed');
+  }
+
+  return resp.json();
+}
