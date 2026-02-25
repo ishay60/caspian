@@ -9,7 +9,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from fastapi import FastAPI, Header, Query, Request
+from fastapi import Depends, FastAPI, Header, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -53,6 +53,9 @@ from caspian.models.analysis import (
 from caspian.theory.pitch import note_name, note_name_in_key
 from caspian.sources.cache import DiskCache
 from caspian.db import JsonFileSongRepository, SongDocument
+from caspian.auth import JsonFileUserRepository
+from caspian.auth.middleware import get_current_user
+from caspian.auth.service import register as auth_register, login as auth_login
 
 app = FastAPI(title="Caspian", description="Hebrew harmonic analysis API")
 
@@ -61,6 +64,9 @@ cache = DiskCache()
 
 # Initialize song repository
 song_repo = JsonFileSongRepository()
+
+# Initialize user repository
+user_repo = JsonFileUserRepository()
 
 _allowed_origins = [
     o.strip()
@@ -562,6 +568,7 @@ async def llm_analyze(
     req: AnalyzeResponse,
     x_anthropic_api_key: str | None = Header(default=None),
     x_openai_api_key: str | None = Header(default=None),
+    current_user: dict | None = Depends(get_current_user),
 ):
     # Resolve user-supplied key; Anthropic takes priority over OpenAI
     user_api_key: str | None = None
@@ -870,6 +877,110 @@ async def fetch_sheet(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+# --- Auth endpoints ---
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    display_name: str = ""
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class AuthResponse(BaseModel):
+    token: str
+    user: dict
+
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    display_name: str
+    tier: str
+    created_at: str
+
+
+@app.post("/api/auth/register", response_model=AuthResponse, status_code=201)
+async def register(req: RegisterRequest):
+    """Register a new user account."""
+    try:
+        user = await auth_register(
+            email=req.email,
+            password=req.password,
+            display_name=req.display_name,
+            repo=user_repo,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+    from caspian.auth.service import create_token
+    token = create_token(user.id, user.email, user.tier)
+    return AuthResponse(
+        token=token,
+        user={
+            "id": user.id,
+            "email": user.email,
+            "display_name": user.display_name,
+            "tier": user.tier,
+            "created_at": user.created_at,
+        },
+    )
+
+
+@app.post("/api/auth/login", response_model=AuthResponse)
+async def login(req: LoginRequest):
+    """Login with email and password."""
+    try:
+        user, token = await auth_login(
+            email=req.email,
+            password=req.password,
+            repo=user_repo,
+        )
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    return AuthResponse(
+        token=token,
+        user={
+            "id": user.id,
+            "email": user.email,
+            "display_name": user.display_name,
+            "tier": user.tier,
+            "created_at": user.created_at,
+        },
+    )
+
+
+@app.get("/api/auth/me", response_model=UserResponse)
+async def get_me(current_user: dict = Depends(get_current_user)):
+    """Get the current authenticated user's profile."""
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    user = await user_repo.get(current_user["user_id"])
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        tier=user.tier,
+        created_at=user.created_at,
+    )
+
+
+def _resolve_user_id(current_user: dict | None, header_user_id: str) -> str:
+    """Resolve the effective user_id: prefer auth token, fall back to header."""
+    if current_user is not None:
+        return current_user["user_id"]
+    return header_user_id
+
+
 # --- Song CRUD endpoints ---
 
 
@@ -922,9 +1033,11 @@ async def list_songs(
     user_id: str = Header(default="local", alias="x-user-id"),
     q: str | None = Query(default=None, description="Search query"),
     limit: int = Query(default=100, ge=1, le=500),
+    current_user: dict | None = Depends(get_current_user),
 ):
     """List saved songs for a user."""
-    songs = await song_repo.list(user_id=user_id, query=q, limit=limit)
+    uid = _resolve_user_id(current_user, user_id)
+    songs = await song_repo.list(user_id=uid, query=q, limit=limit)
     return [_song_to_response(s) for s in songs]
 
 
@@ -932,13 +1045,15 @@ async def list_songs(
 async def create_song(
     req: SaveSongRequest,
     user_id: str = Header(default="local", alias="x-user-id"),
+    current_user: dict | None = Depends(get_current_user),
 ):
     """Save a new song."""
     from caspian.db.models import SongMetadata, AnalysisMetadata
 
+    uid = _resolve_user_id(current_user, user_id)
     song = SongDocument(
         id=song_repo.generate_id(),
-        user_id=user_id,
+        user_id=uid,
         title=req.title,
         artist=req.artist,
         key_root=req.key_root,
@@ -955,9 +1070,11 @@ async def create_song(
 async def get_song(
     song_id: str,
     user_id: str = Header(default="local", alias="x-user-id"),
+    current_user: dict | None = Depends(get_current_user),
 ):
     """Get a single song by ID."""
-    song = await song_repo.get(song_id, user_id=user_id)
+    uid = _resolve_user_id(current_user, user_id)
+    song = await song_repo.get(song_id, user_id=uid)
     if not song:
         raise HTTPException(status_code=404, detail="Song not found")
     return _song_to_response(song)
@@ -968,11 +1085,13 @@ async def update_song(
     song_id: str,
     req: SaveSongRequest,
     user_id: str = Header(default="local", alias="x-user-id"),
+    current_user: dict | None = Depends(get_current_user),
 ):
     """Update an existing song (full replace)."""
     from caspian.db.models import SongMetadata, AnalysisMetadata
 
-    existing = await song_repo.get(song_id, user_id=user_id)
+    uid = _resolve_user_id(current_user, user_id)
+    existing = await song_repo.get(song_id, user_id=uid)
     if not existing:
         raise HTTPException(status_code=404, detail="Song not found")
 
@@ -993,11 +1112,13 @@ async def update_song(
 async def touch_song(
     song_id: str,
     user_id: str = Header(default="local", alias="x-user-id"),
+    current_user: dict | None = Depends(get_current_user),
 ):
     """Update a song's last_opened_at timestamp."""
     from datetime import datetime, timezone
 
-    song = await song_repo.get(song_id, user_id=user_id)
+    uid = _resolve_user_id(current_user, user_id)
+    song = await song_repo.get(song_id, user_id=uid)
     if not song:
         raise HTTPException(status_code=404, detail="Song not found")
 
@@ -1012,9 +1133,11 @@ async def touch_song(
 async def delete_song(
     song_id: str,
     user_id: str = Header(default="local", alias="x-user-id"),
+    current_user: dict | None = Depends(get_current_user),
 ):
     """Delete a song."""
-    deleted = await song_repo.delete(song_id, user_id=user_id)
+    uid = _resolve_user_id(current_user, user_id)
+    deleted = await song_repo.delete(song_id, user_id=uid)
     if not deleted:
         raise HTTPException(status_code=404, detail="Song not found")
     return {"ok": True}

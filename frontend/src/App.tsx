@@ -2,11 +2,13 @@ import { useState, useRef, lazy, Suspense } from 'react';
 import type { AnalysisResult } from './types';
 import { analyzeChords } from './api';
 import { SettingsProvider, useSettings } from './lib/settingsContext';
+import { AuthProvider } from './lib/authContext';
 import { InputForm } from './components/InputForm';
 import { AnalysisView } from './components/AnalysisView';
 import { SectionSplitter } from './components/SectionSplitter';
 import { SettingsBar } from './components/SettingsBar';
 import { SongLibrary } from './components/SongLibrary';
+import { UserMenu } from './components/UserMenu';
 import { ViewToolboxSidebar } from './components/ViewToolboxSidebar';
 import { SongSearch } from './components/SongSearch';
 import { LyricsChordEditor } from './components/LyricsChordEditor';
@@ -273,6 +275,7 @@ function AppContent() {
               currentAnalysis={result}
             />
 
+            <UserMenu />
             <SettingsBar />
           </div>
         </div>
@@ -403,8 +406,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <SettingsProvider>
-      <AppContent />
-    </SettingsProvider>
+    <AuthProvider>
+      <SettingsProvider>
+        <AppContent />
+      </SettingsProvider>
+    </AuthProvider>
   );
 }

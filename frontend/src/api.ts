@@ -140,6 +140,19 @@ export async function detectFormat(
   return resp.json();
 }
 
+// ── Auth helpers ───────────────────────────────────────────────────
+
+function authHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const token = localStorage.getItem('caspian-auth-token');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    headers['x-user-id'] = 'local';
+  }
+  return headers;
+}
+
 // ── Song CRUD (cloud persistence) ──────────────────────────────────
 
 export interface CloudSong {
@@ -177,7 +190,7 @@ export async function listCloudSongs(
 
   const qs = params.toString();
   const resp = await fetch(`/api/songs${qs ? `?${qs}` : ''}`, {
-    headers: { 'x-user-id': 'local' },
+    headers: { ...authHeaders() },
   });
 
   if (!resp.ok) {
@@ -193,7 +206,7 @@ export async function createCloudSong(
 ): Promise<CloudSong> {
   const resp = await fetch('/api/songs', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-user-id': 'local' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(payload),
   });
 
@@ -207,7 +220,7 @@ export async function createCloudSong(
 
 export async function getCloudSong(songId: string): Promise<CloudSong> {
   const resp = await fetch(`/api/songs/${encodeURIComponent(songId)}`, {
-    headers: { 'x-user-id': 'local' },
+    headers: { ...authHeaders() },
   });
 
   if (!resp.ok) {
@@ -224,7 +237,7 @@ export async function updateCloudSong(
 ): Promise<CloudSong> {
   const resp = await fetch(`/api/songs/${encodeURIComponent(songId)}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'x-user-id': 'local' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(payload),
   });
 
@@ -239,7 +252,7 @@ export async function updateCloudSong(
 export async function touchCloudSong(songId: string): Promise<void> {
   const resp = await fetch(`/api/songs/${encodeURIComponent(songId)}/touch`, {
     method: 'POST',
-    headers: { 'x-user-id': 'local' },
+    headers: { ...authHeaders() },
   });
 
   if (!resp.ok) {
@@ -251,11 +264,62 @@ export async function touchCloudSong(songId: string): Promise<void> {
 export async function deleteCloudSong(songId: string): Promise<void> {
   const resp = await fetch(`/api/songs/${encodeURIComponent(songId)}`, {
     method: 'DELETE',
-    headers: { 'x-user-id': 'local' },
+    headers: { ...authHeaders() },
   });
 
   if (!resp.ok) {
     const msg = await resp.text();
     throw new Error(`Failed to delete song: ${msg}`);
   }
+}
+
+// ── Auth API ───────────────────────────────────────────────────────
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  display_name: string;
+  tier: 'free' | 'pro';
+  created_at: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: AuthUser;
+}
+
+export async function apiRegister(email: string, password: string, displayName: string): Promise<AuthResponse> {
+  const resp = await fetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, display_name: displayName }),
+  });
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({ detail: 'Registration failed' }));
+    throw new Error(body.detail ?? 'Registration failed');
+  }
+  return resp.json();
+}
+
+export async function apiLogin(email: string, password: string): Promise<AuthResponse> {
+  const resp = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({ detail: 'Login failed' }));
+    throw new Error(body.detail ?? 'Login failed');
+  }
+  return resp.json();
+}
+
+export async function apiGetMe(token: string): Promise<AuthUser> {
+  const resp = await fetch('/api/auth/me', {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (!resp.ok) {
+    throw new Error('Not authenticated');
+  }
+  return resp.json();
 }
