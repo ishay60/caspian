@@ -4,6 +4,7 @@
  * Renders a single musical bar with proportional chord segments.
  * Chord width = duration. Drag dividers between chords to adjust timing.
  * Supports dotted/syncopated durations via 0.5-beat snap granularity.
+ * Shows riff/instrumental indicators when bar.has_riff is true.
  */
 
 import { useState, useRef, useEffect } from 'react';
@@ -43,6 +44,7 @@ export function BarDisplay({
   const timelineRef = useRef<HTMLDivElement>(null);
   const [showInput, setShowInput] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [dragDurations, setDragDurations] = useState<number[] | null>(null);
   const latestDrag = useRef<number[] | null>(null);
 
@@ -96,7 +98,7 @@ export function BarDisplay({
 
   return (
     <div
-      className={`bar-display ${editable ? 'bar-display--editable' : ''}`}
+      className={`bar-display ${editable ? 'bar-display--editable' : ''} ${bar.has_riff ? 'bar-display--has-riff' : ''} ${expanded ? 'bar-display--expanded' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -148,6 +150,20 @@ export function BarDisplay({
           </div>
         )}
 
+        {/* Riff badge shown inline after chord segments */}
+        {bar.has_riff && !expanded && (
+          <button
+            className="riff-badge"
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded(true);
+            }}
+            title={bar.riff_analysis || 'Riff / instrumental content'}
+          >
+            ~~riff~~
+          </button>
+        )}
+
         {/* Add chord button / input at end of timeline */}
         {editable &&
           (showInput ? (
@@ -169,6 +185,21 @@ export function BarDisplay({
               <Plus size={14} />
             </button>
           ))}
+      </div>
+
+      {/* Expanded riff detail area */}
+      <div className={`bar-expanded-detail ${expanded ? 'bar-expanded-detail--open' : ''}`}>
+        {expanded && bar.has_riff && (
+          <div
+            className="riff-detail-content"
+            onClick={() => setExpanded(false)}
+          >
+            <span className="riff-detail-icon">{'\u266A'}</span>
+            <span className="riff-analysis-text">
+              {bar.riff_analysis || 'Riff / instrumental'}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Beat tick marks along the bottom */}

@@ -4,12 +4,14 @@
  * Displays bars as visual rectangles with proportional chord segments.
  * Chord width = duration. Sections are collapsible.
  * Supports inline editing: add/remove chords, add/delete bars, drag durations.
+ * Supports bar structure editing via BarOverlay: merge/split bars, move chords between bars.
  */
 
 import { useState } from 'react';
 import { Plus, Pencil, LayoutGrid, ChevronRight, ChevronDown } from 'lucide-react';
-import type { Section, BarAnalysis, ChordAnalysis } from '../types';
+import type { Section, BarAnalysis, ChordAnalysis, Bar } from '../types';
 import { BarDisplay } from './BarDisplay';
+import { BarOverlay } from './BarOverlay';
 import './ChordSheetView.css';
 
 interface ChordSheetViewProps {
@@ -28,6 +30,7 @@ export function ChordSheetView({
   const [editable, setEditable] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [barDurations, setBarDurations] = useState<Record<number, number[]>>({});
+  const [showBarOverlay, setShowBarOverlay] = useState(false);
   const hasBarData = section.bars && section.bars.length > 0;
   const timeSignature: [number, number] = [4, 4];
 
@@ -119,6 +122,69 @@ export function ChordSheetView({
     onSectionUpdate({ ...section, bars });
   }
 
+  /** Extract flat chord sequence from current bars */
+  function extractChordSequence(): string[] {
+    if (!section.bars) return [];
+    return section.bars.flatMap((bar) =>
+      bar.chord_analyses.map((c) => c.symbol)
+    );
+  }
+
+  /** Calculate initial bar line positions from current bar structure */
+  function calculateInitialBarLines(): { position: number }[] {
+    if (!section.bars) return [];
+    const barLines: { position: number }[] = [];
+    let cumulativeCount = 0;
+    for (let i = 0; i < section.bars.length - 1; i++) {
+      cumulativeCount += section.bars[i].chord_analyses.length;
+      barLines.push({ position: cumulativeCount });
+    }
+    return barLines;
+  }
+
+  /** Convert BarOverlay's Bar[] output back to BarAnalysis[], preserving existing analysis data */
+  function handleBarsComplete(newBars: Bar[]) {
+    if (!onSectionUpdate) return;
+
+    const existingChords: ChordAnalysis[] = section.bars
+      ? section.bars.flatMap((bar) => bar.chord_analyses)
+      : [];
+
+    let chordCursor = 0;
+
+    const newBarAnalyses: BarAnalysis[] = newBars.map((bar, barIdx) => {
+      const chordAnalyses: ChordAnalysis[] = bar.content.chords.map((barChord) => {
+        if (
+          chordCursor < existingChords.length &&
+          existingChords[chordCursor].symbol === barChord.symbol
+        ) {
+          return existingChords[chordCursor++];
+        }
+
+        for (let i = chordCursor; i < existingChords.length; i++) {
+          if (existingChords[i].symbol === barChord.symbol) {
+            const matched = existingChords[i];
+            existingChords.splice(i, 1);
+            return matched;
+          }
+        }
+
+        return createMinimalChord(barChord.symbol);
+      });
+
+      return {
+        bar_index: barIdx,
+        chord_analyses: chordAnalyses,
+        harmonic_rhythm: harmonicRhythm(chordAnalyses.length),
+        has_riff: false,
+      };
+    });
+
+    resetDurations();
+    onSectionUpdate({ ...section, bars: newBarAnalyses });
+    setShowBarOverlay(false);
+  }
+
   // --- NO BAR DATA ---
   if (!hasBarData) {
     return (
@@ -171,19 +237,43 @@ export function ChordSheetView({
           <span className="bar-count">{barCount} bars</span>
         </div>
         {onSectionUpdate && !collapsed && (
-          <button
-            className={`btn-icon ${editable ? 'btn-icon--active' : ''}`}
-            onClick={() => setEditable(!editable)}
-            title={editable ? 'Done editing' : 'Edit bars'}
-          >
-            <Pencil size={16} />
-          </button>
+          <div className="section-header-actions">
+            <button
+              className={`btn-icon ${showBarOverlay ? 'btn-icon--active' : ''}`}
+              onClick={() => {
+                setShowBarOverlay(!showBarOverlay);
+                if (!showBarOverlay) setEditable(false);
+              }}
+              title="Restructure bar boundaries"
+            >
+              <LayoutGrid size={16} />
+            </button>
+            <button
+              className={`btn-icon ${editable ? 'btn-icon--active' : ''}`}
+              onClick={() => {
+                setEditable(!editable);
+                if (!editable) setShowBarOverlay(false);
+              }}
+              title={editable ? 'Done editing' : 'Edit bars'}
+            >
+              <Pencil size={16} />
+            </button>
+          </div>
         )}
       </div>
 
       {/* Collapsed: show chord summary */}
       {collapsed ? (
         <div className="collapsed-summary">{chordSummary}</div>
+      ) : showBarOverlay ? (
+        /* Bar structure editing mode via BarOverlay */
+        <BarOverlay
+          chordSequence={extractChordSequence()}
+          initialBarLines={calculateInitialBarLines()}
+          initialTimeSignature={timeSignature}
+          onBarsComplete={handleBarsComplete}
+          onCancel={() => setShowBarOverlay(false)}
+        />
       ) : (
         /* Expanded: show bar grid */
         <div className="bars-container">

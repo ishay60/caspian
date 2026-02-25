@@ -2,31 +2,21 @@
  * LyricsChordEditor Component
  *
  * Interactive lyrics-first chord sheet editor.
- * Users paste lyrics, then click positions to place chords.
+ * Users paste lyrics, then click positions to place chords,
+ * then optionally add bar lines directly above the lyrics.
  *
  * WORKFLOW:
  * 1. User pastes plain lyrics text
  * 2. Lyrics displayed line by line
  * 3. User clicks character positions to place chords
  * 4. Chord autocomplete appears
- * 5. Chords snap to character boundaries
- * 6. Final result rendered using ChordSheetView
- *
- * FEATURES:
- * - Plain lyrics input textarea
- * - Line-by-line display with click handlers
- * - Click-to-place chord functionality
- * - Chord autocomplete integration
- * - Chord position snapping
- * - Visual feedback for chord placement
- * - Chord removal (X button)
- * - Section marker insertion
- * - RTL support for Hebrew lyrics
- * - Mobile-friendly touch interactions
+ * 5. User toggles "Add Bars" to insert bar lines between chords
+ * 6. Bar lines appear as | dividers in the chord row above lyrics
+ * 7. Final result rendered in preview with bar structure
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { ChordLyricsLine } from '../types';
+import type { ChordLyricsLine, Bar, BeatPosition } from '../types';
 import { getChordCompletions } from '../api';
 import './LyricsChordEditor.css';
 
@@ -41,11 +31,18 @@ interface SectionMarker {
   name: string;
 }
 
+/** Bar line between two chords on a line, identified by the column position it appears at */
+interface BarLinePosition {
+  lineIndex: number;
+  /** Column position where the bar line sits (between the chord before this and the chord at/after this) */
+  afterChordColumn: number;
+}
+
 interface LyricsChordEditorProps {
   initialLyrics?: string;
   keyRootName?: string;
   keyMode?: string;
-  onComplete?: (sections: { name: string; lines: ChordLyricsLine[] }[]) => void;
+  onComplete?: (sections: { name: string; lines: ChordLyricsLine[]; bars?: Bar[] }[]) => void;
 }
 
 export function LyricsChordEditor({
@@ -63,6 +60,8 @@ export function LyricsChordEditor({
   const [selectedPosition, setSelectedPosition] = useState<{ lineIndex: number; columnPosition: number } | null>(null);
   const [chordInput, setChordInput] = useState('');
   const [completions, setCompletions] = useState<string[]>([]);
+  const [barMode, setBarMode] = useState(false);
+  const [barLines, setBarLines] = useState<BarLinePosition[]>([]);
 
   // Refs
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -89,6 +88,8 @@ export function LyricsChordEditor({
     setPlacedChords([]);
     setSectionMarkers([]);
     setSelectedPosition(null);
+    setBarLines([]);
+    setBarMode(false);
   }, []);
 
   // Handler: Go to preview mode
@@ -100,6 +101,44 @@ export function LyricsChordEditor({
   const handleBackToEdit = useCallback(() => {
     setMode('edit');
   }, []);
+
+  // Handler: Toggle bar line at a position
+  const handleToggleBarLine = useCallback((lineIndex: number, afterChordColumn: number) => {
+    setBarLines(prev => {
+      const exists = prev.some(
+        bl => bl.lineIndex === lineIndex && bl.afterChordColumn === afterChordColumn
+      );
+      if (exists) {
+        return prev.filter(
+          bl => !(bl.lineIndex === lineIndex && bl.afterChordColumn === afterChordColumn)
+        );
+      }
+      return [...prev, { lineIndex, afterChordColumn }];
+    });
+  }, []);
+
+  // Handler: Auto-suggest bar lines (every N chords)
+  const handleAutoSuggestBars = useCallback((chordsPerBar: number = 2) => {
+    const newBarLines: BarLinePosition[] = [];
+    // Group chords by line
+    const chordsByLine = new Map<number, PlacedChord[]>();
+    for (const chord of placedChords) {
+      const existing = chordsByLine.get(chord.lineIndex) || [];
+      existing.push(chord);
+      chordsByLine.set(chord.lineIndex, existing);
+    }
+
+    for (const [lineIndex, lineChords] of chordsByLine) {
+      const sorted = [...lineChords].sort((a, b) => a.columnPosition - b.columnPosition);
+      for (let i = chordsPerBar; i < sorted.length; i += chordsPerBar) {
+        newBarLines.push({
+          lineIndex,
+          afterChordColumn: sorted[i].columnPosition,
+        });
+      }
+    }
+    setBarLines(newBarLines);
+  }, [placedChords]);
 
   // Convert placed chords to ChordLyricsLine format
   const buildChordLyricsLines = useCallback((): ChordLyricsLine[] => {
@@ -115,6 +154,59 @@ export function LyricsChordEditor({
       };
     });
   }, [lyricsLines, placedChords]);
+
+  // Build Bar[] from placed chords + bar lines
+  const buildBars = useCallback((): Bar[] | undefined => {
+    if (barLines.length === 0) return undefined;
+
+    const bars: Bar[] = [];
+
+    // Group chords by line
+    const chordsByLine = new Map<number, PlacedChord[]>();
+    for (const chord of placedChords) {
+      const existing = chordsByLine.get(chord.lineIndex) || [];
+      existing.push(chord);
+      chordsByLine.set(chord.lineIndex, existing);
+    }
+
+    // Group bar lines by line
+    const barLinesByLine = new Map<number, number[]>();
+    for (const bl of barLines) {
+      const existing = barLinesByLine.get(bl.lineIndex) || [];
+      existing.push(bl.afterChordColumn);
+      barLinesByLine.set(bl.lineIndex, existing);
+    }
+
+    // Process each line that has chords
+    for (const [lineIndex, lineChords] of chordsByLine) {
+      const sorted = [...lineChords].sort((a, b) => a.columnPosition - b.columnPosition);
+      const lineBarLines = (barLinesByLine.get(lineIndex) || []).sort((a, b) => a - b);
+      const lineText = lyricsLines[lineIndex] || '';
+
+      // Split chords into bar groups based on bar line positions
+      let currentBarChords: PlacedChord[] = [];
+      let barStartCol = 0;
+
+      for (const chord of sorted) {
+        // Check if there's a bar line before this chord
+        if (lineBarLines.includes(chord.columnPosition) && currentBarChords.length > 0) {
+          // Finalize previous bar
+          const barEndCol = chord.columnPosition;
+          bars.push(createBarFromChords(currentBarChords, lineText, barStartCol, barEndCol));
+          currentBarChords = [];
+          barStartCol = chord.columnPosition;
+        }
+        currentBarChords.push(chord);
+      }
+
+      // Finalize last bar on this line
+      if (currentBarChords.length > 0) {
+        bars.push(createBarFromChords(currentBarChords, lineText, barStartCol, lineText.length));
+      }
+    }
+
+    return bars.length > 0 ? bars : undefined;
+  }, [placedChords, barLines, lyricsLines]);
 
   // Render based on mode
   return (
@@ -142,6 +234,11 @@ export function LyricsChordEditor({
           chordInputRef={chordInputRef}
           keyRootName={keyRootName}
           keyMode={keyMode}
+          barMode={barMode}
+          setBarMode={setBarMode}
+          barLines={barLines}
+          onToggleBarLine={handleToggleBarLine}
+          onAutoSuggestBars={handleAutoSuggestBars}
           onBack={handleBackToInput}
           onPreview={handleShowPreview}
           onComplete={onComplete}
@@ -150,13 +247,16 @@ export function LyricsChordEditor({
         <PreviewMode
           lines={buildChordLyricsLines()}
           sectionMarkers={sectionMarkers}
+          barLines={barLines}
+          placedChords={placedChords}
+          lyricsLines={lyricsLines}
           onBack={handleBackToEdit}
           onComplete={() => {
-            // Convert to sections and call onComplete
             const sections = buildSectionsFromMarkersAndLines(
               lyricsLines,
               placedChords,
-              sectionMarkers
+              sectionMarkers,
+              buildBars()
             );
             if (onComplete) {
               onComplete(sections);
@@ -166,6 +266,35 @@ export function LyricsChordEditor({
       )}
     </div>
   );
+}
+
+/** Create a Bar object from a group of placed chords */
+function createBarFromChords(
+  chords: PlacedChord[],
+  lineText: string,
+  startCol: number,
+  endCol: number
+): Bar {
+  const beatsPerBar = 4;
+  const barChords = chords.map((chord, idx) => ({
+    symbol: chord.symbol,
+    beat_position: {
+      beat: Math.min(Math.floor((idx * beatsPerBar) / chords.length) + 1, beatsPerBar),
+      subdivision: 0,
+    } as BeatPosition,
+    duration_beats: null,
+  }));
+
+  return {
+    time_signature: [4, 4] as [number, number],
+    content: {
+      chords: barChords,
+      notes: [],
+      tab: [],
+    },
+    lyrics_fragment: lineText.slice(startCol, endCol).trim(),
+    is_expandable: false,
+  };
 }
 
 /**
@@ -210,7 +339,7 @@ function InputMode({ lyrics, setLyrics, onSubmit, textareaRef }: InputModeProps)
 }
 
 /**
- * EditMode: Line-by-line display with chord placement
+ * EditMode: Line-by-line display with chord placement and bar lines
  */
 interface EditModeProps {
   lyricsLines: string[];
@@ -227,9 +356,14 @@ interface EditModeProps {
   chordInputRef: React.RefObject<HTMLInputElement>;
   keyRootName: string;
   keyMode: string;
+  barMode: boolean;
+  setBarMode: (mode: boolean) => void;
+  barLines: BarLinePosition[];
+  onToggleBarLine: (lineIndex: number, afterChordColumn: number) => void;
+  onAutoSuggestBars: (chordsPerBar?: number) => void;
   onBack: () => void;
   onPreview: () => void;
-  onComplete?: (sections: { name: string; lines: ChordLyricsLine[] }[]) => void;
+  onComplete?: (sections: { name: string; lines: ChordLyricsLine[]; bars?: Bar[] }[]) => void;
 }
 
 function EditMode({
@@ -247,6 +381,11 @@ function EditMode({
   chordInputRef,
   keyRootName,
   keyMode,
+  barMode,
+  setBarMode,
+  barLines,
+  onToggleBarLine,
+  onAutoSuggestBars,
   onBack,
   onPreview,
   onComplete,
@@ -256,10 +395,11 @@ function EditMode({
 
   // Handler: Click on character position to place chord
   const handleCharClick = useCallback((lineIndex: number, columnPosition: number) => {
+    if (barMode) return; // Don't place chords in bar mode
     setSelectedPosition({ lineIndex, columnPosition });
     setChordInput('');
     setCompletions([]);
-  }, [setSelectedPosition, setChordInput, setCompletions]);
+  }, [barMode, setSelectedPosition, setChordInput, setCompletions]);
 
   // Handler: Remove chord
   const handleRemoveChord = useCallback((lineIndex: number, columnPosition: number) => {
@@ -277,8 +417,7 @@ function EditMode({
 
   // Handler: Add section marker at line
   const handleAddSectionMarker = useCallback((name: string) => {
-    // Prompt for line number or use next available line
-    const lineIndex = 0; // TODO: Could prompt user or auto-detect
+    const lineIndex = 0;
     const newMarker: SectionMarker = { lineIndex, name };
     setSectionMarkers([...sectionMarkers, newMarker]);
   }, [sectionMarkers, setSectionMarkers]);
@@ -311,13 +450,22 @@ function EditMode({
     return sectionMarkers.find(m => m.lineIndex === lineIndex);
   }, [sectionMarkers]);
 
+  // Check if bar line exists at position
+  const hasBarLineAt = useCallback((lineIndex: number, afterChordColumn: number) => {
+    return barLines.some(
+      bl => bl.lineIndex === lineIndex && bl.afterChordColumn === afterChordColumn
+    );
+  }, [barLines]);
+
   return (
     <div className="edit-mode">
       <div className="edit-header">
         <button className="btn-secondary" onClick={onBack}>
           ← Back to Lyrics
         </button>
-        <h2 className="mode-title">Add Chords</h2>
+        <h2 className="mode-title">
+          {barMode ? 'Add Bar Lines' : 'Add Chords'}
+        </h2>
         <button
           className="btn-primary"
           onClick={onPreview}
@@ -328,27 +476,63 @@ function EditMode({
       </div>
 
       <div className="edit-instructions">
-        Click on any position in the lyrics to place a chord above it.
+        {barMode
+          ? 'Click between chords to insert or remove bar lines. Bars group chords into measures.'
+          : 'Click on any position in the lyrics to place a chord above it.'
+        }
       </div>
 
-      {/* Toolbar for section markers */}
+      {/* Toolbar */}
       <div className="edit-toolbar">
-        <div className="toolbar-label">Insert section marker:</div>
-        <button className="toolbar-btn" onClick={() => handleAddSectionMarker('Verse')}>
-          + Verse
-        </button>
-        <button className="toolbar-btn" onClick={() => handleAddSectionMarker('Chorus')}>
-          + Chorus
-        </button>
-        <button className="toolbar-btn" onClick={() => handleAddSectionMarker('Bridge')}>
-          + Bridge
-        </button>
-        <button className="toolbar-btn" onClick={() => handleAddSectionMarker('Intro')}>
-          + Intro
-        </button>
-        <button className="toolbar-btn" onClick={() => handleAddSectionMarker('Outro')}>
-          + Outro
-        </button>
+        {!barMode ? (
+          <>
+            <div className="toolbar-label">Insert section marker:</div>
+            <button className="toolbar-btn" onClick={() => handleAddSectionMarker('Verse')}>
+              + Verse
+            </button>
+            <button className="toolbar-btn" onClick={() => handleAddSectionMarker('Chorus')}>
+              + Chorus
+            </button>
+            <button className="toolbar-btn" onClick={() => handleAddSectionMarker('Bridge')}>
+              + Bridge
+            </button>
+            <button className="toolbar-btn" onClick={() => handleAddSectionMarker('Intro')}>
+              + Intro
+            </button>
+            <button className="toolbar-btn" onClick={() => handleAddSectionMarker('Outro')}>
+              + Outro
+            </button>
+            <div style={{ flex: 1 }} />
+            {placedChords.length >= 2 && (
+              <button
+                className="toolbar-btn toolbar-btn--bar-mode"
+                onClick={() => setBarMode(true)}
+              >
+                | Add Bars |
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="toolbar-label">Bar tools:</div>
+            <button className="toolbar-btn" onClick={() => onAutoSuggestBars(2)}>
+              Auto: 2 chords/bar
+            </button>
+            <button className="toolbar-btn" onClick={() => onAutoSuggestBars(4)}>
+              Auto: 4 chords/bar
+            </button>
+            <span className="bar-count-label">
+              {barLines.length} bar line{barLines.length !== 1 ? 's' : ''}
+            </span>
+            <div style={{ flex: 1 }} />
+            <button
+              className="toolbar-btn"
+              onClick={() => setBarMode(false)}
+            >
+              Done with Bars
+            </button>
+          </>
+        )}
       </div>
 
       {/* Render lyrics lines with clickable characters */}
@@ -376,9 +560,13 @@ function EditMode({
                 lineIndex={lineIndex}
                 lineText={lineText}
                 placedChords={placedChords}
+                barMode={barMode}
+                barLines={barLines}
                 onCharClick={handleCharClick}
                 onRemoveChord={handleRemoveChord}
                 getChordAt={getChordAt}
+                hasBarLineAt={hasBarLineAt}
+                onToggleBarLine={onToggleBarLine}
                 onRequestSection={handleRequestSectionAtLine}
               />
             </div>
@@ -387,7 +575,7 @@ function EditMode({
       </div>
 
       {/* Chord input popup */}
-      {selectedPosition && (
+      {selectedPosition && !barMode && (
         <ChordInputPopup
           selectedPosition={selectedPosition}
           chordInput={chordInput}
@@ -405,7 +593,6 @@ function EditMode({
               columnPosition: selectedPosition.columnPosition,
               symbol,
             };
-            // Remove existing chord at this position if any
             const filtered = placedChords.filter(
               c => !(c.lineIndex === selectedPosition.lineIndex && c.columnPosition === selectedPosition.columnPosition)
             );
@@ -425,14 +612,10 @@ function EditMode({
       {/* Section name input popup */}
       {pendingSectionLine !== null && (
         <>
-          {/* Backdrop */}
           <div
             style={{
               position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
+              top: 0, left: 0, right: 0, bottom: 0,
               backgroundColor: 'rgba(0,0,0,0.3)',
               zIndex: 999,
             }}
@@ -441,13 +624,11 @@ function EditMode({
               setCustomSectionName('');
             }}
           />
-          {/* Modal */}
           <div
             className="section-input-popup"
             style={{
               position: 'fixed',
-              top: '50%',
-              left: '50%',
+              top: '50%', left: '50%',
               transform: 'translate(-50%, -50%)',
               backgroundColor: 'var(--color-surface)',
               border: '1px solid var(--color-border)',
@@ -475,28 +656,18 @@ function EditMode({
               placeholder="e.g. Verse, Chorus, Bridge"
               autoFocus
               style={{
-                width: '100%',
-                padding: '8px',
-                marginBottom: '12px',
-                border: '1px solid var(--color-border)',
-                borderRadius: '4px',
-                backgroundColor: 'var(--color-surface-2)',
-                color: 'var(--color-text)',
+                width: '100%', padding: '8px', marginBottom: '12px',
+                border: '1px solid var(--color-border)', borderRadius: '4px',
+                backgroundColor: 'var(--color-surface-2)', color: 'var(--color-text)',
               }}
             />
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button
-                onClick={() => {
-                  setPendingSectionLine(null);
-                  setCustomSectionName('');
-                }}
+                onClick={() => { setPendingSectionLine(null); setCustomSectionName(''); }}
                 style={{
-                  padding: '6px 12px',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: '4px',
-                  backgroundColor: 'var(--color-surface-2)',
-                  color: 'var(--color-text)',
-                  cursor: 'pointer',
+                  padding: '6px 12px', border: '1px solid var(--color-border)',
+                  borderRadius: '4px', backgroundColor: 'var(--color-surface-2)',
+                  color: 'var(--color-text)', cursor: 'pointer',
                 }}
               >
                 Cancel
@@ -505,10 +676,8 @@ function EditMode({
                 onClick={handleConfirmSectionMarker}
                 disabled={!customSectionName.trim()}
                 style={{
-                  padding: '6px 12px',
-                  border: '1px solid var(--color-accent)',
-                  borderRadius: '4px',
-                  backgroundColor: 'var(--color-accent)',
+                  padding: '6px 12px', border: '1px solid var(--color-accent)',
+                  borderRadius: '4px', backgroundColor: 'var(--color-accent)',
                   color: 'white',
                   cursor: customSectionName.trim() ? 'pointer' : 'not-allowed',
                   opacity: customSectionName.trim() ? 1 : 0.5,
@@ -525,15 +694,19 @@ function EditMode({
 }
 
 /**
- * LyricsLineEditable: Render a line with clickable character positions
+ * LyricsLineEditable: Render a line with clickable character positions and bar lines
  */
 interface LyricsLineEditableProps {
   lineIndex: number;
   lineText: string;
   placedChords: PlacedChord[];
+  barMode: boolean;
+  barLines: BarLinePosition[];
   onCharClick: (lineIndex: number, columnPosition: number) => void;
   onRemoveChord: (lineIndex: number, columnPosition: number) => void;
   getChordAt: (lineIndex: number, columnPosition: number) => PlacedChord | undefined;
+  hasBarLineAt: (lineIndex: number, afterChordColumn: number) => boolean;
+  onToggleBarLine: (lineIndex: number, afterChordColumn: number) => void;
   onRequestSection: (lineIndex: number) => void;
 }
 
@@ -541,16 +714,25 @@ function LyricsLineEditable({
   lineIndex,
   lineText,
   placedChords,
+  barMode,
+  barLines,
   onCharClick,
   onRemoveChord,
   getChordAt,
+  hasBarLineAt,
+  onToggleBarLine,
   onRequestSection,
 }: LyricsLineEditableProps) {
   const lineRef = useRef<HTMLDivElement>(null);
 
   // Detect RTL text (Hebrew)
   const isRTL = /[\u0590-\u05FF]/.test(lineText);
-  const displayText = lineText || '\u00A0'; // non-breaking space for empty lines
+  const displayText = lineText || '\u00A0';
+
+  // Get sorted chords for this line (needed for bar line insertion zones)
+  const lineChords = placedChords
+    .filter(c => c.lineIndex === lineIndex)
+    .sort((a, b) => a.columnPosition - b.columnPosition);
 
   return (
     <div className="lyrics-line-container">
@@ -564,32 +746,72 @@ function LyricsLineEditable({
       </div>
       <div
         ref={lineRef}
-        className="lyrics-line lyrics-line-editable"
+        className={`lyrics-line lyrics-line-editable ${barMode ? 'lyrics-line--bar-mode' : ''}`}
         dir={isRTL ? 'rtl' : 'ltr'}
       >
-        {/* Render each character as a clickable cell */}
         {Array.from(displayText).map((char, charIndex) => {
           const chord = getChordAt(lineIndex, charIndex);
+          const hasBarLine = hasBarLineAt(lineIndex, charIndex);
+
+          // In bar mode, check if this position is between two chords (valid for bar line insertion)
+          const isBarLineCandidate = barMode && chord && lineChords.indexOf(chord) > 0;
+
           return (
             <span
               key={charIndex}
-              className={`char-cell ${chord ? 'has-chord' : ''}`}
-              onClick={() => onCharClick(lineIndex, charIndex)}
+              className={`char-cell ${chord ? 'has-chord' : ''} ${hasBarLine ? 'has-bar-line' : ''}`}
+              onClick={() => {
+                if (barMode && isBarLineCandidate) {
+                  onToggleBarLine(lineIndex, charIndex);
+                } else if (!barMode) {
+                  onCharClick(lineIndex, charIndex);
+                }
+              }}
             >
+              {/* Bar line indicator before this chord (in bar mode or always if placed) */}
+              {hasBarLine && (
+                <span
+                  className="bar-line-indicator"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleBarLine(lineIndex, charIndex);
+                  }}
+                  title="Click to remove bar line"
+                >
+                  |
+                </span>
+              )}
+
+              {/* Bar line insertion zone (bar mode only, between chords) */}
+              {barMode && isBarLineCandidate && !hasBarLine && (
+                <span
+                  className="bar-line-zone"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleBarLine(lineIndex, charIndex);
+                  }}
+                  title="Click to insert bar line"
+                >
+                  |
+                </span>
+              )}
+
               {/* Chord badge above character */}
               {chord && (
                 <span className="chord-badge">
                   {chord.symbol}
-                  <button
-                    className="chord-remove-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemoveChord(lineIndex, charIndex);
-                    }}
-                    title="Remove chord"
-                  >
-                    ×
-                  </button>
+                  {!barMode && (
+                    <button
+                      className="chord-remove-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveChord(lineIndex, charIndex);
+                      }}
+                      title="Remove chord"
+                    >
+                      ×
+                    </button>
+                  )}
                 </span>
               )}
               {char}
@@ -638,19 +860,14 @@ function ChordInputPopup({
   const popupRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<number | null>(null);
 
-  // Position popup near selected character
   useEffect(() => {
     if (!popupRef.current) return;
-
-    // For now, position at center of screen
-    // TODO: Calculate actual position based on selected character
     const popup = popupRef.current;
     popup.style.top = '50%';
     popup.style.left = '50%';
     popup.style.transform = 'translate(-50%, -50%)';
   }, [selectedPosition]);
 
-  // Fetch chord completions from API
   const fetchCompletions = useCallback(async (prefix: string) => {
     if (prefix.length < 1) {
       setCompletions([]);
@@ -659,11 +876,9 @@ function ChordInputPopup({
 
     setIsLoading(true);
     try {
-      // Find previous and next chords for context
       const currentLine = selectedPosition.lineIndex;
       const currentCol = selectedPosition.columnPosition;
 
-      // Get previous chord (before current position)
       const prevChords = placedChords
         .filter(c => c.lineIndex < currentLine || (c.lineIndex === currentLine && c.columnPosition < currentCol))
         .sort((a, b) => {
@@ -672,7 +887,6 @@ function ChordInputPopup({
         });
       const prevChord = prevChords.length > 0 ? prevChords[prevChords.length - 1].symbol : undefined;
 
-      // Get next chord (after current position)
       const nextChords = placedChords
         .filter(c => c.lineIndex > currentLine || (c.lineIndex === currentLine && c.columnPosition > currentCol))
         .sort((a, b) => {
@@ -682,12 +896,7 @@ function ChordInputPopup({
       const nextChord = nextChords.length > 0 ? nextChords[0].symbol : undefined;
 
       const results = await getChordCompletions(
-        prefix,
-        keyRootName,
-        keyMode,
-        prevChord,
-        nextChord,
-        20
+        prefix, keyRootName, keyMode, prevChord, nextChord, 20
       );
       setCompletions(results);
     } catch (error) {
@@ -698,27 +907,23 @@ function ChordInputPopup({
     }
   }, [keyRootName, keyMode, placedChords, selectedPosition, setCompletions]);
 
-  // Debounced input handler
   const handleInputChange = useCallback((value: string) => {
     setChordInput(value);
     setSelectedCompletionIndex(0);
 
-    // Clear previous timer
     if (debounceTimerRef.current) {
       window.clearTimeout(debounceTimerRef.current);
     }
 
-    // Set new timer for debounced API call
     if (value.trim()) {
       debounceTimerRef.current = window.setTimeout(() => {
         fetchCompletions(value.trim());
-      }, 200); // 200ms debounce
+      }, 200);
     } else {
       setCompletions([]);
     }
   }, [setChordInput, fetchCompletions, setCompletions]);
 
-  // Cleanup timer on unmount
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
@@ -727,7 +932,6 @@ function ChordInputPopup({
     };
   }, []);
 
-  // Handle keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -762,9 +966,7 @@ function ChordInputPopup({
       />
 
       {isLoading && (
-        <div className="chord-completions-loading">
-          Loading...
-        </div>
+        <div className="chord-completions-loading">Loading...</div>
       )}
 
       {!isLoading && completions.length > 0 && (
@@ -786,16 +988,21 @@ function ChordInputPopup({
 }
 
 /**
- * PreviewMode: Display chords above lyrics in a read-only view
+ * PreviewMode: Display chords above lyrics with bar lines
  */
 interface PreviewModeProps {
   lines: ChordLyricsLine[];
   sectionMarkers: SectionMarker[];
+  barLines: BarLinePosition[];
+  placedChords: PlacedChord[];
+  lyricsLines: string[];
   onBack: () => void;
   onComplete: () => void;
 }
 
-function PreviewMode({ lines, sectionMarkers, onBack, onComplete }: PreviewModeProps) {
+function PreviewMode({ lines, sectionMarkers, barLines, placedChords, lyricsLines, onBack, onComplete }: PreviewModeProps) {
+  const hasBars = barLines.length > 0;
+
   return (
     <div className="preview-mode">
       <div className="preview-header">
@@ -808,9 +1015,20 @@ function PreviewMode({ lines, sectionMarkers, onBack, onComplete }: PreviewModeP
         </button>
       </div>
 
+      {hasBars && (
+        <div className="preview-bar-info">
+          {barLines.length} bar line{barLines.length !== 1 ? 's' : ''} defined
+        </div>
+      )}
+
       <div className="preview-content">
         {lines.map((line, index) => (
-          <PreviewLine key={index} line={line} />
+          <PreviewLine
+            key={index}
+            line={line}
+            lineIndex={index}
+            barLines={barLines}
+          />
         ))}
       </div>
     </div>
@@ -818,22 +1036,28 @@ function PreviewMode({ lines, sectionMarkers, onBack, onComplete }: PreviewModeP
 }
 
 /**
- * PreviewLine: Display a single line with chords above lyrics
+ * PreviewLine: Display a single line with chords above lyrics and bar lines
  */
 interface PreviewLineProps {
   line: ChordLyricsLine;
+  lineIndex: number;
+  barLines: BarLinePosition[];
 }
 
-function PreviewLine({ line }: PreviewLineProps) {
+function PreviewLine({ line, lineIndex, barLines }: PreviewLineProps) {
   const { chords, lyrics } = line;
   const isRTL = /[\u0590-\u05FF]/.test(lyrics);
 
-  // Build array of character positions with their chords
-  const positions: { char: string; chord?: string }[] = Array.from(lyrics).map((char, index) => {
+  const lineBarLines = barLines
+    .filter(bl => bl.lineIndex === lineIndex)
+    .map(bl => bl.afterChordColumn);
+
+  const positions: { char: string; chord?: string; hasBarLine: boolean }[] = Array.from(lyrics).map((char, index) => {
     const chordAtPos = chords.find(([col]) => col === index);
     return {
       char,
       chord: chordAtPos ? chordAtPos[1] : undefined,
+      hasBarLine: lineBarLines.includes(index),
     };
   });
 
@@ -842,8 +1066,11 @@ function PreviewLine({ line }: PreviewLineProps) {
       <div className="preview-chords">
         {positions.map((pos, index) => (
           <span key={index} className="preview-chord-cell">
+            {pos.hasBarLine && (
+              <span className="preview-bar-line">|</span>
+            )}
             {pos.chord && <span className="preview-chord-badge">{pos.chord}</span>}
-            {!pos.chord && <span className="preview-chord-spacer">&nbsp;</span>}
+            {!pos.chord && !pos.hasBarLine && <span className="preview-chord-spacer">&nbsp;</span>}
           </span>
         ))}
       </div>
@@ -855,61 +1082,49 @@ function PreviewLine({ line }: PreviewLineProps) {
 }
 
 /**
- * Helper: Build sections from markers and lines
+ * Helper: Build sections from markers, lines, and bars
  */
 function buildSectionsFromMarkersAndLines(
   lyricsLines: string[],
   placedChords: PlacedChord[],
-  sectionMarkers: SectionMarker[]
-): { name: string; lines: ChordLyricsLine[] }[] {
-  // If no section markers, create a single "Song" section
-  if (sectionMarkers.length === 0) {
-    const lines: ChordLyricsLine[] = lyricsLines.map((lineText, lineIndex) => {
-      const lineChords = placedChords
-        .filter(chord => chord.lineIndex === lineIndex)
-        .sort((a, b) => a.columnPosition - b.columnPosition)
-        .map(chord => [chord.columnPosition, chord.symbol] as [number, string]);
-
-      return {
-        chords: lineChords,
-        lyrics: lineText,
-      };
-    });
-
-    return [{ name: 'Song', lines }];
-  }
-
-  // Sort markers by line index
-  const sortedMarkers = [...sectionMarkers].sort((a, b) => a.lineIndex - b.lineIndex);
-
-  // Build sections
-  const sections: { name: string; lines: ChordLyricsLine[] }[] = [];
-
-  for (let i = 0; i < sortedMarkers.length; i++) {
-    const marker = sortedMarkers[i];
-    const nextMarker = sortedMarkers[i + 1];
-
-    const startLine = marker.lineIndex;
-    const endLine = nextMarker ? nextMarker.lineIndex : lyricsLines.length;
-
-    const sectionLines: ChordLyricsLine[] = [];
-
+  sectionMarkers: SectionMarker[],
+  bars?: Bar[]
+): { name: string; lines: ChordLyricsLine[]; bars?: Bar[] }[] {
+  const buildLines = (startLine: number, endLine: number): ChordLyricsLine[] => {
+    const lines: ChordLyricsLine[] = [];
     for (let lineIndex = startLine; lineIndex < endLine; lineIndex++) {
       const lineText = lyricsLines[lineIndex];
       const lineChords = placedChords
         .filter(chord => chord.lineIndex === lineIndex)
         .sort((a, b) => a.columnPosition - b.columnPosition)
         .map(chord => [chord.columnPosition, chord.symbol] as [number, string]);
-
-      sectionLines.push({
-        chords: lineChords,
-        lyrics: lineText,
-      });
+      lines.push({ chords: lineChords, lyrics: lineText });
     }
+    return lines;
+  };
+
+  if (sectionMarkers.length === 0) {
+    return [{
+      name: 'Song',
+      lines: buildLines(0, lyricsLines.length),
+      bars,
+    }];
+  }
+
+  const sortedMarkers = [...sectionMarkers].sort((a, b) => a.lineIndex - b.lineIndex);
+  const sections: { name: string; lines: ChordLyricsLine[]; bars?: Bar[] }[] = [];
+
+  for (let i = 0; i < sortedMarkers.length; i++) {
+    const marker = sortedMarkers[i];
+    const nextMarker = sortedMarkers[i + 1];
+    const startLine = marker.lineIndex;
+    const endLine = nextMarker ? nextMarker.lineIndex : lyricsLines.length;
 
     sections.push({
       name: marker.name,
-      lines: sectionLines,
+      lines: buildLines(startLine, endLine),
+      // TODO: Split bars by section when section markers exist
+      bars: i === 0 ? bars : undefined,
     });
   }
 

@@ -464,6 +464,95 @@
   word-wrap: break-word;
 }
 
+/* Bar mode */
+.lyrics-line--bar-mode .char-cell {
+  cursor: default;
+}
+
+.lyrics-line--bar-mode .char-cell.has-chord {
+  cursor: pointer;
+}
+
+.toolbar-btn--bar-mode {
+  background: var(--color-primary-light, rgba(59, 130, 246, 0.1)) !important;
+  border-color: var(--color-primary, #3b82f6) !important;
+  color: var(--color-primary, #3b82f6) !important;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 1px;
+}
+
+.bar-count-label {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #666);
+  padding: 0.5rem;
+}
+
+/* Bar line indicator (placed) */
+.bar-line-indicator {
+  position: absolute;
+  bottom: 0;
+  top: -2rem;
+  left: -3px;
+  width: 3px;
+  background: var(--color-primary, #3b82f6);
+  color: transparent;
+  overflow: hidden;
+  cursor: pointer;
+  z-index: 5;
+  border-radius: 1px;
+  transition: background 0.15s;
+}
+
+.bar-line-indicator:hover {
+  background: var(--color-error, #ef4444);
+  width: 4px;
+}
+
+.has-bar-line {
+  position: relative;
+}
+
+/* Bar line insertion zone (bar mode, unplaced) */
+.bar-line-zone {
+  position: absolute;
+  bottom: 0;
+  top: -2rem;
+  left: -3px;
+  width: 3px;
+  background: transparent;
+  color: transparent;
+  overflow: hidden;
+  cursor: pointer;
+  z-index: 5;
+  border-radius: 1px;
+  transition: background 0.15s;
+}
+
+.bar-line-zone:hover {
+  background: color-mix(in srgb, var(--color-primary, #3b82f6) 40%, transparent);
+  width: 4px;
+}
+
+/* Preview bar info */
+.preview-bar-info {
+  padding: 0.5rem 1rem;
+  background: color-mix(in srgb, var(--color-primary, #3b82f6) 8%, transparent);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--color-primary, #3b82f6);
+  font-weight: 500;
+}
+
+/* Preview bar lines */
+.preview-bar-line {
+  display: inline-block;
+  color: var(--color-primary, #3b82f6);
+  font-weight: 700;
+  font-size: 1rem;
+  margin-right: 1px;
+}
+
 /* Print styles */
 @media print {
   .edit-header,

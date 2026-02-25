@@ -531,6 +531,84 @@
 }
 
 /* ============================================================
+   SECTION HEADER ACTIONS
+   ============================================================ */
+
+.section-header-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* ============================================================
+   RIFF BADGE & EXPANDED DETAIL
+   ============================================================ */
+
+.riff-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-neutral, #888) 8%, transparent);
+  color: var(--color-neutral, #888);
+  font-size: 0.7rem;
+  font-style: italic;
+  font-family: var(--font-mono, monospace);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  margin-left: 4px;
+}
+
+.riff-badge:hover {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.bar-display--has-riff {
+  cursor: pointer;
+}
+
+.bar-expanded-detail {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease;
+}
+
+.bar-expanded-detail--open {
+  max-height: 80px;
+}
+
+.riff-detail-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  margin-top: 2px;
+  border-radius: 0 0 var(--radius-md, 6px) var(--radius-md, 6px);
+  background: color-mix(in srgb, var(--color-accent) 6%, var(--color-surface-2, #f5f5f5));
+  font-size: 0.75rem;
+  color: var(--color-neutral, #888);
+  cursor: pointer;
+}
+
+.riff-detail-content:hover {
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface-2, #f5f5f5));
+}
+
+.riff-detail-icon {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.riff-analysis-text {
+  font-style: italic;
+}
+
+/* ============================================================
    ANIMATIONS
    ============================================================ */
 
