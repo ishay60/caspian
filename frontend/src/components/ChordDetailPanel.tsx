@@ -3,13 +3,17 @@ import { useSettings } from '../lib/settingsContext';
 import { getChordColor } from '../lib/chordColor';
 import { PianoKeyboard } from './PianoKeyboard';
 import { GuitarDiagram } from './GuitarDiagram';
+import { ChordSubstitutionPanel } from './ChordSubstitutionPanel';
 
 interface Props {
   chord: ChordAnalysis;
   keyInfo: Key;
+  prevChord?: string;
+  nextChord?: string;
+  onApplySubstitution?: (newChord: string) => void;
 }
 
-export function ChordDetailPanel({ chord, keyInfo }: Props) {
+export function ChordDetailPanel({ chord, keyInfo, prevChord, nextChord, onApplySubstitution }: Props) {
   const { notation, t } = useSettings();
   const color = getChordColor(chord);
   const showPiano = notation.showPiano;
@@ -163,6 +167,21 @@ export function ChordDetailPanel({ chord, keyInfo }: Props) {
           })}
         </div>
       )}
+
+      {/* Substitution suggestions */}
+      <div
+        className="border-t pt-4"
+        style={{ borderColor: 'color-mix(in srgb, var(--color-border) 60%, transparent)' }}
+      >
+        <ChordSubstitutionPanel
+          chordSymbol={chord.symbol}
+          keyRootName={keyInfo.root_name}
+          keyMode={keyInfo.mode}
+          prevChord={prevChord}
+          nextChord={nextChord}
+          onApplySubstitution={onApplySubstitution}
+        />
+      </div>
     </div>
   );
 }

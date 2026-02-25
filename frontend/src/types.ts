@@ -175,3 +175,12 @@ export interface DetectFormatResponse {
   preview?: FormatPreview;
   error?: string;
 }
+
+export interface ChordSubstitution {
+  symbol: string;
+  sub_type: string;
+  reasoning: string;
+  confidence: number;
+  voice_leading_distance: number;
+  common_tone_count: number;
+}

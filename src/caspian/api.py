@@ -32,6 +32,7 @@ from caspian.analysis.llm_analysis import (
     generate_llm_analysis,
 )
 from caspian.completion.chord_completion import chord_completions
+from caspian.substitution.engine import suggest_substitutions
 from caspian.parsing.input_parser import parse_format_a
 from caspian.parsing.website_normalizer import normalize_website_paste
 from caspian.parsing.chord_parser import parse_chord
@@ -558,6 +559,23 @@ def chord_completions_endpoint(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"completions": completions}
+
+
+@app.get("/api/chord-substitutions")
+def chord_substitutions_endpoint(
+    chord: str = Query(..., description="Chord symbol to find substitutions for"),
+    key_root_name: str = Query(...),
+    key_mode: str = Query(...),
+    prev_chord: str | None = Query(default=None),
+    next_chord: str | None = Query(default=None),
+    limit: int = Query(default=10, ge=1, le=50),
+):
+    """Return suggested chord substitutions ordered by confidence and voice leading distance."""
+    try:
+        subs = suggest_substitutions(chord, key_root_name, key_mode, prev_chord, next_chord, limit)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"chord": chord, "substitutions": [s.model_dump() for s in subs]}
 
 
 logger = logging.getLogger(__name__)

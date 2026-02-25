@@ -1,4 +1,4 @@
-import type { AnalysisResult, DetectFormatResponse, LlmAnalysisResult, Section, SearchResult } from './types';
+import type { AnalysisResult, ChordSubstitution, DetectFormatResponse, LlmAnalysisResult, Section, SearchResult } from './types';
 
 export async function analyzeChords(text: string): Promise<AnalysisResult> {
   const resp = await fetch('/api/analyze', {
@@ -322,4 +322,37 @@ export async function apiGetMe(token: string): Promise<AuthUser> {
     throw new Error('Not authenticated');
   }
   return resp.json();
+}
+
+// ── Chord Substitutions ─────────────────────────────────────────────
+
+export interface SubstitutionResponse {
+  chord: string;
+  substitutions: ChordSubstitution[];
+}
+
+export async function getChordSubstitutions(
+  chord: string,
+  keyRootName: string,
+  keyMode: string,
+  prevChord?: string,
+  nextChord?: string,
+  limit = 10,
+): Promise<ChordSubstitution[]> {
+  const params = new URLSearchParams({
+    chord,
+    key_root_name: keyRootName,
+    key_mode: keyMode,
+    limit: String(limit),
+  });
+  if (prevChord) params.set('prev_chord', prevChord);
+  if (nextChord) params.set('next_chord', nextChord);
+
+  const resp = await fetch(`/api/chord-substitutions?${params}`);
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({ detail: 'Substitution failed' }));
+    throw new Error(body.detail ?? 'Substitution failed');
+  }
+  const data: SubstitutionResponse = await resp.json();
+  return data.substitutions;
 }

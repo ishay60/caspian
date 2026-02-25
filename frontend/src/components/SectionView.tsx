@@ -387,6 +387,15 @@ export function SectionView({ section, keyInfo, isEdited, onSectionUpdate, onCho
               <ChordDetailPanel
                 chord={section.chords[selectedChord]}
                 keyInfo={keyInfo}
+                prevChord={selectedChord > 0 ? section.chords[selectedChord - 1].symbol : undefined}
+                nextChord={selectedChord < section.chords.length - 1 ? section.chords[selectedChord + 1].symbol : undefined}
+                onApplySubstitution={onSectionUpdate ? (newChord) => {
+                  // Enter edit mode with the substitution applied
+                  const symbols = section.chords.map(c => c.symbol);
+                  symbols[selectedChord] = newChord;
+                  setEditableSymbols(symbols);
+                  setEditMode(true);
+                } : undefined}
               />
             )}
 
